@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf8 -*-
+#
 #   electrode.py: numeric tools for Paul traps
 #
 #   Copyright (C) 2011 Robert Jordens <jordens@phys.ethz.ch>
@@ -623,22 +624,22 @@ class MagtrapTestCase(unittest.TestCase):
     def test_ions_simple(self):
         self.test_shims_build()
         x = self.x0
-	n = 3
-	xi = x+np.random.randn(n)[:, None]*1e-3
-	qi = np.ones((n))*1e-3
-	xis, ois, vis = self.s.ions(xi, qi)
-	nptest.assert_almost_equal(
-		xis[np.argmin(np.abs(xis)[:, 0])], x, 4)
+        n = 3
+        xi = x+np.random.randn(n)[:, None]*1e-3
+        qi = np.ones((n))*1e-3
+        xis, ois, vis = self.s.ions(xi, qi)
+        nptest.assert_almost_equal(
+                xis[np.argmin(np.abs(xis)[:, 0])], x, 4)
 
     def test_ions_modes(self):
         self.test_shims_build()
         x = self.x0
-	n = 2
-	xi = x+np.random.randn(n)[:, None]*1e-3
-	qi = np.ones((n))*1e-3
-	xis, ois, vis = self.s.ions(xi, qi)
-	nptest.assert_almost_equal(
-		ois, [.01, .03, .085, .095, .105, .128], 2)
+        n = 2
+        xi = x+np.random.randn(n)[:, None]*1e-3
+        qi = np.ones((n))*1e-3
+        xis, ois, vis = self.s.ions(xi, qi)
+        nptest.assert_almost_equal(
+                ois, [.01, .03, .085, .095, .105, .128], 2)
 
 
 class RingtrapTestCase(unittest.TestCase):

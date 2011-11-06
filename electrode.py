@@ -1,4 +1,5 @@
 # -*- coding: utf8 -*-
+#
 #   electrode.py: numeric tools for Paul traps
 #
 #   Copyright (C) 2011 Robert Jordens <jordens@phys.ethz.ch>
@@ -1004,15 +1005,15 @@ class System(HasTraits):
                 s.append("  %.4g MHz, %s" % (fi, mi))
             s.append("  euler angles: %s" % (
                     np.array(euler_from_matrix(mj, "rxyz"))*180/np.pi))
-	xi = x+np.random.randn(2)[:, None]*1e-3
-	qi = np.ones(2)*q/(scale*l*4*np.pi*ct.epsilon_0)**.5
-	xis, cis, mis = self.ions(xi, qi)
+        xi = x+np.random.randn(2)[:, None]*1e-3
+        qi = np.ones(2)*q/(scale*l*4*np.pi*ct.epsilon_0)**.5
+        xis, cis, mis = self.ions(xi, qi)
         freqs_ppi = (scale*cis/l**2/m)**.5/(2e6*np.pi)
-	r2 = norm(xis[1]-xis[0])
-	r2a = ((q*l)**2/(2*np.pi*ct.epsilon_0*scale*curves[0]))**(1/3.)
-	s.append(" two ion modes:")
-	s.append("  separation: %.3g (%.3g µm, %.3g µm analytic)" % (
-	    r2, r2*l/1e-6, r2a/1e-6))
+        r2 = norm(xis[1]-xis[0])
+        r2a = ((q*l)**2/(2*np.pi*ct.epsilon_0*scale*curves[0]))**(1/3.)
+        s.append(" two ion modes:")
+        s.append("  separation: %.3g (%.3g µm, %.3g µm analytic)" % (
+            r2, r2*l/1e-6, r2a/1e-6))
         for fi, mi in zip(freqs_ppi, mis.transpose(2, 0, 1)):
             s.append("  %.4g MHz, %s/%s" % (fi, mi[0], mi[1]))
         return s
@@ -1052,58 +1053,58 @@ class System(HasTraits):
 
     def ions(self, x0, q):
         """find the minimum energy configuration of several ions with
-	normalized charges q and starting positions x0, return their
-	equilibrium positions and the mode frequencies and vectors"""
-	n = len(x0)
+        normalized charges q and starting positions x0, return their
+        equilibrium positions and the mode frequencies and vectors"""
+        n = len(x0)
         qs = q[:, None]*q[None, :]
 
-	def f(x0):
-	    x0 = x0.reshape(-1, 3)
-	    p0 = self.potential(x0)
-	    x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
-	    pi = .5*qs/np.ma.array(
-		    x**2+y**2+z**2)**(1/2.)
-	    return (p0+pi.sum(-1)).sum()
+        def f(x0):
+            x0 = x0.reshape(-1, 3)
+            p0 = self.potential(x0)
+            x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
+            pi = .5*qs/np.ma.array(
+                    x**2+y**2+z**2)**(1/2.)
+            return (p0+pi.sum(-1)).sum()
 
-	def g(x0):
-	    x0 = x0.reshape(-1, 3)
-	    p0 = self.gradient(x0)
-	    x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
-	    pi = qs*[x, y, z]/np.ma.array(
-		    x**2+y**2+z**2)**(3/2.)
-	    return (p0+pi.sum(-1)).T.ravel()
+        def g(x0):
+            x0 = x0.reshape(-1, 3)
+            p0 = self.gradient(x0)
+            x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
+            pi = qs*[x, y, z]/np.ma.array(
+                    x**2+y**2+z**2)**(3/2.)
+            return (p0+pi.sum(-1)).T.ravel()
 
-    	def h(x0):
-	    x0 = x0.reshape(-1, 3)
-	    x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
-	    i, j = np.indices(x.shape)
+        def h(x0):
+            x0 = x0.reshape(-1, 3)
+            x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
+            i, j = np.indices(x.shape)
             p0 = self.curvature(x0)
-	    p = expand_tensor(
-		-qs*[2*x**2-y**2-z**2, 3*x*y, 3*x*z,
-		    2*y**2-x**2-z**2, 3*y*z]/np.ma.array(
-		    x**2+y**2+z**2)**(5/2.))
-	    p = p.transpose(2, 0, 3, 1)
-	    for i, (p0i, pii) in enumerate(
-		    zip(p0.transpose(2, 0, 1), p.sum(2))):
-		p[i, :, i, :] += p0i-pii
-	    return p.reshape(p.shape[0]*p.shape[1], -1)
+            p = expand_tensor(
+                -qs*[2*x**2-y**2-z**2, 3*x*y, 3*x*z,
+                    2*y**2-x**2-z**2, 3*y*z]/np.ma.array(
+                    x**2+y**2+z**2)**(5/2.))
+            p = p.transpose(2, 0, 3, 1)
+            for i, (p0i, pii) in enumerate(
+                    zip(p0.transpose(2, 0, 1), p.sum(2))):
+                p[i, :, i, :] += p0i-pii
+            return p.reshape(p.shape[0]*p.shape[1], -1)
 
-	with np.errstate(divide="ignore", invalid="ignore"):
+        with np.errstate(divide="ignore", invalid="ignore"):
             x, e0, itf, itg, ith, warn = optimize.fmin_ncg(
-	        f=f, fprime=g, fhess=h, x0=x0.ravel(), full_output=1,
-		disp=0)
-	    #print warn
+                f=f, fprime=g, fhess=h, x0=x0.ravel(), full_output=1,
+                disp=0)
+            #print warn
             #x1, e0, e1, e2, itf, itg, warn = optimize.fmin_bfgs(
-	    #    f=f, fprime=g, x0=x0.ravel(), full_output=1, disp=1)
-	    #print (np.sort(x1)-np.sort(x))/np.sort(x)
+            #    f=f, fprime=g, x0=x0.ravel(), full_output=1, disp=1)
+            #print (np.sort(x1)-np.sort(x))/np.sort(x)
             #x2, e0, itf, itg, warn = optimize.fmin_cg(
-	    #    f=f, fprime=g, x0=x0.ravel(), full_output=1, disp=1)
-	    #print (np.sort(x2)-np.sort(x))/np.sort(x)
-	    c = h(x)
-	ew, ev = np.linalg.eigh(c)
-	i = np.argsort(ew)
-	ew, ev = ew[i], ev[i, :].reshape(n, 3, -1)
-	return x.reshape(-1, 3), ew, ev
+            #    f=f, fprime=g, x0=x0.ravel(), full_output=1, disp=1)
+            #print (np.sort(x2)-np.sort(x))/np.sort(x)
+            c = h(x)
+        ew, ev = np.linalg.eigh(c)
+        i = np.argsort(ew)
+        ew, ev = ew[i], ev[i, :].reshape(n, 3, -1)
+        return x.reshape(-1, 3), ew, ev
 
 
 class GridElectrode(Electrode):

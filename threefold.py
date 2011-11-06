@@ -84,7 +84,7 @@ def threefold(n=12, h=1/8., d=1/4., H=25/8., nmax=1, points=True):
     o = 2*np.pi*50e6
 
     for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
-	print line
+        print line
 
     n = 20
     xyz = mgrid[-d:d:1j*n, -d:d:1j*n, h:h+1]

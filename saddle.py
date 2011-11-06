@@ -1,4 +1,5 @@
 # -*- coding: utf8 -*-
+#
 #   saddle.py: Rational function optimization (RFO),
 #              a saddlepoint search method
 #
