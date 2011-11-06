@@ -24,6 +24,7 @@ import matplotlib
 matplotlib.use('Agg')
 import pylab as pl
 import multiprocessing
+from scipy import constants
 
 from transformations import euler_matrix
 from electrode import (System,
@@ -76,11 +77,10 @@ def threefold(n=12, h=1/8., d=1/4., H=25/8., nmax=1, points=True):
     s.plot_voltages(ax, u=array([1.]))
     fig.savefig("threefold_ele.pdf")
 
-    from qc.data.atoms import Mg24p
     l = 320e-6
     u = 20.
-    m = Mg24p.mass
-    q = Mg24p.charge
+    m = 24*constants.atomic_mass
+    q = 1*constants.elementary_charge
     o = 2*np.pi*50e6
 
     for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):

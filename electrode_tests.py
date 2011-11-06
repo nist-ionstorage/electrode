@@ -27,6 +27,7 @@ from scipy import constants as ct
 import multiprocessing
 
 import electrode
+from transformations import euler_matrix, euler_from_matrix
 
 
 class BasicFunctionsTestCase(unittest.TestCase):
@@ -99,7 +100,6 @@ class BasicFunctionsTestCase(unittest.TestCase):
         nptest.assert_almost_equal(d, electrode.rotate_tensor(d, dr, 4))
     
     def test_rotate_tensor_rot(self):
-        from qc.theory.transformations import euler_matrix
         r = euler_matrix(*np.random.random(3))[:3, :3]
         d = np.arange(3**3*5).reshape(3,3,3,5)
         dr = electrode.rotate_tensor(d, r, 3)
@@ -107,7 +107,6 @@ class BasicFunctionsTestCase(unittest.TestCase):
         nptest.assert_almost_equal(d, drr)
 
     def test_rotate_tensor_simple(self):
-        from qc.theory.transformations import euler_matrix
         r = euler_matrix(0, 0, np.pi/2, "sxyz")[:3, :3]
         d = np.arange(3)
         nptest.assert_almost_equal(d[(1, 0, 2), :],
@@ -330,7 +329,6 @@ class ThreefoldOptimizeTestCase(unittest.TestCase):
             return electrode.PolygonPixelElectrode(paths=list(p))
 
     def setUp(self, n=12, h=1/8., d=1/4., H=25/8., nmax=1, points=True):
-        from qc.theory.transformations import euler_matrix
         rf = self.hextess(n, points)
         rf.voltage_rf = 1.
         rf.cover_height = H
@@ -434,7 +432,6 @@ class FourWireTestCase(unittest.TestCase):
     def test_modes(self):
         o0, e0 = self.s.modes([0, 0, 1])
         nptest.assert_almost_equal(o0, [0, .1013, .1013], decimal=3)
-        from qc.theory.transformations import euler_from_matrix
         abc = np.array(euler_from_matrix(e0))/2/pi
         nptest.assert_allclose(abc, [0, 0, 0], atol=1, rtol=1e-3)
 
@@ -676,7 +673,6 @@ class RingtrapTestCase(unittest.TestCase):
     def test_modes(self):
         o0, e0 = self.s.modes([0, 0, 1])
         nptest.assert_almost_equal(o0, [.1114, .1114, .4491], decimal=3)
-        from qc.theory.transformations import euler_from_matrix
         abc = np.array(euler_from_matrix(e0))/2/pi
         nptest.assert_allclose(abc, [0, 0, 0], atol=1, rtol=1e-3)
 
