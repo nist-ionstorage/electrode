@@ -1,3 +1,23 @@
+#!/usr/bin/python
+# -*- coding: utf8 -*-
+#
+#   electrode.py: numeric tools for Paul traps
+#
+#   Copyright (C) 2011 Robert Jordens <jordens@phys.ethz.ch>
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np
 from numpy import (cos, sin, pi, array, ones, mgrid, log, arange)
 import matplotlib
@@ -5,8 +25,8 @@ matplotlib.use('Agg')
 import pylab as pl
 import multiprocessing
 
-from qc.theory.transformations import euler_matrix
-from qc.traps.electrode import (System,
+from transformations import euler_matrix
+from electrode import (System,
         PointPixelElectrode, PolygonPixelElectrode,
         PatternValueConstraint, PatternRangeConstraint)
 
@@ -24,7 +44,7 @@ def hextess(n, points=False):
             arange(pi/6, 2*pi, pi/3)[::-1]]]
         return PolygonPixelElectrode(paths=list(p))
 
-def threefold(n=120, h=1/8., d=1/4., H=25/8., nmax=1, points=True):
+def threefold(n=12, h=1/8., d=1/4., H=25/8., nmax=1, points=True):
     pool = multiprocessing.Pool()
 
     s = System()
