@@ -970,25 +970,24 @@ class System(HasTraits):
     
     def analyze_static(self, x, axis=(0, 1, 2),
             m=1., q=1., u=1., l=1., o=1.):
-        s = []
         scale = (u*q/l/o)**2/(4*m) # rf pseudopotential energy scale
         dc_scale = scale/q # dc energy scale
-        s.append("u = %.3g V, f = %.3g MHz, m = %.3g amu, "
+        yield "u = %.3g V, f = %.3g MHz, m = %.3g amu, "\
                  "q = %.3g qe, l = %.3g µm, axis=%s" % (
                 u, o/(2e6*np.pi), m/ct.atomic_mass,
-                q/ct.elementary_charge, l/1e-6, axis))
-        s.append("analyze point: %s (%s µm)" % (x, x*l/1e-6))
+                q/ct.elementary_charge, l/1e-6, axis)
+        yield "analyze point: %s (%s µm)" % (x, x*l/1e-6)
         trap = self.minimum(x, axis=axis)
-        s.append(" minimum is at offset: %s" % (trap - x))
+        yield " minimum is at offset: %s" % (trap - x)
         p_rf, p_dc = self.potential_rf(x), self.potential_dc(x)
-        s.append(" rf, dc potentials: %.2g, %.2g (%.2g eV, %.2g eV)" % (
-            p_rf, p_dc, p_rf*scale/q, p_dc*dc_scale))
+        yield " rf, dc potentials: %.2g, %.2g (%.2g eV, %.2g eV)" % (
+            p_rf, p_dc, p_rf*scale/q, p_dc*dc_scale)
         try:
             xs, xsp = self.saddle(x+1e-2, axis=axis)
-            s.append(" saddle offset, height: %s, %.2g (%.2g eV)" % (
-                xs - x, xsp - p_rf - p_dc, (xsp - p_rf - p_dc)*scale/q))
+            yield " saddle offset, height: %s, %.2g (%.2g eV)" % (
+                xs - x, xsp - p_rf - p_dc, (xsp - p_rf - p_dc)*scale/q)
         except:
-            s.append(" saddle not found")
+            yield " saddle not found"
         curves, modes_pp = self.modes(x)
         freqs_pp = (scale*curves/l**2/m)**.5/(2e6*np.pi)
         q_o2l2m = q/((l*o)**2*m)
@@ -996,27 +995,26 @@ class System(HasTraits):
                 r=3, sorted=True)
         freqs = mu[:3].imag*o/(2e6*np.pi)
         modes = b[len(b)/2-3:len(b)/2, :3].real
-        s.append(" pp+dc normal curvatures: %s" % curves)
-        s.append(" motion is bounded: %s" % np.allclose(0, mu.real))
+        yield " pp+dc normal curvatures: %s" % curves
+        yield " motion is bounded: %s" % np.allclose(0, mu.real)
         for nj, fj, mj in (("pseudopotential", freqs_pp, modes_pp),
                 ("mathieu", freqs, modes)):
-            s.append(" %s modes:" % nj)
+            yield " %s modes:" % nj
             for fi, mi in zip(fj, mj.T):
-                s.append("  %.4g MHz, %s" % (fi, mi))
-            s.append("  euler angles: %s" % (
-                    np.array(euler_from_matrix(mj, "rxyz"))*180/np.pi))
+                yield "  %.4g MHz, %s" % (fi, mi)
+            yield "  euler angles: %s" % (
+                    np.array(euler_from_matrix(mj, "rxyz"))*180/np.pi)
         xi = x+np.random.randn(2)[:, None]*1e-3
         qi = np.ones(2)*q/(scale*l*4*np.pi*ct.epsilon_0)**.5
         xis, cis, mis = self.ions(xi, qi)
         freqs_ppi = (scale*cis/l**2/m)**.5/(2e6*np.pi)
         r2 = norm(xis[1]-xis[0])
         r2a = ((q*l)**2/(2*np.pi*ct.epsilon_0*scale*curves[0]))**(1/3.)
-        s.append(" two ion modes:")
-        s.append("  separation: %.3g (%.3g µm, %.3g µm analytic)" % (
-            r2, r2*l/1e-6, r2a/1e-6))
+        yield " two ion modes:"
+        yield "  separation: %.3g (%.3g µm, %.3g µm analytic)" % (
+            r2, r2*l/1e-6, r2a/1e-6)
         for fi, mi in zip(freqs_ppi, mis.transpose(2, 0, 1)):
-            s.append("  %.4g MHz, %s/%s" % (fi, mi[0], mi[1]))
-        return s
+            yield "  %.4g MHz, %s/%s" % (fi, mi[0], mi[1])
 
     def analyze_shims(self, x, electrodes=None,
             forces=None, curvatures=None, use_modes=True):
@@ -1038,18 +1036,17 @@ class System(HasTraits):
         fx = [[fn.index(fi) for fi in fj] for fj in forces]
         cx = [[cn.index(ci) for ci in cj] for cj in curvatures]
         us, (res, rank, sing) = self.shims(x, els, fx, cx, coords)
-        s = []
-        s.append("shim analysis for points: %s" % x)
-        s.append(" forces: %s" % forces)
-        s.append(" curvatures: %s" % curvatures)
-        s.append(" matrix shape: %s, rank: %i" % (us.shape, rank))
-        s.append(" electrodes: %s" % np.array(electrodes))
+        yield "shim analysis for points: %s" % x
+        yield " forces: %s" % forces
+        yield " curvatures: %s" % curvatures
+        yield " matrix shape: %s, rank: %i" % (us.shape, rank)
+        yield " electrodes: %s" % np.array(electrodes)
         n = 0
         for i in range(len(x)):
             for ni in forces[i]+curvatures[i]:
-                s.append(" sh_%i%-2s: %s" % (i, ni, us[:, n]))
+                yield " sh_%i%-2s: %s" % (i, ni, us[:, n])
                 n += 1
-        return s, forces, curvatures, us
+        yield forces, curvatures, us
 
     def ions(self, x0, q):
         """find the minimum energy configuration of several ions with

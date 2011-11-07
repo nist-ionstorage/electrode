@@ -629,7 +629,7 @@ class MagtrapTestCase(unittest.TestCase):
         qi = np.ones((n))*1e-3
         xis, ois, vis = self.s.ions(xi, qi)
         nptest.assert_almost_equal(
-                xis[np.argmin(np.abs(xis)[:, 0])], x, 4)
+                xis[np.argmin(np.abs(xis)[:, 0])], x, 3)
 
     def test_ions_modes(self):
         self.test_shims_build()
@@ -640,6 +640,14 @@ class MagtrapTestCase(unittest.TestCase):
         xis, ois, vis = self.s.ions(xi, qi)
         nptest.assert_almost_equal(
                 ois, [.01, .03, .085, .095, .105, .128], 2)
+
+    def test_analyze_static(self):
+        s = list(self.s.analyze_static(self.x0))
+        self.assertEqual(len(s), 25)
+
+    def test_analyze_shims(self):
+        s = list(self.s.analyze_shims([self.x0]))
+        self.assertEqual(len(s), 14)
 
 
 class RingtrapTestCase(unittest.TestCase):
