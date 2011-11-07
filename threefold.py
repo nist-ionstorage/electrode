@@ -42,7 +42,7 @@ def hextess(n, points=False):
     else:
         a = 1/(3**.5*(n+.5)) # edge length
         p = x[:, None, :] + [[[a*cos(phi), a*sin(phi), 0] for phi in
-            arange(pi/6, 2*pi, pi/3)[::-1]]]
+            arange(pi/6, 2*pi, pi/3)]]
         return PolygonPixelElectrode(paths=list(p))
 
 def threefold(n=12, h=1/8., d=1/4., H=25/8., nmax=1, points=True):

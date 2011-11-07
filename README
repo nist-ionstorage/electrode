@@ -1,0 +1,10 @@
+
+
+Dependencies
+============
+
+Linux
+-----
+
+apt-get install python-cvxopt python-numpy python-matplotlib \
+                mayavi2 python-scipy python-traits

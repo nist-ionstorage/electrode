@@ -436,7 +436,7 @@ class PointPixelElectrode(PixelElectrode):
     def plot(self, ax, text=None, alpha=1., *a, **kw):
         # color="red"?
         p = self.points
-        a = (self.areas/np.pi)**.5
+        a = (self.areas/np.pi)**.5*2
         col = mpl.collections.EllipseCollection(
                 edgecolors="none", cmap=pl.cm.binary,
                 norm=pl.Normalize(0, 1.),
