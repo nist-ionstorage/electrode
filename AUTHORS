@@ -1,1 +1,15 @@
 Robert Jordens <jordens@phys.ethz.ch>
+
+
+Some algorithms are based on:
+
+Roman Schmied <roman.schmied@unibas.ch>, SurfacePattern software package.
+
+Roman Schmied: Electrostatics of gapped and finite surface electrodes.
+New Journal of Physics 12:023038 (2010).
+http://dx.doi.org/10.1088/1367-2630/12/2/023038
+
+Roman Schmied, Janus H. Wesenberg, and Dietrich Leibfried: Optimal
+Surface-Electrode Trap Lattices for Quantum Simulation with Trapped
+Ions. Physical Review Letters 102:233002 (2009).
+http://dx.doi.org/10.1103/PhysRevLett.102.233002
