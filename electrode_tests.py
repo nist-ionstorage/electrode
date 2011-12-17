@@ -126,7 +126,7 @@ class BasicFunctionsTestCase(unittest.TestCase):
     def test_mathieu(self):
         a = np.array([.005])
         q = np.array([.2**.5])
-        mu, b = electrode.mathieu(a, q, r=1)
+        mu, b = electrode.mathieu(1, a, q)
         nptest.assert_almost_equal(mu.real, 0., 9)
         mui = sorted(mu.imag[mu.imag > 0])
         nptest.assert_almost_equal(mui[0], (a+q**2/2)**.5, 2)
@@ -134,7 +134,7 @@ class BasicFunctionsTestCase(unittest.TestCase):
         n = 3
         a = np.arange(n**2).reshape(n,n)
         q = np.arange(n**2)[::-1].reshape(n,n)*10
-        mu, b = electrode.mathieu(a, q, r=3)
+        mu, b = electrode.mathieu(3, a, q)
         #nptest.assert_almost_equal(mu, [.1, .2, .3])
         #nptest.assert_almost_equal(b, )
 

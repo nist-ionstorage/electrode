@@ -213,24 +213,27 @@ def area_centroid(p1):
     return a, c
 
 
-def mathieu(a, q, r=2, sorted=True):
-    """solve the mathieu equation x'' + (a + 2 q cos(2 t)) x = 0
-    in n dimensions
-    a.shape == q.shape == (n, n)
+def mathieu(r, *a):
+    """solve the mathieu/floquet equation 
+        x'' + (a_0 + 2 a_1 cos(2 t) + 2 a_2 cos(4 t) ... ) x = 0
+    in n dimensions and with a frequency cutoff at +- r
+    a.shape == (n, n)
     returns mu eigenvalues and b eigenvectors
-    mu.shape == (2*n,) # duplicates for initial phase freedom
-    b.shape == (2*n, 2*n) # b[:, i] the eigenvector to the eigenvalue mu[i]
+    mu.shape == (2*n*(2*r+1),) # duplicates for initial phase freedom
+    b.shape == (2*n*(2*r+1), 2*n*(2*r+1))
+        # b[:, i] the eigenvector to the eigenvalue mu[i]
+    the lowest energy component is centered
     """
-    n = a.shape[0]
+    n = a[0].shape[0]
     m = np.zeros((2*(2*r+1), 2*(2*r+1), n, n), dtype=np.complex)
     for l in range(2*r+1):
         m[2*l, 2*l] = np.identity(n)*2j*(l-r)
         m[2*l, 2*l+1] = np.identity(n)
-        m[2*l+1, 2*l] = -a
         m[2*l+1, 2*l+1] = np.identity(n)*2j*(l-r)
-        if l < 2*r:
-            m[2*l+3, 2*l] = -q
-            m[2*l+1, 2*l+2] = -q
+        for i, ai in enumerate(a):
+            if l <= 2*r+1-2*i:
+                m[2*l+1, 2*l+2*i] = -ai
+                m[2*l+1+2*i, 2*l] = -ai
     m = m.transpose((0, 2, 1, 3)).reshape((2*r+1)*2*n, (2*r+1)*2*n)
     mu, b = np.linalg.eig(m)
     return mu, b
@@ -960,7 +963,7 @@ class System(HasTraits):
         c_dc, = self.get_potentials(x, "dc", 2)
         a = 4*u_dc*c_dc[..., 0]
         q = 2*u_rf*c_rf[..., 0]
-        mu, b = mathieu(a, q, r)
+        mu, b = mathieu(r, a, q)
         if sorted:
             i = mu.imag >= 0
             mu, b = mu[i], b[:, i]
@@ -989,11 +992,11 @@ class System(HasTraits):
         except:
             yield " saddle not found"
         curves, modes_pp = self.modes(x)
-        freqs_pp = (scale*curves/l**2/m)**.5/(2e6*np.pi)
+        freqs_pp = (scale*curves/l**2/m)**.5/(2*np.pi)
         q_o2l2m = q/((l*o)**2*m)
         mu, b = self.mathieu(x, u_dc=dc_scale*q_o2l2m, u_rf=u*q_o2l2m,
                 r=3, sorted=True)
-        freqs = mu[:3].imag*o/(2e6*np.pi)
+        freqs = mu[:3].imag*o/(2*np.pi)
         modes = b[len(b)/2-3:len(b)/2, :3].real
         yield " pp+dc normal curvatures: %s" % curves
         yield " motion is bounded: %s" % np.allclose(0, mu.real)
