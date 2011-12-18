@@ -971,7 +971,7 @@ class System(HasTraits):
             mu, b = mu[i], b[:, i]
         return mu/2, b
     
-    def analyze_static(self, x, axis=(0, 1, 2),
+    def analyze_static(self, x, axis=(0, 1, 2), do_ions=False,
             m=1., q=1., u=1., l=1., o=1.):
         scale = (u*q/l/o)**2/(4*m) # rf pseudopotential energy scale
         dc_scale = scale/q # dc energy scale
@@ -1004,20 +1004,33 @@ class System(HasTraits):
                 ("mathieu", freqs, modes)):
             yield " %s modes:" % nj
             for fi, mi in zip(fj, mj.T):
-                yield "  %.4g MHz, %s" % (fi, mi)
+                yield "  %.4g MHz, %s" % (fi/1e6, mi)
             yield "  euler angles: %s" % (
                     np.array(euler_from_matrix(mj, "rxyz"))*180/np.pi)
-        xi = x+np.random.randn(2)[:, None]*1e-3
-        qi = np.ones(2)*q/(scale*l*4*np.pi*ct.epsilon_0)**.5
-        xis, cis, mis = self.ions(xi, qi)
-        freqs_ppi = (scale*cis/l**2/m)**.5/(2e6*np.pi)
-        r2 = norm(xis[1]-xis[0])
-        r2a = ((q*l)**2/(2*np.pi*ct.epsilon_0*scale*curves[0]))**(1/3.)
-        yield " two ion modes:"
-        yield "  separation: %.3g (%.3g µm, %.3g µm analytic)" % (
-            r2, r2*l/1e-6, r2a/1e-6)
-        for fi, mi in zip(freqs_ppi, mis.transpose(2, 0, 1)):
-            yield "  %.4g MHz, %s/%s" % (fi, mi[0], mi[1])
+        se = sum(list(el.potential(x, 1))[0][:, 0]**2
+                for el in self.electrodes)/l**2
+        ee = sum(list(el.potential(x, 0))[0][0]**2
+                for el in self.electrodes)
+        yield " heating for 1 nV²/Hz white on each electrode:"
+        yield "  field-noise psd: %s V²/(m² Hz)" % (se*1e-9**2)
+        yield "  pot-noise psd: %s V²/Hz" % (ee*1e-9**2)
+        for fi, mi in zip(freqs_pp, modes_pp.T):
+            sej = (np.abs(mi)*se**.5).sum()**2
+            ndot = sej*q**2/(4*m*ct.h*fi)
+            yield "  %.4g MHz: ndot=%.4g/s, S_E*f=%.4g (V² Hz)/(m² Hz)" % (
+                fi/1e6, ndot*1e-9**2, sej*fi*1e-9**2)
+        if do_ions:
+            xi = x+np.random.randn(2)[:, None]*1e-3
+            qi = np.ones(2)*q/(scale*l*4*np.pi*ct.epsilon_0)**.5
+            xis, cis, mis = self.ions(xi, qi)
+            freqs_ppi = (scale*cis/l**2/m)**.5/(1e6*np.pi)
+            r2 = norm(xis[1]-xis[0])
+            r2a = ((q*l)**2/(2*np.pi*ct.epsilon_0*scale*curves[0]))**(1/3.)
+            yield " two ion modes:"
+            yield "  separation: %.3g (%.3g µm, %.3g µm analytic)" % (
+                r2, r2*l/1e-6, r2a/1e-6)
+            for fi, mi in zip(freqs_ppi, mis.transpose(2, 0, 1)):
+                yield "  %.4g MHz, %s/%s" % (fi/1e6, mi[0], mi[1])
 
     def analyze_shims(self, x, electrodes=None,
             forces=None, curvatures=None, use_modes=True):
@@ -1210,17 +1223,14 @@ class GridSystem(System):
                     (sp.number_of_components, ))
             if "_pondpot_1V1MHz1amu" in name:
                 # convert to DC electrode equivalent potential
-                data /= qe**2/(4*ct.atomic_mass*(1e6*2*np.pi)**2
+                data /= ct.elementary_charge**2/(4*ct.atomic_mass*(1e6*2*np.pi)**2
                         )/scale**2/ct.elementary_charge
                 name = name[:-len("_pondpot_1V1MHz1amu")]
             else:
                 data /= 1.
             el = GridElectrode(name=name, origin=origin/scale,
                     spacing=spacing/scale, data=data)
-            if name.startswith("RF"):
-                o.rf.append(el)
-            else:
-                o.dc.append(el)
+            o.electrodes.append(el)
         return o
 
 

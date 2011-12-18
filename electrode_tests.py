@@ -643,7 +643,7 @@ class MagtrapTestCase(unittest.TestCase):
 
     def test_analyze_static(self):
         s = list(self.s.analyze_static(self.x0))
-        self.assertEqual(len(s), 25)
+        self.assertEqual(len(s), 23)
 
     def test_analyze_shims(self):
         s = list(self.s.analyze_shims([self.x0]))
