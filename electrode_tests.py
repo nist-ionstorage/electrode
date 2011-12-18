@@ -326,7 +326,7 @@ class ThreefoldOptimizeTestCase(unittest.TestCase):
         else:
             a = 1/(3**.5*(n+.5)) # edge length
             p = x[:, None, :] + [[[a*cos(phi), a*sin(phi), 0] for phi in
-                arange(pi/6, 2*pi, pi/3)]]
+                arange(pi/6, 2*pi, pi/3)[::-1]]]
             return electrode.PolygonPixelElectrode(paths=list(p))
 
     def setUp(self, n=12, h=1/8., d=1/4., H=25/8., nmax=1, points=True):
@@ -368,7 +368,7 @@ class ThreefoldOptimizeTestCase(unittest.TestCase):
         self.setUp(points=False)
         nptest.assert_almost_equal(
                 self.rf.potential(self.x0, 1)[0][:, 0], [0, 0, 0])
-        nptest.assert_almost_equal(self.c*self.h**2, .13943, decimal=4)
+        nptest.assert_almost_equal(self.c*self.h**2, .139630, decimal=4)
 
     def test_main_saddle(self):
         s = electrode.System(electrodes=[self.rf])
