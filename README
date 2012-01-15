@@ -1,10 +1,15 @@
-
-
 Dependencies
 ============
 
 Linux
 -----
 
-apt-get install python-cvxopt python-numpy python-matplotlib \
-                mayavi2 python-scipy python-traits
+# apt-get install python-cvxopt python-numpy python-matplotlib \
+                python-scipy python-traits
+
+
+Run the notebook
+----------------
+
+$ ipython notebook --pylab inline
+and open "threefold" in your browser"
