@@ -49,7 +49,7 @@ def rfjunction(l1, l2, a1, a2, a3):
     cover_height = 150
     infp = lambda t: matrix([cos(t)*rmax, sin(t)*rmax])
     rot = lambda t: matrix([[cos(t), -sin(t)], [sin(t), cos(t)]])
-    rot3 = lambda p: __builtins__.sum(([[i*rot(t) for i in q] for q in p] for t in
+    rot3 = lambda p: reduce(lambda a,b: a+b, ([[i*rot(t) for i in q] for q in p] for t in
         (0., 2*pi/3, 4*pi/3)), [])
     els = []
     els.append(["r", rot3([

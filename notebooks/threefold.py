@@ -117,7 +117,7 @@ s, c = threefold(n, h, d, H, nmax=1, points=True)
 
 # <codecell>
 
- # optimal strength of the constraints
+# optimal strength of the constraints
 print "c*h**2*c:", h**2
 # rf field should vanish
 print "rf'/c:", s.electrode("rf").potential(x0, 1)[0][:, 0]/c
