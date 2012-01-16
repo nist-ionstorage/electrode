@@ -12,8 +12,12 @@ setup(
         description = "toolkit to develop and analyze rf surface ion traps",
         license = "GPLv3+",
         install_requires = [
-            "numpy", "scipy", "Traits", "cvxopt", "matplotlib"],
-        extras_require = {"notebooks": ["ipython>=0.12"]},
+            "numpy", "scipy", "traits>=4", "matplotlib"],
+        extras_require = {
+            "notebooks": ["ipython>=0.12"],
+            "integrate": ["qc"],
+            "optimization": ["cvxopt>=1"],
+            },
         dependency_links = [],
         packages = find_packages(),
         namespace_packages = [],

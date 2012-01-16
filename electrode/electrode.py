@@ -25,13 +25,16 @@ import pylab as pl
 import matplotlib as mpl
 from scipy import optimize, ndimage, constants as ct
 
-import cvxopt, cvxopt.modeling
-
-from enthought.traits.api import (HasTraits, Array, Float, Int, Str,
+from traits.api import (HasTraits, Array, Float, Int, Str,
         Instance, List, Bool, Property, Trait, Enum)
 
 from transformations import euler_from_matrix
 import saddle
+
+try:
+    import cvxopt, cvxopt.modeling
+except ImportError:
+    warnings.warn("cvxopt not found, optimizations will fail", ImportWarning)
 
 try:
     from qc.theory.gni import gni

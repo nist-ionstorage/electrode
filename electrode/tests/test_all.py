@@ -28,7 +28,7 @@ from scipy import constants as ct
 import multiprocessing
 
 import electrode
-from transformations import euler_matrix, euler_from_matrix
+from electrode.transformations import euler_matrix, euler_from_matrix
 
 
 class BasicFunctionsTestCase(unittest.TestCase):
