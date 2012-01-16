@@ -11,5 +11,8 @@ Linux
 Run the notebook
 ----------------
 
+Ensure you have ipython > 0.11 with ipython notebook installed, then run
+
 $ ipython notebook --pylab inline
-and open "threefold" in your browser"
+
+and open "threefold" or "rfjunction" in the browser window that appears.
