@@ -47,7 +47,7 @@ class _DummyPool(object):
                 return func(*args, **kwargs)
         return _DummyRet()
 
-_dummy_pool = _DummyPool()
+dummy_pool = _DummyPool()
 
 
 def apply_method(s, name, *args, **kwargs):
@@ -846,7 +846,7 @@ class System(HasTraits):
                 break
         return map(np.array, (t, q, p))
 
-    def effects(self, x, electrodes=None, pool=_dummy_pool):
+    def effects(self, x, electrodes=None, pool=dummy_pool):
         """
         return potential, gradient and curvature for the system at x and
         contribution of each of the specified electrodes per volt
@@ -898,7 +898,7 @@ class System(HasTraits):
         return u, (res, rank, sing)
 
     def solve(self, x, constraints, 
-            electrodes=None, verbose=True, pool=_dummy_pool):
+            electrodes=None, verbose=True, pool=dummy_pool):
         """
         optimize dc voltages at positions x to satisfy constraints.
 

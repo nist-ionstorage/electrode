@@ -1,18 +1,94 @@
+Description
+===========
+
+Electrode is a toolkit to develop and analyze RF ion traps. It can
+optimize 2D surface electrode patterns to achieve desired trapping
+properties and extract relevant parameters of the resulting geometry.
+The software also treats precomputed 3D volumetric field and potential
+data transparently.
+
+See also:
+
+[1] Roman Schmied <roman.schmied@unibas.ch>, SurfacePattern software
+package.
+http://atom.physik.unibas.ch/people/romanschmied/code/SurfacePattern.php
+
+[2] Roman Schmied: Electrostatics of gapped and finite surface
+electrodes. New Journal of Physics 12:023038 (2010).
+http://dx.doi.org/10.1088/1367-2630/12/2/023038
+
+[3] Roman Schmied, Janus H. Wesenberg, and Dietrich Leibfried: Optimal
+Surface-Electrode Trap Lattices for Quantum Simulation with Trapped
+Ions. Physical Review Letters 102:233002 (2009).
+http://dx.doi.org/10.1103/PhysRevLett.102.233002
+
+[4] A. van Oosterom and J. Strackee: The Solid Angle of a Plane
+Triangle, IEEE Transactions on Biomedical Engineering, vol. BME-30, no.
+2, pp. 125-126. (1983)
+http://dx.doi.org/10.1109/TBME.1983.325207
+
+[5] Mário H. Oliveira and José A. Miranda: Biot–Savart-like law in
+electrostatics. European Journal of Physics 22:31 (2001).
+http://dx.doi.org/10.1088/0143-0807/22/1/304
+
+
+
 Dependencies
 ============
 
-Linux
------
+Debian based GNU/Linuxes
+------------------------
 
-# apt-get install python-cvxopt python-numpy python-matplotlib \
-                python-scipy python-traits
+    # apt-get install python-cvxopt python-numpy python-matplotlib \
+                      python-scipy python-traits
+
+to use the ipython based notebooks, try
+
+    # apt-get install ipython-notebook
 
 
-Run the notebook
-----------------
+Usage
+=====
+
+Running console scripts
+-----------------------
+
+Without installing anything
+...........................
+
+Use e.g.:
+
+    $ PYTHONPATH=. python notebooks/rfjunction.py
+
+to run a script without instaling the electrode package.
+
+
+Keeping the package files editable
+..................................
+
+    # python setup.py develop
+
+installs the package into your python tree such that it can be imported
+from any script anywhere on your system. It only creates links from
+your python tree to this development tree and changes in the package
+immediately become visible.
+
+
+Full installation
+.................
+
+    # python setup.py install
+
+installs the package in your python tree by copying and compiling the
+files. After this, changes to the package files in this development tree
+become only visible if you install the package again.
+
+
+Runing the notebooks
+....................
 
 Ensure you have ipython > 0.11 with ipython notebook installed, then run
 
-$ ipython notebook --pylab inline
+    $ ipython notebook --pylab=inline --notebook-dir=notebooks --script
 
 and open "threefold" or "rfjunction" in the browser window that appears.

@@ -1,1 +1,4 @@
 *.pdf
+./build
+./dist
+./*.egg-info

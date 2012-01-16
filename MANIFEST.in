@@ -1,0 +1,2 @@
+include COPYING README AUTHORS
+include notebooks/*.ipynb
