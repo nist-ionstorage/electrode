@@ -5,7 +5,7 @@ from glob import glob
 
 setup(
         name = "electrode",
-        version = "1.0",
+        version = "1.0+dev",
         author = "Robert Jordens",
         author_email = "jordens@phys.ethz.ch",
         url = "http://launchpad.net/electrode",

@@ -49,7 +49,7 @@ def hextess(n, points=False):
     and n pixels per unit length in a hexagonal pattern
 
     if points is True, each pixel is approximated as a point
-    else each pixel is a hexagonal polygon"""
+    else each pixel is a hexagon"""
     x = vstack(array([[i+j*.5, j*3**.5*.5, 0]
         for j in range(-n-min(0, i), n-max(0, i)+1)])
         for i in range(-n, n+1))/(n+.5)
@@ -104,12 +104,18 @@ def threefold(n, h, d, H, nmax=1, points=True):
 
 # <codecell>
 
-n=12
+points=False
+n=50
 h=1/8.
 d=1/4.
 H=25/8.
-x0 = array([d/3**.5, 0, h])
-s, c = threefold(n, h, d, H, nmax=1, points=True)
+
+if True:
+    # take a simpler, approximate problem
+    n=12
+    points=True
+
+s, c = threefold(n, h, d, H, nmax=1, points=points)
 
 # <markdowncell>
 
@@ -117,6 +123,7 @@ s, c = threefold(n, h, d, H, nmax=1, points=True)
 
 # <codecell>
 
+x0 = array([d/3**.5, 0, h])
 # optimal strength of the constraints
 print "c*h**2*c:", h**2
 # rf field should vanish
@@ -168,16 +175,24 @@ ax.contour(xyz[0].reshape((n,n)), xyz[1].reshape((n,n)),
 
 # <markdowncell>
 
-# Plot the logarithmic pseudopotential in the xz plane.
+# Plot the logarithmic pseudopotential and the separatrix in the xz plane.
 
 # <codecell>
 
+xs1, ps1 = s.saddle(x0+1e-2)
+xs0, ps0 = s.saddle([0, 0, .8])
+print "main saddle:", xs0, ps0
+
 n = 30
-xyz = mgrid[-d:d:1j*n, 0:1, .5*h:3*h:1j*n]
+xyz = mgrid[-d:d:1j*n, 0:1, .7*h:3*h:1j*n]
 xyzt = xyz.transpose((1, 2, 3, 0)).reshape((-1, 3))
+p = s.potential(xyzt)
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, aspect="equal")
 ax.contour(xyz[0].reshape((n,n)), xyz[2].reshape((n,n)),
-           log(s.potential(xyzt)).reshape((n,n)),
+           log(p).reshape((n,n)),
            20, cmap=plt.cm.hot)
+ax.contour(xyz[0].reshape((n,n)), xyz[2].reshape((n,n)),
+           log(p).reshape((n,n)),
+           [log(ps0), log(ps1)], color="black")
 

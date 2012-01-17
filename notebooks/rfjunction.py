@@ -91,41 +91,18 @@ def rfjunction(l1, l2, a1, a2, a3):
     els = [(n, [c_[array(p)[:,0,:], zeros((len(p),))]
             for p in el]) for n, el in els]
     s = System()
-    # connect a rf, c rf and main rf already here
     for n, paths in els:
-        if n in ("ar", "cr", "r"):
-            s.electrodes.append(PolygonPixelElectrode(name=n, paths=paths,
-                voltage_rf=1., nmax=nmax, cover_height=cover_height))
-        elif n.endswith("r"):
-            s.electrodes.append(PolygonPixelElectrode(name=n, paths=paths,
+        s.electrodes.append(PolygonPixelElectrode(name=n, paths=paths,
                 nmax=nmax, cover_height=cover_height))
-        else:
-            s.electrodes.append(PolygonPixelElectrode(name=n, paths=paths,
-                nmax=nmax, cover_height=cover_height))
-    # join c7-11, b7-11 to a7-11
-    #for i in range(7, 12):
-    #    for a in "cb":
-    #        el = s.electrode("%s%i" % (a, i))
-    #        s.electrode("a%i" % i).paths.extend(el.paths)
-    #        s.electrodes.remove(el)
     s.electrodes.append(CoverElectrode(name="m",
         cover_height=cover_height))
     return s
-
-def channel(y):
-    """return channel minimum at y=y"""
-    x1 = s.minimum((0., y, 1.), axis=(0,))
-    x0 = s.minimum(x1, axis=(0, 2))
-    return x0
 
 # <codecell>
 
 s = rfjunction(l1=3.7321851829486046, l2=3.0921935283018334,
                 a1=1.5968461727578884, a2=0.7563967699214798,
                 a3=0.2630201367283588)
-
-# <codecell>
-
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, aspect="equal")
 ax.set_xlim((-10,10))
@@ -134,50 +111,65 @@ s.plot(ax)
 
 # <codecell>
 
-coord = array([
-    [.75**.5, .25**.5, 0], [-.25**.5, .75**.5, 0], [0, 0, 1]])
-x0ac = dot(coord, s.minimum((.65, 0, .9), axis=(0, 2),
-    coord=coord)) # ac channel center
-x0a10 = channel(s.electrode("a10").paths[0].mean(axis=0)[1])
-x0a4 = channel(s.electrode("a4").paths[0].mean(axis=0)[1])
-x0a6 = channel(s.electrode("a6").paths[0].mean(axis=0)[1])
-x0a5 = channel(s.electrode("a5").paths[0].mean(axis=0)[1])
-x0a8 = channel(s.electrode("a8").paths[0].mean(axis=0)[1])
-x0a9 = channel(s.electrode("a9").paths[0].mean(axis=0)[1])
+# connect b rf, c rf and main rf
+s.electrode("r").voltage_rf = 1
+s.electrode("br").voltage_rf = 1
+s.electrode("cr").voltage_rf = 1
+
+def channel(x):
+    """return channel minimum at x=x"""
+    x1 = s.minimum((x, tan(pi/6)*abs(x), 1.), axis=(1,))
+    x0 = s.minimum(x1, axis=(1, 2))
+    return x0
+
+xc = array(map(channel, linspace(-8, 8, 50)))
+
+plt.figure()
+_ = plt.plot(xc[:, 0], xc[:, 2])
+
+plt.figure()
+_ = plt.plot(xc[:, 0], s.potential(xc))
+
+plt.figure()
+m = map(s.modes, xc)
+om = array([mi[0] for mi in m])
+mm = array([mi[1] for mi in m])
+_ = plt.plot(xc[:, 0], om[:, 0], "r-", xc[:, 0], om[:, 1], "g-", xc[:, 0], om[:, 2], "b-")
 
 # <codecell>
 
-xc = array(map(channel, linspace(x0a10[1], x0ac[1], 50)))
+n = 100
+r = 7
+xyz = mgrid[-r:r:1j*n, -r:r:1j*n, 1:2]
+xyzt = xyz.transpose((1, 2, 3, 0)).reshape((-1, 3))
+p = s.potential(xyzt)
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1, aspect="equal")
+_ = ax.contour(xyz[0].reshape((n,n)), xyz[1].reshape((n,n)),
+           log(p).reshape((n,n)),
+           20, cmap=plt.cm.hot)
 
 # <codecell>
 
-plt.plot(xc[:, 1], xc[:, 2])
-
-# <codecell>
-
-plt.plot(xc[:, 1], s.potential(xc))
-
-# <codecell>
-
-x0 = x0a10
-els = "a7 a8 a9 a10 a11".split()
-for line in s.analyze_shims([x0], electrodes=els, use_modes=False,
-    forces=["y z".split()], curvatures=["yy yz".split()]):
-    print line
+x0a10, x0b10, x0c10 = (channel(s.electrode(e).paths[0].mean(axis=0)[0]) for e in "a10 b10 c10".split())
+x0 = x0b10
+els = "b7 b8 b9 b10 b11".split()
+for line in s.analyze_shims([x0], electrodes=els, use_modes=True,
+    forces=["x z".split()], curvatures=["xx xz".split()]):
+    if type(line) == type(""):
+        print line
 forces, curvatures, us = line
+
 # add some yy curvature
 for eli, ui in zip(els, us[:, 2]):
     s.electrode(eli).voltage_dc = .02*ui
 
-# <codecell>
-
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, aspect="equal")
-ax.set_xlim((-8,8))
-ax.set_ylim((-13,8))
+ax.set_xlim((-12,0))
+ax.set_ylim((0,8))
 s.plot_voltages(ax)
-
-# <codecell>
+ax.plot(x0[0], x0[1], "kx")
 
 l = 40e-6
 u = 27.
@@ -189,4 +181,44 @@ dc_scale = scale/q # dc energy scale
 
 for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
     print line
+    
+# undo yy curvature at x0
+for eli, ui in zip(els, us[:, 2]):
+    s.electrode(eli).voltage_dc = .0
+
+# <codecell>
+
+x0 = channel(0.) # center of b-c channel
+els = "a1 a2 a3 b1 b2 b3 b4 b5 c1 c2 c3 c4 c5".split()
+for line in s.analyze_shims([x0], electrodes=els, use_modes=True,
+    forces=["x y z".split()], curvatures=["xx yy xy xz yz".split()]):
+    if type(line) == type(""):
+        print line
+forces, curvatures, us = line
+
+# add some xx curvature
+for eli, ui in zip(els, us[:, 3]):
+    s.electrode(eli).voltage_dc = .02*ui
+
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1, aspect="equal")
+ax.set_xlim((-6,6))
+ax.set_ylim((-3,5))
+s.plot_voltages(ax)
+ax.plot(x0[0], x0[1], "kx")
+
+l = 40e-6
+u = 27.
+m = 24*constants.atomic_mass
+q = 1*constants.elementary_charge
+o = 2*pi*55e6
+scale = (u*q/l/o)**2/(4*m) # rf pseudopotential energy scale
+dc_scale = scale/q # dc energy scale
+
+for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
+    print line
+    
+# undo yy curvature at x0
+for eli, ui in zip(els, us[:, 2]):
+    s.electrode(eli).voltage_dc = .0
 
