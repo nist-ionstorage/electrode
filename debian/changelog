@@ -1,0 +1,5 @@
+python-electrode (0.1-1) unstable; urgency=low
+
+  * Initial packaging
+
+ -- Robert Jordens <jordens@phys.ethz.ch>  Sat, 25 Feb 2012 18:19:49 -0700

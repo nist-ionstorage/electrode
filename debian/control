@@ -1,0 +1,46 @@
+Source: python-electrode
+Section: python
+Priority: optional
+Maintainer: Robert Jordens <jordens@phys.ethz.ch>
+Build-Depends: cdbs,
+ python-central (>= 0.6.0),
+ python,
+ python-setuptools,
+ debhelper (>= 5)
+XS-Python-Version: >=2.5
+Standards-Version: 3.9.1.0
+
+Package: python-electrode
+Architecture: all
+XB-Python-Version: ${python:Versions}
+Depends: ${misc:Depends}, ${python:Depends}
+Description: Numeric tools for RF ion traps
+ Electrode is a toolkit to develop and analyze RF ion traps. It
+ can optimize 2D surface electrode patterns to achieve desired
+ trapping properties and extract relevant parameters of the
+ resulting geometry. The software also treats precomputed 3D
+ volumetric field and potential data transparently.
+ .
+ See also:
+ .
+ Roman Schmied <roman.schmied@unibas.ch>, SurfacePattern
+ software package.
+ http://atom.physik.unibas.ch/people/romanschmied/code/SurfacePattern.php
+ .
+ Roman Schmied: Electrostatics of gapped and finite surface
+ electrodes. New Journal of Physics 12:023038 (2010).
+ http://dx.doi.org/10.1088/1367-2630/12/2/023038
+ .
+ Roman Schmied, Janus H. Wesenberg, and Dietrich Leibfried:
+ Optimal Surface-Electrode Trap Lattices for Quantum Simulation
+ with Trapped Ions. Physical Review Letters 102:233002 (2009).
+ http://dx.doi.org/10.1103/PhysRevLett.102.233002
+ .
+ A. van Oosterom and J. Strackee: The Solid Angle of a Plane
+ Triangle, IEEE Transactions on Biomedical Engineering, vol.
+ BME-30, no. 2, pp. 125-126. (1983)
+ http://dx.doi.org/10.1109/TBME.1983.325207
+ .
+ Mário H. Oliveira and José A. Miranda: Biot–Savart-like law
+ in electrostatics. European Journal of Physics 22:31 (2001).
+ http://dx.doi.org/10.1088/0143-0807/22/1/304
