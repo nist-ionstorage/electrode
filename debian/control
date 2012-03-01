@@ -11,7 +11,6 @@ Standards-Version: 3.9.3
 
 Package: python-electrode
 Architecture: all
-XB-Python-Version: ${python:Versions}
 Depends: ${misc:Depends}, ${python:Depends}
 Provides: ${python:Provides}
 Description: Numeric tools for RF ion traps
