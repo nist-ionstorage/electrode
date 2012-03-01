@@ -2,18 +2,18 @@ Source: python-electrode
 Section: python
 Priority: optional
 Maintainer: Robert Jordens <jordens@phys.ethz.ch>
-Build-Depends: cdbs,
- python-central (>= 0.6.0),
- python,
+Build-Depends: cdbs (>= 0.4.90~),
+ python (>= 2.6.6-3~),
  python-setuptools,
  debhelper (>= 5)
 XS-Python-Version: >=2.5
-Standards-Version: 3.9.1.0
+Standards-Version: 3.9.3
 
 Package: python-electrode
 Architecture: all
 XB-Python-Version: ${python:Versions}
 Depends: ${misc:Depends}, ${python:Depends}
+Provides: ${python:Provides}
 Description: Numeric tools for RF ion traps
  Electrode is a toolkit to develop and analyze RF ion traps. It
  can optimize 2D surface electrode patterns to achieve desired
