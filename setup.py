@@ -24,7 +24,7 @@ from glob import glob
 
 setup(
         name = "electrode",
-        version = "1.1",
+        version = "1.1+dev",
         author = "Robert Jordens",
         author_email = "jordens@phys.ethz.ch",
         url = "http://launchpad.net/electrode",
