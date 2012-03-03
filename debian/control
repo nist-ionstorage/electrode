@@ -12,6 +12,8 @@ Standards-Version: 3.9.3
 Package: python-electrode
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}
+Recommends: mayavi2 (>= 4), python-cvxopt (>= 1),
+ ipython-notebook (>= 0.12), 
 Provides: ${python:Provides}
 Description: Numeric tools for RF ion traps
  Electrode is a toolkit to develop and analyze RF ion traps. It

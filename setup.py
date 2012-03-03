@@ -17,6 +17,7 @@ setup(
             "notebooks": ["ipython>=0.12"],
             "integrate": ["qc"],
             "optimization": ["cvxopt>=1"],
+            "visualization": ["mayavi>4"],
             },
         dependency_links = [],
         packages = find_packages(),
