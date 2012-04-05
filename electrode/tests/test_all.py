@@ -34,7 +34,7 @@ from electrode.transformations import euler_matrix, euler_from_matrix
 class BasicFunctionsTestCase(unittest.TestCase):
     def test_dummy_pool(self):
         f = lambda x, y=1, *a, **k: (x, y, a, k)
-        r = electrode.dummy_pool.apply_async(f, (2, 3, 4), {"a": 5})
+        r = electrode.electrode._dummy_pool.apply_async(f, (2, 3, 4), {"a": 5})
         self.assertEqual(r.get(), (2, 3, (4,), {"a": 5}))
 
     def test_apply_method(self):
@@ -439,7 +439,7 @@ class FourWireTestCase(unittest.TestCase):
     def test_parallel(self):
         n = 10
         xyz = np.mgrid[-1:1:1j*n, -1:1:1j*n, .5:1.5:1j*n]
-        r = self.s.parallel(electrode.dummy_pool, *xyz)
+        r = self.s.parallel(electrode.electrode._dummy_pool, *xyz)
 
     def test_parallel_pool(self):
         import multiprocessing

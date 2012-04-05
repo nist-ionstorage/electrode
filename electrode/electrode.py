@@ -50,7 +50,7 @@ class _DummyPool(object):
                 return func(*args, **kwargs)
         return _DummyRet()
 
-dummy_pool = _DummyPool()
+_dummy_pool = _DummyPool()
 
 
 def apply_method(s, name, *args, **kwargs):
@@ -218,13 +218,13 @@ def area_centroid(p1):
 
 def mathieu(r, *a):
     """solve the mathieu/floquet equation 
-        x'' + (a_0 + 2 a_1 cos(2 t) + 2 a_2 cos(4 t) ... ) x = 0
+        x'' + (2 a_0 + 2 a_1 cos(2 t) + 2 a_2 cos(4 t) ... ) x = 0
     in n dimensions and with a frequency cutoff at +- r
     a.shape == (n, n)
     returns mu eigenvalues and b eigenvectors
     mu.shape == (2*n*(2*r+1),) # duplicates for initial phase freedom
     b.shape == (2*n*(2*r+1), 2*n*(2*r+1))
-        # b[:, i] the eigenvector to the eigenvalue mu[i]
+    b[:, i] the eigenvector to the eigenvalue mu[i]
     the lowest energy component is centered
     """
     n = a[0].shape[0]
@@ -849,7 +849,7 @@ class System(HasTraits):
                 break
         return map(np.array, (t, q, p))
 
-    def effects(self, x, electrodes=None, pool=dummy_pool):
+    def effects(self, x, electrodes=None, pool=_dummy_pool):
         """
         return potential, gradient and curvature for the system at x and
         contribution of each of the specified electrodes per volt
@@ -901,7 +901,7 @@ class System(HasTraits):
         return u, (res, rank, sing)
 
     def solve(self, x, constraints, 
-            electrodes=None, verbose=True, pool=dummy_pool):
+            electrodes=None, verbose=True, pool=_dummy_pool):
         """
         optimize dc voltages at positions x to satisfy constraints.
 
@@ -964,7 +964,7 @@ class System(HasTraits):
         fourier components"""
         c_rf, = self.get_potentials(x, "rf", 2)
         c_dc, = self.get_potentials(x, "dc", 2)
-        a = 4*u_dc*c_dc[..., 0]
+        a = 2*u_dc*c_dc[..., 0] # mathieu(*a) takes each ai *2!
         q = 2*u_rf*c_rf[..., 0]
         mu, b = mathieu(r, a, q)
         if sorted:
@@ -1218,6 +1218,7 @@ class GridSystem(System):
             spacing = sg.spacing
             origin = sg.origin
             dimensions = sg.dimensions
+            # print name, spacing, origin, dimensions
             if sp.number_of_components == 1:
                 data = data.reshape(dimensions[::-1]).transpose(2, 1, 0)
             else:
@@ -1288,8 +1289,9 @@ class VoltageConstraint(Constraint):
                          # the end by mirror-extending them
     weight = 1.
     equal = False
+    factor = Float(1.)
     range = Trait(None, None, Float) # offset (use with weight=0,
-                                         # equal=False, norm="none")
+                                     # equal=False, norm="none")
     variable = Trait(None, None, Int) # apply only to the given
                                       # electrode index
 
@@ -1339,7 +1341,7 @@ class VoltageConstraint(Constraint):
                 v = cvxopt.modeling.sum(v)
             if self.range is not None:
                 v = v - self.range
-            yield v
+            yield v*self.factor
 
 
 class SymmetryConstraint(SingleIndexConstraint):
