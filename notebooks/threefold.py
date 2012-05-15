@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# <nbformat>2</nbformat>
+# <nbformat>3</nbformat>
 
 # <markdowncell>
 
@@ -195,4 +195,7 @@ ax.contour(xyz[0].reshape((n,n)), xyz[2].reshape((n,n)),
 ax.contour(xyz[0].reshape((n,n)), xyz[2].reshape((n,n)),
            log(p).reshape((n,n)),
            [log(ps0), log(ps1)], color="black")
+
+# <codecell>
+
 
