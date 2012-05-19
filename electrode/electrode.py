@@ -524,10 +524,6 @@ class PolygonPixelElectrode(PixelElectrode):
         r2 = np.roll(r1, -1, axis=0)
         l2 = (x1-x2)**2+(y1-y2)**2
         if 0 in d:
-            #yield np.angle((x1-1j*y1)*(l2-(x1+1j*y1)*((x1-x2)-1j*(y1-y2)))*
-            #    ((x1-x2)+1j*(y1-y2))*(1j*r1*(x1*y2-x2*y1)+
-            #    (x1*(x1-x2)+y1*(y1-y2))*z)*(1j*r2*(x1*y2-x2*y1)+
-            #    (l2-x1*(x1-x2)-y1*(y1-y2))*z)).sum(axis=0)/(2*np.pi)
             zs = np.abs(z)
             yield np.arctan2(z*(x1*y2-y1*x2),
                     zs*(r1*r2+x1*x2+y1*y2+zs*(zs+r1+r2))).sum(axis=0)/np.pi
