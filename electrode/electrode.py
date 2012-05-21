@@ -21,15 +21,15 @@
 import itertools, sys, warnings
 
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy import optimize, ndimage, constants as ct
 
 from traits.api import (HasTraits, Array, Float, Int, Str,
         Instance, List, Bool, Property, Trait, Enum)
 
-from transformations import euler_from_matrix
-import saddle
+from .transformations import euler_from_matrix
+from .saddle import rfo
 
 try:
     import cvxopt, cvxopt.modeling
@@ -40,7 +40,6 @@ try:
     from qc.theory.gni import gni
 except ImportError:
     warnings.warn("qc modules not found, some stuff will fail", ImportWarning)
-
 
 
 class _DummyPool(object):
@@ -62,87 +61,6 @@ def apply_method(s, name, *args, **kwargs):
 
 def norm(a, axis=-1):
     return np.sqrt(np.square(a).sum(axis=axis))
-
-def dot(a, b, axis=-1):
-    return np.multiply(a, b).sum(axis=axis)
-
-def triple(a, b, c, axis=-1):
-    return dot(a, np.cross(b, c, axis=axis), axis=axis)
-
-
-def wrap_x_loop(f):
-    """return a version of f which internally does not vectorize over
-    the first dimension of the first argument
-    for speed and memory testing"""
-    def x_loop(x, *a):
-        return np.array([f(xi[None, :], *a) for xi in x])
-    return x_loop
-
-#@wrap_x_loop
-def field(X, P):
-    """
-    Biot-Savart type integral.
-    Returns field (a N,3 array) at points X (a N,3 array
-    of points) given the piecewise linear path P (a M,3 array of
-    points on the path, subsequent points denote edges)
-
-    For surface electrodes this is the field at X per volt on the
-    electrode described by the path P (counterclockwise from above, the
-    rest of the plane is grounded).
-
-    N*M in time and memory
-
-    Electrostatics of surface-electrode ion traps
-    J. H. Wesenberg, Phys Rev A 78, 063410 2008
-
-    (and others)
-
-    Compact expressions for the Biot-Savart fields of a filamentary
-    segment. Hanson, James D. Hirshman, Steven P.
-    Physics of Plasmas, Volume 9, Issue 10, pp. 4410-4412 (2002).
-    """
-    D = np.roll(P, -1, axis=0) - P # line element vectors
-    l = norm(D) # line element lengths
-    E = D/l[:, None] # normalized line elements
-    I = X-P[:, None] # from X to initial point on line elements
-    A = np.cross(E[:, None], I) # e cross Ri
-    i = norm(I) # lengths of Ri
-    f = np.roll(i, -1, axis=0) # lengths of Rf
-    eps = l[:, None]/(i+f) # eccentricity of Ri,Rf ellipse through X
-    b = eps/(1-eps**2)/(i*f) # fprime(eps)/(ri+rf)/2
-    return (A*b[:, :, None]).sum(axis=0)/np.pi
-
-#@wrap_x_loop
-def potential(X, P):
-    """
-    Returns potential (a N, array) at points X (a N,3 array
-    of points) given the piecewise linear path P (a M,3 array of
-    points on the path)
-
-    For surface electrodes this is the electrostatic potential at X per
-    volt on the electrode described by the path P (counterclockwise
-    from above, the rest of the plane is grounded).
-
-    N*M in time and memory
-
-    Van Oosterom, A.; Strackee, J.; "The Solid Angle of a Plane
-    Triangle", IEEE Transactions on Biomedical Engineering,
-    vol. BME-30, no.2, pp.125-126, Feb. 1983
-    """
-    # P1, P2, P3 are vectors from X to the corners of the patch triangles
-    # P1 is arbitrarily taken to be the origin
-    # p1, p2, p3 is their respective length
-    P1 = P[:, None, :] - X[None, :, :]
-    p1 = norm(P1)
-    P2 = np.roll(P1, -1, axis=0)
-    p2 = np.roll(p1, -1, axis=0)
-    P3 = -X[None, :, :]
-    # P3 += P.mean(axis=0)[None, None, :] # mean of corners
-    p3 = norm(P3)
-    n = triple(P1, P2, P3)
-    d = p1*p2*p3 + dot(P1, P2)*p3 + dot(P1, P3)*p2 + dot(P2, P3)*p1
-    return np.arctan2(n, d).sum(axis=0)/np.pi
-
 
 def expand_tensor(c):
     """from the minimal linearly independent entries of a derivative of
@@ -444,8 +362,8 @@ class PointPixelElectrode(PixelElectrode):
         p = self.points
         a = (self.areas/np.pi)**.5*2
         col = mpl.collections.EllipseCollection(
-                edgecolors="none", cmap=pl.cm.binary,
-                norm=pl.Normalize(0, 1.),
+                edgecolors="none", cmap=plt.cm.binary,
+                norm=plt.Normalize(0, 1.),
                 widths=a, heights=a, units="x", # xy in matplotlib>r8111
                 angles=np.zeros(a.shape),
                 offsets=p[:, (0, 1)], transOffset=ax.transData)
@@ -796,7 +714,7 @@ class System(HasTraits):
         h = rotate_tensor(self.curvature(np.dot(coord, x)),
                 coord.T)[axis, :][:, axis, 0]
         # rational function optimization
-        xs, p, ret = saddle.rfo(f, g, np.array(x0)[:, axis], h=h, **kwargs)
+        xs, p, ret = rfo(f, g, np.array(x0)[:, axis], h=h, **kwargs)
         if not ret in ("ftol", "xtol"):
             raise ValueError, (x0, axis, x, xs, p, ret)
         # f(xs) # update x

@@ -47,16 +47,6 @@ class BasicFunctionsTestCase(unittest.TestCase):
         self.assertEqual(electrode.norm([1,2,3.]), 14**.5)
         self.assertEqual(electrode.norm([[1,2,3.]], 1), 14**.5)
 
-    def test_dot(self):
-        self.assertEqual(electrode.dot([1,2,3], [4,5,6]), 32)
-        self.assertEqual(electrode.dot([[1,2,3]], [[4,5,6]], 1), 32)
-
-    def test_triple(self):
-        self.assertEqual(electrode.triple([1,2,3], [4,5,6], [7,8,10]),
-                -3)
-        self.assertEqual(electrode.triple([[1,2,3]], [[4,5,6]],
-            [[7,8,10]], 1), -3)
-
     def test_expand_tensor(self):
         a = np.array([1, 2, 3.])[:, None]
         nptest.assert_equal(electrode.expand_tensor(a), a)
@@ -278,20 +268,6 @@ class PolygonTestCase(unittest.TestCase):
 
     def test_orientation(self):
         nptest.assert_almost_equal(self.e.orientations(), [1.])
-
-    def test_simple_pot(self):
-        for zi in 3, -3:
-            nptest.assert_almost_equal(
-                    self.e.electrical_potential([1, 2, zi]),
-                    electrode.potential(np.array([1, 2, zi])[None,:],
-                        self.e.paths[0][::-1]))
-         
-    def test_simple_field(self):
-        for zi in 3, -3:
-            nptest.assert_almost_equal(
-                    self.e.electrical_gradient([1, 2, zi]),
-                    electrode.field([1, 2, zi],
-                        self.e.paths[0][::-1]).T)
 
     def test_known_pot(self):
         nptest.assert_almost_equal(
