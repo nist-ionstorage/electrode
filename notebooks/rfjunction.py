@@ -32,8 +32,8 @@ from numpy import *
 from matplotlib import pyplot as plt
 from scipy import constants
 from electrode.transformations import euler_matrix
-from electrode import (System, CoverElectrode,
-        PolygonPixelElectrode)
+from electrode.system import System
+from electrode.electrode import CoverElectrode, PolygonPixelElectrode
     
 set_printoptions(precision=2)
 
