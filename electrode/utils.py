@@ -20,6 +20,7 @@
 
 import numpy as np
 
+
 def apply_method(s, name, *args, **kwargs):
     """small helper to work around non-picklable
     instance methods and allow them to be called by multiprocessing
@@ -31,6 +32,7 @@ def norm(a, axis=-1):
     """special version of np.linalg.norm() that only covers the
     specified axis"""
     return np.sqrt(np.square(a).sum(axis=axis))
+
 
 def expand_tensor(c):
     """from the minimal linearly independent entries of a derivative of
@@ -130,4 +132,9 @@ def mathieu(r, *a):
     return mu, b
 
 
-
+class DummyPool(object):
+    def apply_async(self, func, args=(), kwargs={}):
+        class _DummyRet(object):
+            def get(self):
+                return func(*args, **kwargs)
+        return _DummyRet()

@@ -17,7 +17,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 import warnings, itertools
 
 import numpy as np
@@ -39,17 +38,9 @@ from .transformations import euler_from_matrix
 from .saddle import rfo
 from .electrode import Electrode
 from .utils import (select_tensor, expand_tensor, norm, rotate_tensor,
-    apply_method, mathieu)
+    apply_method, mathieu, DummyPool)
 
-
-class _DummyPool(object):
-    def apply_async(self, func, args=(), kwargs={}):
-        class _DummyRet(object):
-            def get(self):
-                return func(*args, **kwargs)
-        return _DummyRet()
-
-_dummy_pool = _DummyPool()
+_dummy_pool = DummyPool()
 
 
 class System(HasTraits):

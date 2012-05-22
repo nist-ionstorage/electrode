@@ -27,96 +27,96 @@ from numpy import (cos, sin, pi, tan, array, matrix, mgrid, dot, arange,
 from scipy import constants as ct
 import multiprocessing
 
-import electrode
-from electrode.transformations import euler_matrix, euler_from_matrix
+from electrode import (transformations, utils, electrode, system,
+    pattern_constraints)
 
 
-class BasicFunctionsTestCase(unittest.TestCase):
+class BasicFunctionsCase(unittest.TestCase):
     def test_dummy_pool(self):
         f = lambda x, y=1, *a, **k: (x, y, a, k)
-        r = electrode.system._dummy_pool.apply_async(f, (2, 3, 4), {"a": 5})
+        r = system._dummy_pool.apply_async(f, (2, 3, 4), {"a": 5})
         self.assertEqual(r.get(), (2, 3, (4,), {"a": 5}))
 
     def test_apply_method(self):
         class C:
             def m(self, a):
                 return a
-        self.assertEqual(electrode.apply_method(C(), "m", 1), 1)
+        self.assertEqual(utils.apply_method(C(), "m", 1), 1)
 
     def test_norm(self):
-        self.assertEqual(electrode.norm([1,2,3.]), 14**.5)
-        self.assertEqual(electrode.norm([[1,2,3.]], 1), 14**.5)
+        self.assertEqual(utils.norm([1,2,3.]), 14**.5)
+        self.assertEqual(utils.norm([[1,2,3.]], 1), 14**.5)
 
     def test_expand_tensor(self):
         a = np.array([1, 2, 3.])[:, None]
-        nptest.assert_equal(electrode.expand_tensor(a), a)
+        nptest.assert_equal(utils.expand_tensor(a), a)
         b = np.array([1, 2, 3, 4, 5])[:, None]
         b1 = np.array([1, 2, 3, 2, 4, 5, 3, 5, -5] # triu
                 )[:, None].reshape((3, 3, 1))
-        nptest.assert_equal(electrode.expand_tensor(b), b1)
+        nptest.assert_equal(utils.expand_tensor(b), b1)
         c = np.random.random(5)[:, None]
         ti, tj = np.triu_indices(3)
-        ce = electrode.expand_tensor(c)[ti, tj]
+        ce = utils.expand_tensor(c)[ti, tj]
         nptest.assert_equal(ce[:5], c)
         nptest.assert_equal(ce[5], -c[0]-c[3])
     
     def test_expand_select_tensor(self):
         for n in 3, 5, 7:
             d = np.random.random(n)[:, None]
-            de = electrode.expand_tensor(d)
-            ds = electrode.select_tensor(de)
+            de = utils.expand_tensor(d)
+            ds = utils.select_tensor(de)
             nptest.assert_equal(d, ds)
 
     def test_expand_tensor_trace(self):
         d = np.random.random(5)[:, None]
-        de = electrode.expand_tensor(d)
+        de = utils.expand_tensor(d)
         nptest.assert_equal(de.trace(), 0)
         d = np.random.random(7)[:, None]
-        de = electrode.expand_tensor(d)
+        de = utils.expand_tensor(d)
         nptest.assert_almost_equal(de.trace(), np.zeros((3,1)))
 
     def test_rotate_tensor_identity(self):
         dr = np.identity(3)
         d = np.arange(3).reshape((3,))
-        nptest.assert_almost_equal(d, electrode.rotate_tensor(d, dr, 1))
+        nptest.assert_almost_equal(d, utils.rotate_tensor(d, dr, 1))
         d = np.arange(3**2).reshape((3,3))
-        nptest.assert_almost_equal(d, electrode.rotate_tensor(d, dr, 2))
+        nptest.assert_almost_equal(d, utils.rotate_tensor(d, dr, 2))
         d = np.arange(3**3).reshape(3,3,3)
-        nptest.assert_almost_equal(d, electrode.rotate_tensor(d, dr, 3))
+        nptest.assert_almost_equal(d, utils.rotate_tensor(d, dr, 3))
         d = np.arange(3**4).reshape(3,3,3,3)
-        nptest.assert_almost_equal(d, electrode.rotate_tensor(d, dr, 4))
+        nptest.assert_almost_equal(d, utils.rotate_tensor(d, dr, 4))
         d = np.arange(3**2*5).reshape(3,3,5)
-        nptest.assert_almost_equal(d, electrode.rotate_tensor(d, dr, 2))
+        nptest.assert_almost_equal(d, utils.rotate_tensor(d, dr, 2))
         d = np.arange(3**4*5).reshape(3,3,3,3,5)
-        nptest.assert_almost_equal(d, electrode.rotate_tensor(d, dr, 4))
+        nptest.assert_almost_equal(d, utils.rotate_tensor(d, dr, 4))
     
     def test_rotate_tensor_rot(self):
-        r = euler_matrix(*np.random.random(3))[:3, :3]
+        r = transformations.euler_matrix(*np.random.random(3))[:3, :3]
         d = np.arange(3**3*5).reshape(3,3,3,5)
-        dr = electrode.rotate_tensor(d, r, 3)
-        drr = electrode.rotate_tensor(dr, r.T, 3)
+        dr = utils.rotate_tensor(d, r, 3)
+        drr = utils.rotate_tensor(dr, r.T, 3)
         nptest.assert_almost_equal(d, drr)
 
     def test_rotate_tensor_simple(self):
-        r = euler_matrix(0, 0, np.pi/2, "sxyz")[:3, :3]
+        r = transformations.euler_matrix(0, 0, np.pi/2, "sxyz")[:3, :3]
         d = np.arange(3)
         nptest.assert_almost_equal(d[(1, 0, 2), :],
-                electrode.rotate_tensor(d, r, 1))
+                utils.rotate_tensor(d, r, 1))
         d = np.arange(9).reshape(3,3)
         nptest.assert_almost_equal([[4, -3, 5], [-1, 0, -2], [7, -6, 8]],
-                electrode.rotate_tensor(d, r, 2))
+                utils.rotate_tensor(d, r, 2))
 
     def test_centroid_area(self):
         p = np.array([[1, 0, 0], [2, 3, 0], [2, 7, 0], [3, 8, 0],
             [-2, 8, 0], [-5, 2, 0]])
-        a, c = electrode.area_centroid(p)
+        a, c = utils.area_centroid(p)
         nptest.assert_almost_equal(a, 40)
         nptest.assert_almost_equal(c, [-1, 4, 0])
 
     def test_mathieu(self):
         a = np.array([.005])
         q = np.array([.2**.5])
-        mu, b = electrode.mathieu(1, a, q)
+        mu, b = utils.mathieu(1, a, q)
         nptest.assert_almost_equal(mu.real, 0., 9)
         mui = sorted(mu.imag[mu.imag > 0])
         nptest.assert_almost_equal(mui[0], (a+q**2/2)**.5, 2)
@@ -124,12 +124,12 @@ class BasicFunctionsTestCase(unittest.TestCase):
         n = 3
         a = np.arange(n**2).reshape(n,n)
         q = np.arange(n**2)[::-1].reshape(n,n)*10
-        mu, b = electrode.mathieu(3, a, q)
+        mu, b = utils.mathieu(3, a, q)
         #nptest.assert_almost_equal(mu, [.1, .2, .3])
         #nptest.assert_almost_equal(b, )
 
 
-class CoverTestCase(unittest.TestCase):
+class CoverCase(unittest.TestCase):
     def setUp(self):
         self.c = electrode.CoverElectrode(voltage_dc=2,
                 cover_height=20)
@@ -150,7 +150,7 @@ class CoverTestCase(unittest.TestCase):
         nptest.assert_almost_equal(self.c.orientations(), [1.])
 
 
-class LargeElectrodeTestCase(unittest.TestCase):
+class LargeElectrodeCase(unittest.TestCase):
     def setUp(self):
         r = 1e9
         self.e = electrode.PolygonPixelElectrode(paths=[[
@@ -212,7 +212,7 @@ class LargeElectrodeTestCase(unittest.TestCase):
         nptest.assert_almost_equal(self.e.orientations(), [1.])
 
 
-class PixelElectrodeTestCase(unittest.TestCase):
+class PixelElectrodeCase(unittest.TestCase):
     def setUp(self):
         self.r = r = 4e-5
         self.p = electrode.PolygonPixelElectrode(paths=[[
@@ -259,7 +259,7 @@ class PixelElectrodeTestCase(unittest.TestCase):
         nptest.assert_almost_equal(self.p.orientations(), [1.])
 
 
-class PolygonTestCase(unittest.TestCase):
+class PolygonCase(unittest.TestCase):
     def setUp(self):
         p = np.array([[1, 0, 0], [2, 3, 0], [2, 7, 0], [3, 8, 0],
             [-2, 8, 0], [-5, 2, 0]])
@@ -281,7 +281,7 @@ class PolygonTestCase(unittest.TestCase):
 
     def test_known_curve(self):
         nptest.assert_almost_equal(
-                electrode.select_tensor(
+                utils.select_tensor(
                     self.e.electrical_curvature([1,2,3]))[:, 0],
                 [-0.0196946, -0.00747322, 0.0287624, -0.014943, -0.0182706])
 
@@ -291,7 +291,7 @@ class PolygonTestCase(unittest.TestCase):
                 [-0.0196946, -0.00747322, 0.0287624, -0.014943, -0.0182706])
 
 
-class ThreefoldOptimizeTestCase(unittest.TestCase):
+class ThreefoldOptimizeCase(unittest.TestCase):
     def hextess(self, n, points=False):
         x = array(sum(([array([i+j*.5, j*3**.5*.5, 0])/(n+.5)
             for j in range(-n-min(0, i), n-max(0, i)+1)]
@@ -313,19 +313,19 @@ class ThreefoldOptimizeTestCase(unittest.TestCase):
         self.rf = rf
 
         ct = []
-        ct.append(electrode.PatternRangeConstraint(min=0, max=1.))
+        ct.append(pattern_constraints.PatternRangeConstraint(min=0, max=1.))
         for p in 0, 4*pi/3, 2*pi/3:
             x = array([d/3**.5*cos(p), d/3**.5*sin(p), h])
-            r = euler_matrix(p, pi/2, pi/4, "rzyz")[:3, :3]
-            ct.append(electrode.PatternValueConstraint(d=1, x=x, r=r,
+            r = transformations.euler_matrix(p, pi/2, pi/4, "rzyz")[:3, :3]
+            ct.append(pattern_constraints.PatternValueConstraint(d=1, x=x, r=r,
                 v=[0, 0, 0]))
-            ct.append(electrode.PatternValueConstraint(d=2, x=x, r=r,
+            ct.append(pattern_constraints.PatternValueConstraint(d=2, x=x, r=r,
                 v=2**(-1/3.)*np.eye(3)*[1, 1, -2]))
         rf.pixel_factors, self.c = rf.optimize(ct, verbose=False)
         self.h = h
         
         self.x0 = array([d/3**.5, 0, h])
-        self.r = euler_matrix(0, pi/2, pi/4, "rzyz")[:3, :3]
+        self.r = transformations.euler_matrix(0, pi/2, pi/4, "rzyz")[:3, :3]
 
     def test_factor(self):
         nptest.assert_almost_equal(self.c*self.h**2, .159853, decimal=2)
@@ -335,7 +335,7 @@ class ThreefoldOptimizeTestCase(unittest.TestCase):
                 self.rf.potential(self.x0, 1)[0][:, 0], [0, 0, 0])
 
     def test_curve(self):
-        c = electrode.rotate_tensor(self.rf.potential(self.x0,
+        c = utils.rotate_tensor(self.rf.potential(self.x0,
             2)[0]/self.c, self.r)
         nptest.assert_almost_equal(c[:, :, 0],
             2**(-1/3.)*np.eye(3)*[1, 1, -2])
@@ -347,13 +347,13 @@ class ThreefoldOptimizeTestCase(unittest.TestCase):
         nptest.assert_almost_equal(self.c*self.h**2, .13943, decimal=4)
 
     def test_main_saddle(self):
-        s = electrode.System(electrodes=[self.rf])
+        s = system.System(electrodes=[self.rf])
         xs, xsp = s.saddle((0, 0, .5), axis=(0, 1, 2,))
         nptest.assert_almost_equal(xs, [0, 0, .5501], decimal=4)
         nptest.assert_almost_equal(xsp, .1662, decimal=4)
 
     def test_single_saddle(self):
-        s = electrode.System(electrodes=[self.rf])
+        s = system.System(electrodes=[self.rf])
         xs, xsp = s.saddle(self.x0+[.02, 0, .02], axis=(0, 2), dx_max=.02)
         nptest.assert_almost_equal(xs, [.145, 0, .156], decimal=3)
         nptest.assert_almost_equal(xsp, .0109, decimal=3)
@@ -362,9 +362,9 @@ class ThreefoldOptimizeTestCase(unittest.TestCase):
         nptest.assert_almost_equal(xsp, xsp1, decimal=3)
 
 
-class FourWireTestCase(unittest.TestCase):
+class FourWireCase(unittest.TestCase):
     def simpletrap(self):
-        s = electrode.System()
+        s = system.System()
         rmax = 1e3
         def patches(n, tw, t0):
             for i in range(n):
@@ -409,13 +409,13 @@ class FourWireTestCase(unittest.TestCase):
     def test_modes(self):
         o0, e0 = self.s.modes([0, 0, 1])
         nptest.assert_almost_equal(o0, [0, .1013, .1013], decimal=3)
-        abc = np.array(euler_from_matrix(e0))/2/pi
+        abc = np.array(transformations.euler_from_matrix(e0))/2/pi
         nptest.assert_allclose(abc, [0, 0, 0], atol=1, rtol=1e-3)
 
     def test_parallel(self):
         n = 10
         xyz = np.mgrid[-1:1:1j*n, -1:1:1j*n, .5:1.5:1j*n]
-        r = self.s.parallel(electrode.system._dummy_pool, *xyz)
+        r = self.s.parallel(system._dummy_pool, *xyz)
 
     def test_parallel_pool(self):
         import multiprocessing
@@ -441,8 +441,8 @@ class FourWireTestCase(unittest.TestCase):
         x = np.array(x)
         v = np.array(v)
 
-        self.assertEqual(np.alltrue(electrode.norm(x, axis=1)<3), True)
-        self.assertEqual(np.alltrue(electrode.norm(v, axis=1)<1), True)
+        self.assertEqual(np.alltrue(utils.norm(x, axis=1)<3), True)
+        self.assertEqual(np.alltrue(utils.norm(v, axis=1)<1), True)
 
         avg = int(1/dt)
         kin = (((x[:-avg]-x[avg:])/(2*np.pi))**2).sum(axis=-1)/2*4 # 4?
@@ -457,9 +457,9 @@ class FourWireTestCase(unittest.TestCase):
                 True)
 
 
-class MagtrapTestCase(unittest.TestCase):
+class MagtrapCase(unittest.TestCase):
     def magtrap(self):
-        s = electrode.System()
+        s = system.System()
         rmax = 1e3
         a, b, c, d, e = -1.3, 1.3, .78, 2.5, 3.
         s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
@@ -558,7 +558,7 @@ class MagtrapTestCase(unittest.TestCase):
                 coords=None)
         self.assertEqual(us.shape, (len(eln), 6))
         self.assertEqual(rank, 6)
-        c0 = electrode.select_tensor(self.s.curvature(x))[:, 0]
+        c0 = utils.select_tensor(self.s.curvature(x))[:, 0]
         for i, usi in enumerate(us.T):
             for ui, el in zip(usi, els):
                 el.voltage_dc = ui
@@ -566,7 +566,7 @@ class MagtrapTestCase(unittest.TestCase):
                 nptest.assert_almost_equal(self.s.gradient(x)[i, 0], 1,
                     decimal=2)
             if i in (3, 4, 5): # curve
-                c1 = electrode.select_tensor(self.s.curvature(x))[:, 0]
+                c1 = utils.select_tensor(self.s.curvature(x))[:, 0]
                 ax = {3:0, 4:1, 5:4}[i]
                 nptest.assert_almost_equal(c1[ax]-c0[ax], 1,
                     decimal=2)
@@ -626,9 +626,9 @@ class MagtrapTestCase(unittest.TestCase):
         self.assertEqual(len(s), 14)
 
 
-class RingtrapTestCase(unittest.TestCase):
+class RingtrapCase(unittest.TestCase):
     def ringtrap(self):
-        s = electrode.System()
+        s = system.System()
         n = 100
         p = np.exp(1j*np.linspace(0, 2*np.pi, 100))
         s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
@@ -658,7 +658,7 @@ class RingtrapTestCase(unittest.TestCase):
     def test_modes(self):
         o0, e0 = self.s.modes([0, 0, 1])
         nptest.assert_almost_equal(o0, [.1114, .1114, .4491], decimal=3)
-        abc = np.array(euler_from_matrix(e0))/2/pi
+        abc = np.array(transformations.euler_from_matrix(e0))/2/pi
         nptest.assert_allclose(abc, [0, 0, 0], atol=1, rtol=1e-3)
 
         

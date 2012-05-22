@@ -17,7 +17,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 import warnings
 
 import numpy as np
@@ -27,7 +26,6 @@ import matplotlib as mpl
 from traits.api import HasTraits, Array, Float, Int, Str, List
 
 from .utils import norm, expand_tensor, area_centroid
-
 
 try:
     import cvxopt, cvxopt.modeling

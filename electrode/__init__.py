@@ -16,11 +16,3 @@
 #
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-from utils import *
-from electrode import *
-from pattern_constraints import *
-from system import *
-from constraints import *
-from grid_electrode import *
-from grid_system import *
