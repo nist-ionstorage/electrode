@@ -2,7 +2,7 @@
 #
 #   electrode: numeric tools for Paul traps
 #
-#   Copyright (C) 2011 Robert Jordens <jordens@phys.ethz.ch>
+#   Copyright (C) 2011-2012 Robert Jordens <jordens@phys.ethz.ch>
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
