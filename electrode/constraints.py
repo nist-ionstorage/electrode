@@ -21,6 +21,7 @@
 import numpy as np
 
 from traits.api import HasTraits, Array, Float, Int, List, Bool, Trait, Enum
+import cvxopt, cvxopt.modeling
 
 from .utils import rotate_tensor
 
@@ -156,11 +157,12 @@ class PotentialConstraint(SingleIndexConstraint):
         assert p.shape == (m,), p.shape
         if self.only_variable:
             p0 *= 0
-        vi = p0 + cvxopt.modeling.dot(cvxopt.matrix(p.copy()), variables)
+        # float() works around cvxopt bug with 0-dim arrays
+        v = float(p0) + cvxopt.modeling.dot(cvxopt.matrix(p.copy()), variables)
         if self.pmax is not None:
-            yield vi - self.pmax
+            yield v - self.pmax
         if self.pmin is not None:
-            yield self.pmin - vi
+            yield self.pmin - v
 
 
 class ForceConstraint(SingleIndexConstraint):
@@ -233,13 +235,11 @@ class OffsetPotentialConstraint(SingleIndexConstraint):
             el.voltage_dc = v0
         pref = np.array(pref)
         if self.only_variable:
-            p0 *= 0
+            p0 = p0*0
             pref0 *= 0
-        v = pref0 - p0 + cvxopt.modeling.dot(cvxopt.matrix(pref-p), variables)
+        # float() works around cvxopt bug with 0-dim arrays
+        v = float(pref0 - p0) + cvxopt.modeling.dot(cvxopt.matrix(pref-p), variables)
         if self.pmin is not None:
             yield self.pmin - v
         if self.pmax is not None:
             yield v - self.pmax
-
-
-

@@ -406,7 +406,7 @@ class System(HasTraits):
                 for el in self.electrodes)
         yield " heating for 1 nV²/Hz white on each electrode:"
         yield "  field-noise psd: %s V²/(m² Hz)" % (se*1e-9**2)
-        yield "  pot-noise psd: %s V²/Hz" % (ee*1e-9**2)
+        yield "  pot-noise psd: %.4g V²/Hz" % (ee*1e-9**2)
         for fi, mi in zip(freqs_pp, modes_pp.T):
             sej = (np.abs(mi)*se**.5).sum()**2
             ndot = sej*q**2/(4*m*ct.h*fi)
