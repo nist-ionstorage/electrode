@@ -1,5 +1,5 @@
-python-electrode (1.1+dev) unstable; urgency=low
+python-electrode (1.2) unstable; urgency=low
 
   * Initial packaging
 
- -- Robert Jordens <jordens@phys.ethz.ch>  Sat, 03 Mar 2012 15:20:06 -0700
+ -- Robert Jördens <jordens@gmail.com>  Thu, 07 Jun 2012 22:50:49 -0700
