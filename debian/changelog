@@ -1,5 +1,5 @@
-python-electrode (1.2) quantal; urgency=low
+python-electrode (1.2+dev) quantal; urgency=low
 
   * Initial packaging
 
- -- Robert Jördens <jordens@gmail.com>  Mon, 11 Jun 2012 15:49:18 -0600
+ -- Robert Jördens <jordens@gmail.com>  Mon, 11 Jun 2012 16:05:46 -0600
