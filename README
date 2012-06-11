@@ -40,7 +40,7 @@ Debian based GNU/Linuxes
 ------------------------
 
     # apt-get install python-cvxopt python-numpy python-matplotlib \
-                      python-scipy python-traits
+                      python-scipy python-traits python-shapely
 
 to use the ipython based notebooks, try
 
