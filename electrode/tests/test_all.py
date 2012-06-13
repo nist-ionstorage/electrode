@@ -362,23 +362,23 @@ class ThreefoldOptimizeCase(unittest.TestCase):
         nptest.assert_almost_equal(xsp, xsp1, decimal=3)
 
 
-class FourWireCase(unittest.TestCase):
-    def simpletrap(self):
+class FiveWireCase(unittest.TestCase):
+    def trap(self, tw=np.pi/4, t0=5*np.pi/8):
         s = system.System()
-        rmax = 1e3
+        rmax = 1e4
+        # Janus H. Wesenberg, Phys Rev A 78, 063410 ͑2008͒
         def patches(n, tw, t0):
             for i in range(n):
-                a = t0 - tw/2 + 2*np.pi/n*i
-                ya, yb = np.tan(a/2), np.tan((a+tw)/2)
+                a = t0 + 2*np.pi/n*i
+                ya, yb = np.tan((a-tw/2)/2), np.tan((a+tw/2)/2)
                 yield np.array([[rmax, ya, 0], [rmax, yb, 0],
                      [-rmax, yb, 0], [-rmax, ya, 0]])
         s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
-            voltage_rf=1, paths=list(patches(n=2, tw=np.pi/4,
-                t0=5*np.pi/8))))
+            voltage_rf=1, paths=list(patches(n=2, tw=tw, t0=t0))))
         return s
 
     def setUp(self):
-        self.s = self.simpletrap()
+        self.s = self.trap()
 
     def test_minimum(self):
         x0 = self.s.minimum((0,0,1.), axis=(1, 2))
@@ -455,6 +455,19 @@ class FourWireCase(unittest.TestCase):
 
         self.assertEqual(np.alltrue(np.std(kin+pot)/np.mean(kin+pot)<.01),
                 True)
+
+    def test_minimum_four(self):
+        # four wire trap has max depth
+        s = self.trap(tw=np.pi/2-1e-6, t0=np.pi/4-1e-6)
+        x0 = self.s.minimum((0,0,1.), axis=(1, 2))
+        nptest.assert_almost_equal(x0, [0, 0, 1.], decimal=3)
+
+    def test_saddle_four(self):
+        # four wire trap has max depth
+        s = self.trap(tw=np.pi/2-1e-6, t0=np.pi/4-1e-6)
+        xs, xsp = s.saddle((0,0,1.1), axis=(1, 2))
+        nptest.assert_almost_equal(xs, [0, 0, (2+5**.5)**.5], decimal=4)
+        nptest.assert_almost_equal(xsp, (5*5**.5-11)/(2*np.pi**2), decimal=4)
 
 
 class MagtrapCase(unittest.TestCase):
@@ -661,6 +674,6 @@ class RingtrapCase(unittest.TestCase):
         abc = np.array(transformations.euler_from_matrix(e0))/2/pi
         nptest.assert_allclose(abc, [0, 0, 0], atol=1, rtol=1e-3)
 
-        
+
 if __name__ == "__main__":
     unittest.main()
