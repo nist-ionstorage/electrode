@@ -26,7 +26,7 @@ setup(
         name = "electrode",
         version = "1.2+dev",
         author = "Robert Jordens",
-        author_email = "jordens@phys.ethz.ch",
+        author_email = "jordens@gmail.com",
         url = "http://launchpad.net/electrode",
         description = "toolkit to develop and analyze rf surface ion traps",
         long_description = 
