@@ -27,7 +27,7 @@ from .electrode import PolygonPixelElectrode
 
 def polygons_to_system(polygons):
     """
-    convert a list of [("electrode.name", MultiPolygon(...)), ...] to a
+    convert a list of [("electrode name", MultiPolygon(...)), ...] to a
     System()
     """
     s = System()
@@ -43,10 +43,9 @@ def polygons_to_system(polygons):
         s.electrodes.append(e)
     return s
 
-
 def system_to_polygons(system):
     """
-    convert a System() to a list of ["electrode name",
+    convert a System() to a list of [("electrode name",
     MultiPolygon(...)), ...]
     """
     p = []
@@ -56,7 +55,7 @@ def system_to_polygons(system):
         # assert type(e) is PolygonPixelElectrode, (e, e.name)
         exts, ints = [], []
         for pi, ei in zip(e.paths, e.orientations()):
-            # shapely ignore f-contigous arrays
+            # shapely ignores f-contiguous arrays
             # https://github.com/sgillies/shapely/issues/26
             {-1: ints, 1: exts}[ei].append(pi.copy("C"))
         mp = []
@@ -65,14 +64,13 @@ def system_to_polygons(system):
         p.append((e.name, geometry.MultiPolygon(mp)))
     return p
 
-
-def add_gaps(polygons, gapsize):
+def check_validity(polygons):
     """
-    shrinks each electrode by adding a gapsize wide buffer around it
-    electrodes must not be overlapping
+    asserts geometric validity of all electrodes
     """
-    return [(n, p.difference(p.boundary.buffer(gapsize, 0)))
-            for n, p in polygons]
+    for ni, pi in polygons:
+        if not pi.is_valid:
+            raise ValueError, (ni, pi)
 
 def remove_overlaps(polygons):
     """
@@ -82,11 +80,32 @@ def remove_overlaps(polygons):
     acc = geometry.Point()
     for ni, pi in polygons:
         pa = acc.intersection(pi)
-        acc = acc.union(pi)
-        if pa.area > np.finfo(np.float32).eps:
-            pi = pi.difference(pa)
+        if pa.is_valid and pa.area > np.finfo(np.float32).eps:
+            pc = pi.difference(pa)
+            if pc.is_valid:
+                pi = pc
+        acca = acc.union(pi)
+        if acca.is_valid:
+            acc = acca
         p.append((ni, pi))
     return p
+
+def add_gaps(polygons, gapsize):
+    """
+    shrinks each electrode by adding a gapsize buffer around it
+    gaps between previously touching electrodes will be 2*gapsize wide
+    electrodes must not be overlapping
+    """
+    p = []
+    for ni, pi in polygons:
+        pb = pi.boundary.buffer(gapsize, 0)
+        if pb.is_valid:
+            pc = pi.difference(pb)
+            if pc.is_valid:
+                pi = pc
+        p.append((ni, pi))
+    return p
+
 
 if __name__ == "__main__":
     import cPickle as pickle
