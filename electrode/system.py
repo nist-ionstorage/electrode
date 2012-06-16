@@ -39,6 +39,7 @@ from .saddle import rfo
 from .electrode import Electrode
 from .utils import (select_tensor, expand_tensor, norm, rotate_tensor,
     apply_method, mathieu, DummyPool)
+from . import colors
 
 _dummy_pool = DummyPool()
 
@@ -142,8 +143,8 @@ class System(HasTraits):
 
     def plot(self, ax, *a, **k):
         """plot electrodes with random colors"""
-        for e, c in zip(self.electrodes, itertools.cycle("bgrcmy")):
-            e.plot(ax, color=c, alpha=.5, *a, **k)
+        for e, c in zip(self.electrodes, itertools.cycle(colors.set3)):
+            e.plot(ax, color=tuple(c/255.), alpha=.5, *a, **k)
 
     def plot_voltages(self, ax, u=None, els=None):
         """plot electrodes with alpha proportional to voltage (scaled to
