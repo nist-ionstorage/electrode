@@ -27,11 +27,12 @@ from .electrode import PolygonPixelElectrode
 
 # attribute namespaces anyone?
 attr_base = sum(ord(i) for i in "electrode")
+attr_info = attr_base + 5
 attr_name = attr_base + 10
 attr_vdc = attr_base + 11
 attr_vrf = attr_base + 12
 
-def from_gds(fil, layer=None):
+def from_gds(fil, scale=1., layer=None):
     lib = library.Library.load(fil)
     s = System()
     for stru in lib:
@@ -57,12 +58,12 @@ def from_gds(fil, layer=None):
                 s.electrodes.append(ele)
             ele.voltage_dc = float(props.get(attr_vdc, 0.))
             ele.voltage_rf = float(props.get(attr_vrf, 0.))
-            path = np.array(e.xy)*lib.physical_unit
+            path = np.array(e.xy)*lib.physical_unit/scale
             path = np.c_[path, np.zeros((path.shape[0],))]
             ele.paths.append(path)
     return s
 
-def to_gds(sys, layer=0, phys_unit=1e-9):
+def to_gds(sys, scale=1., layer=0, phys_unit=1e-9):
     lib = library.Library(version=5, name=b"trap", physical_unit=phys_unit,
             logical_unit=.001)
     stru = structure.Structure(name=b"electrodes")
@@ -74,7 +75,7 @@ def to_gds(sys, layer=0, phys_unit=1e-9):
             continue
         for p in e.paths:
             b = elements.Boundary(layer=layer, data_type=0,
-                    xy=p[:, :2]/phys_unit)
+                    xy=p[:, :2]*scale/phys_unit)
             b.properties = []
             if e.name:
                 b.properties.append((attr_name, e.name))
