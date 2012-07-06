@@ -141,12 +141,12 @@ class System(HasTraits):
             for ri in r])
         return r
 
-    def plot(self, ax, *a, **k):
+    def plot(self, ax, alpha=.3, *a, **k):
         """plot electrodes with random colors"""
         for e, c in zip(self.electrodes, itertools.cycle(colors.set3)):
-            e.plot(ax, color=tuple(c/255.), alpha=.5, *a, **k)
+            e.plot(ax, color=tuple(c/255.), alpha=alpha, *a, **k)
 
-    def plot_voltages(self, ax, u=None, els=None):
+    def plot_voltages(self, ax, u=None, els=None, um=None, *a, **kw):
         """plot electrodes with alpha proportional to voltage (scaled to
         max abs voltage being opaque), red for positive, blue for
         negative"""
@@ -154,10 +154,11 @@ class System(HasTraits):
             els = self.electrodes
         if u is None:
             u = np.array([el.voltage_dc for el in els])
-        um = abs(u).max() or 1.
+        if um is None:
+            um = abs(u).max() or 1.
         for el, ui in zip(els, u):
             el.plot(ax, color=(ui > 0 and "red" or "blue"),
-                    alpha=abs(ui)/um, text="")
+                    alpha=abs(ui)/um, text="", *a, **kw)
 
     def minimum(self, x0, axis=(0, 1, 2), coord=np.identity(3)):
         """find a potential minimum near x0 searching along the

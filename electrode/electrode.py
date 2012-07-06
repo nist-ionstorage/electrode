@@ -283,11 +283,11 @@ class PolygonPixelElectrode(PixelElectrode):
         p, = self.value_no_cover(np.array([[0, 0, 1.]]), 0)
         return np.sign(p[:, 0])
 
-    def plot(self, ax, text=None, alpha=1., *a, **kw):
+    def plot(self, ax, text=None, alpha=1., edgecolor="none", *a, **kw):
         if text is None:
             text = self.name
         for vi, p in zip(self.pixel_factors, self.paths):
-            ax.fill(p[:,0], p[:,1], edgecolor='none',
+            ax.fill(p[:,0], p[:,1], edgecolor=edgecolor,
                     alpha=alpha*vi, *a, **kw)
             if text:
                 ax.text(p[:,0].mean(), p[:,1].mean(), text)
