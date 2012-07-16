@@ -1,4 +1,8 @@
 *.pdf
 ./build
 ./dist
+./debian/python-electrode*
+./debian/python-module-stampdir*
+./debian/files
 ./*.egg-info
+./electrode/*.c

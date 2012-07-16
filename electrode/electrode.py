@@ -299,14 +299,17 @@ class PolygonPixelElectrode(PixelElectrode):
                 cover_height=self.cover_height, areas=a, points=c)
 
     def value_no_cover(self, x, *d):
-        v = [list(self.polygon_value(x, p, *d)) for p in self.paths]
+        v = [list(polygon_value(x, p, *d)) for p in self.paths]
         for vi in zip(*v):
             vi = np.array(vi)
             if len(vi.shape) > 2:
                 vi = vi.transpose((1, 0, 2))
             yield vi
 
-    def polygon_value(self, x, p, *d):
+try:
+    from .speedups import polygon_value
+except ImportError:
+    def polygon_value(x, p, *d):
         p1 = x[None, :] - p[:, None]
         x1, y1, z = p1.transpose((2, 0, 1))
         r1 = norm(p1)

@@ -19,8 +19,10 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+from Cython.Distutils import build_ext
 from glob import glob
+import numpy
 
 setup(
         name = "electrode",
@@ -70,6 +72,7 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
             "visualization": ["mayavi>4"],
             "polygons": ["shapely>=1.2"],
             "gds": ["python-gdsii"],
+            "speedups": ["cython"],
             },
         dependency_links = [],
         packages = find_packages(),
@@ -78,4 +81,11 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
         scripts = glob("notebooks/*.py"),
         include_package_data = True,
         #package_data = {"": ["notebooks/*.ipynb"]},
+        ext_modules=[Extension("electrode.speedups",
+            #sources=["electrode/speedups.c"],
+            sources=["electrode/speedups.pyx"],
+            extra_compile_args=['-ffast-math'],
+            include_dirs=[numpy.get_include(),]),
+            ],
+        cmdclass = {"build_ext": build_ext},
         )
