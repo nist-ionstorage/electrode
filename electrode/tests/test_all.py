@@ -128,6 +128,13 @@ class BasicFunctionsCase(unittest.TestCase):
         #nptest.assert_almost_equal(mu, [.1, .2, .3])
         #nptest.assert_almost_equal(b, )
 
+    def test_polygon_value(self):
+        p = np.array([[1., 0, 0], [2, 3, 0], [2, 7, 0], [3, 8, 0],
+            [-2, 8, 0], [-5, 2, 0]])
+        x = np.array([[1,2,3.]])
+        nptest.assert_almost_equal(
+                electrode.polygon_value(x, p, 0)[0],
+                .24907)
 
 class CoverCase(unittest.TestCase):
     def setUp(self):

@@ -323,7 +323,7 @@ except ImportError:
                     zs*(r1*r2+x1*x2+y1*y2+zs*(zs+r1+r2))).sum(axis=0)/np.pi
         if 1 in d:
             yield (np.array([-(y1-y2)*z, (x1-x2)*z, x2*y1-x1*y2]
-                )*(r1+r2)/(np.pi*r1*r2*((r1+r2)**2-l2))).sum(axis=1)
+                )*(r1+r2)/(r1*r2*((r1+r2)**2-l2))).sum(axis=1)/np.pi
         if 2 in d:
             yield (np.array([(l2*(r2**3*x1+r1**3*x2)-
                 (r1+r2)**2*(r2**2*(2*r1+r2)*x1+r1**2*(r1+2*r2)*x2))*(-y1+y2)*z,
@@ -336,7 +336,7 @@ except ImportError:
                   (r1+r2)**2*(r2**2*(2*r1+r2)*y1+r1**2*(r1+2*r2)*y2))*z,
                 (r1+r2)*(-x1+x2)*(l2*r1**2*r2**2-l2*(r1**2-r1*r2+r2**2)*z**2+
                   (r1+r2)**2*(-(r1**2*r2**2)+(r1**2+r1*r2+r2**2)*z**2))
-                ])/(np.pi*(r1*r2)**3*((r1+r2)**2-l2)**2)).sum(axis=1)
+                ])/((r1*r2)**3*((r1+r2)**2-l2)**2)).sum(axis=1)/np.pi
         if 3 in d:
             yield (np.array([(-y1+y2)*(3*l2**2*(r2**5*x1*y1+r1**5*x2*y2)+
                   (r1+r2)**3*(9*r1*r2**5*x1*y1+3*r2**6*x1*y1+3*r1**6*x2*y2+
@@ -404,4 +404,4 @@ except ImportError:
                   r1**2*r2**3*(r2**4*y1-6*y1*((x1-x2)**2+
                   (y1-y2)**2)*z**2-r2**2*(19*y1+2*y2)*z**2)+
                   r1**5*r2**2*(r2**2*(2*y1+5*y2)-(2*y1+19*y2)*z**2)))
-                ])/(np.pi*(r1*r2)**5*((r1+r2)**2-l2)**3)).sum(axis=1)
+                ])/((r1*r2)**5*((r1+r2)**2-l2)**3)).sum(axis=1)/np.pi
