@@ -24,76 +24,72 @@ import numpy as np
 cimport numpy as np
 np.import_array()
 
-cdef extern from "math.h":
-    double sqrt(double)
-    double atan2(double, double)
-    double fabs(double)
+from libc.math cimport atan2, sqrt, fabs, M_PI
 
 dtype = np.double
 ctypedef np.double_t dtype_t
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-#[dtype_t, ndim=2]
 def polygon_value(np.ndarray[dtype_t, ndim=2] x not None,
                   np.ndarray[dtype_t, ndim=2] p not None,
                   *d):
-    cdef int xmax = x.shape[0]
-    cdef int pmax = p.shape[0]
-    cdef int i, j
-
+    cdef int xmax = x.shape[0], pmax = p.shape[0], i, j
+    cdef int dd0 = False, dd1 = False, dd2 = False, dd3 = False
     cdef double x0, y0, z0, r0, x1, y1, z1, r1, x2, y2, z2, r2, l2
+    cdef list ret = []
 
-    cdef np.ndarray[dtype_t, ndim=1] d0 = None
-    cdef np.ndarray[dtype_t, ndim=2] d1 = None, d2 = None, d3 = None
+    cdef np.ndarray[dtype_t, ndim=1, mode="c"] d0
+    cdef np.ndarray[dtype_t, ndim=2, mode="c"] d1, d2, d3
 
-    ret = []
     if 0 in d:
         d0 = np.zeros([xmax], dtype=dtype)
+        dd0 = True
         ret.append(d0)
     if 1 in d:
         d1 = np.zeros([xmax, 3], dtype=dtype)
+        dd1 = True
         ret.append(d1)
     if 2 in d:
         d2 = np.zeros([xmax, 5], dtype=dtype)
+        dd2 = True
         ret.append(d2)
     if 3 in d:
-        d3 = np.zeros([xmax, 6], dtype=dtype)
+        d3 = np.zeros([xmax, 7], dtype=dtype)
+        dd3 = True
         ret.append(d3)
 
     for i in range(xmax):
-        x0 = x2 = x[i, 0] - p[0, 0]
-        y0 = y2 = x[i, 1] - p[0, 1]
-        z0 = z2 = x[i, 2] - p[0, 2]
-        r0 = r2 = sqrt(x0**2+y0**2)
         for j in range(pmax):
-            x1 = x2
-            y1 = y2
-            z1 = z2
-            r1 = r2
+            if j == 0:
+                x0 = x1 = x[i, 0] - p[0, 0]
+                y0 = y1 = x[i, 1] - p[0, 1]
+                z0 = z1 = x[i, 2] - p[0, 2]
+                r0 = r1 = sqrt(x0**2+y0**2+z0**2)
+            else:
+                x1 = x2
+                y1 = y2
+                z1 = z2
+                r1 = r2
             if j == pmax-1:
                 x2 = x0
                 y2 = y0
                 z2 = z0
                 r2 = r0
             else:
-                x2 = x[i, 0] - p[i+1, 0]
-                y2 = x[i, 1] - p[i+1, 1]
-                z2 = x[i, 2] - p[i+1, 2]
-                r2 = sqrt(x2**2+y2**2)
+                x2 = x[i, 0] - p[j+1, 0]
+                y2 = x[i, 1] - p[j+1, 1]
+                z2 = x[i, 2] - p[j+1, 2]
+                r2 = sqrt(x2**2+y2**2+z2**2)
             l2 = (x1-x2)**2+(y1-y2)**2
-            if d0 is not None:
-                polygon_value_0(x1, x2, y1, y2, r1, r2, l2, z1,
-                        <double*>&d0.data[i])
-            if d1 is not None:
-                polygon_value_1(x1, x2, y1, y2, r1, r2, l2, z1,
-                        <double*>&d1.data[i*3])
-            if d2 is not None:
-                polygon_value_2(x1, x2, y1, y2, r1, r2, l2, z1,
-                        <double*>&d2.data[i*5])
-            if d3 is not None:
-                polygon_value_3(x1, x2, y1, y2, r1, r2, l2, z1,
-                        <double*>&d3.data[i*7])
+            if dd0:
+                polygon_value_0(x1, x2, y1, y2, r1, r2, l2, z1, &d0[i])
+            if dd1:
+                polygon_value_1(x1, x2, y1, y2, r1, r2, l2, z1, &d1[i, 0])
+            if dd2:
+                polygon_value_2(x1, x2, y1, y2, r1, r2, l2, z1, &d2[i, 0])
+            if dd3:
+                polygon_value_3(x1, x2, y1, y2, r1, r2, l2, z1, &d3[i, 0])
     return ret
 
 cdef inline polygon_value_0(double x1, double x2, double y1, double y2,
@@ -101,20 +97,20 @@ cdef inline polygon_value_0(double x1, double x2, double y1, double y2,
                             double *d):
     cdef double zs = fabs(z)
     d[0] += atan2(z*(x1*y2-y1*x2),
-                zs*(r1*r2+x1*x2+y1*y2+zs*(zs+r1+r2)))
+                zs*(r1*r2+x1*x2+y1*y2+zs*(zs+r1+r2)))/M_PI
 
 cdef inline polygon_value_1(double x1, double x2, double y1, double y2,
                             double r1, double r2, double l2, double z,
                             double *d):
-    cdef double n = (r1+r2)/(r1*r2*((r1+r2)**2-l2))
-    d[0] += -(y1-y2)*z/n
-    d[1] += (x1-x2)*z/n
-    d[2] += (x2*y1-x1*y2)/n
+    cdef double n = (r1+r2)/(r1*r2*((r1+r2)**2-l2))/M_PI
+    d[0] += -(y1-y2)*z*n
+    d[1] += (x1-x2)*z*n
+    d[2] += (x2*y1-x1*y2)*n
 
 cdef inline polygon_value_2(double x1, double x2, double y1, double y2,
                             double r1, double r2, double l2, double z,
                             double *d):
-    cdef double n = (r1*r2)**3*((r1+r2)**2-l2)**2
+    cdef double n = (r1*r2)**3*((r1+r2)**2-l2)**2*M_PI
     d[0] += ((l2*(r2**3*x1+r1**3*x2)-(r1+r2)**2*(r2**2*(2*r1+r2)*x1
             +r1**2*(r1+2*r2)*x2))*(-y1+y2)*z)/n
     d[1] += ((-y1+y2)*(l2*(r2**3*y1+r1**3*y2)
@@ -130,7 +126,7 @@ cdef inline polygon_value_2(double x1, double x2, double y1, double y2,
 cdef inline polygon_value_3(double x1, double x2, double y1, double y2,
                             double r1, double r2, double l2, double z,
                             double *d):
-    cdef double n = (r1*r2)**5*((r1+r2)**2-l2)**3
+    cdef double n = (r1*r2)**5*((r1+r2)**2-l2)**3*M_PI
     d[0] += ((-y1+y2)*(3*l2**2*(r2**5*x1*y1+r1**5*x2*y2)+
               (r1+r2)**3*(9*r1*r2**5*x1*y1+3*r2**6*x1*y1+3*r1**6*x2*y2+
               9*r1**5*r2*x2*y2+6*r1**3*r2**3*(x2*y1+x1*y2)+
