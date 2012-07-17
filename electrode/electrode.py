@@ -310,6 +310,9 @@ try:
     from .speedups import polygon_value
 except ImportError:
     def polygon_value(x, p, *d):
+        return [v.T if v.ndim == 2 else v for v in
+                _polygon_value(x, p, *d)]
+    def _polygon_value(x, p, *d):
         p1 = x[None, :] - p[:, None]
         x1, y1, z = p1.transpose((2, 0, 1))
         r1 = norm(p1)
