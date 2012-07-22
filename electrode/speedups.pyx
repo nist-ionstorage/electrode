@@ -44,19 +44,19 @@ def point_value(np.ndarray[dtype_t, ndim=2] x not None,
     cdef np.ndarray[dtype_t, ndim=3, mode="c"] d1, d2, d3
 
     if 0 in d:
-        d0 = np.zeros([pmax, xmax], dtype=dtype)
+        d0 = np.empty([pmax, xmax], dtype=dtype)
         dd0 = True
         ret.append(d0)
     if 1 in d:
-        d1 = np.zeros([pmax, xmax, 3], dtype=dtype)
+        d1 = np.empty([pmax, xmax, 3], dtype=dtype)
         dd1 = True
         ret.append(d1)
     if 2 in d:
-        d2 = np.zeros([pmax, xmax, 5], dtype=dtype)
+        d2 = np.empty([pmax, xmax, 5], dtype=dtype)
         dd2 = True
         ret.append(d2)
     if 3 in d:
-        d3 = np.zeros([pmax, xmax, 7], dtype=dtype)
+        d3 = np.empty([pmax, xmax, 7], dtype=dtype)
         dd3 = True
         ret.append(d3)
 
@@ -113,64 +113,71 @@ cdef inline point_value_3(double x, double y, double z, double r,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def polygon_value(np.ndarray[dtype_t, ndim=2] x not None,
-                  np.ndarray[dtype_t, ndim=2] p not None,
+                  list ps not None,
                   *d):
-    cdef int xmax = x.shape[0], pmax = p.shape[0], i, j
+    cdef int xmax = x.shape[0], psmax = len(ps), pmax, i, j, k
     cdef int dd0 = False, dd1 = False, dd2 = False, dd3 = False
     cdef double x0, y0, z0, r0, x1, y1, z1, r1, x2, y2, z2, r2, l2
     cdef list ret = []
-
-    cdef np.ndarray[dtype_t, ndim=1, mode="c"] d0
-    cdef np.ndarray[dtype_t, ndim=2, mode="c"] d1, d2, d3
+    cdef np.ndarray[dtype_t, ndim=2] p
+    cdef np.ndarray[dtype_t, ndim=2, mode="c"] d0
+    cdef np.ndarray[dtype_t, ndim=3, mode="c"] d1, d2, d3
 
     if 0 in d:
-        d0 = np.zeros([xmax], dtype=dtype)
+        d0 = np.zeros([psmax, xmax], dtype=dtype)
         dd0 = True
         ret.append(d0)
     if 1 in d:
-        d1 = np.zeros([xmax, 3], dtype=dtype)
+        d1 = np.zeros([psmax, xmax, 3], dtype=dtype)
         dd1 = True
         ret.append(d1)
     if 2 in d:
-        d2 = np.zeros([xmax, 5], dtype=dtype)
+        d2 = np.zeros([psmax, xmax, 5], dtype=dtype)
         dd2 = True
         ret.append(d2)
     if 3 in d:
-        d3 = np.zeros([xmax, 7], dtype=dtype)
+        d3 = np.zeros([psmax, xmax, 7], dtype=dtype)
         dd3 = True
         ret.append(d3)
 
-    for i in range(xmax):
-        for j in range(pmax):
-            if j == 0:
-                x0 = x1 = x[i, 0] - p[0, 0]
-                y0 = y1 = x[i, 1] - p[0, 1]
-                z0 = z1 = x[i, 2] - p[0, 2]
-                r0 = r1 = sqrt(x0**2+y0**2+z0**2)
-            else:
-                x1 = x2
-                y1 = y2
-                z1 = z2
-                r1 = r2
-            if j == pmax-1:
-                x2 = x0
-                y2 = y0
-                z2 = z0
-                r2 = r0
-            else:
-                x2 = x[i, 0] - p[j+1, 0]
-                y2 = x[i, 1] - p[j+1, 1]
-                z2 = x[i, 2] - p[j+1, 2]
-                r2 = sqrt(x2**2+y2**2+z2**2)
-            l2 = (x1-x2)**2+(y1-y2)**2
-            if dd0:
-                polygon_value_0(x1, x2, y1, y2, r1, r2, l2, z1, &d0[i])
-            if dd1:
-                polygon_value_1(x1, x2, y1, y2, r1, r2, l2, z1, &d1[i, 0])
-            if dd2:
-                polygon_value_2(x1, x2, y1, y2, r1, r2, l2, z1, &d2[i, 0])
-            if dd3:
-                polygon_value_3(x1, x2, y1, y2, r1, r2, l2, z1, &d3[i, 0])
+    for i in range(psmax):
+        p = ps[i]
+        pmax = p.shape[0]
+        for j in range(xmax):
+            for k in range(pmax):
+                if k == 0:
+                    x0 = x1 = x[j, 0] - p[0, 0]
+                    y0 = y1 = x[j, 1] - p[0, 1]
+                    z0 = z1 = x[j, 2] - p[0, 2]
+                    r0 = r1 = sqrt(x0**2+y0**2+z0**2)
+                else:
+                    x1 = x2
+                    y1 = y2
+                    z1 = z2
+                    r1 = r2
+                if k == pmax-1:
+                    x2 = x0
+                    y2 = y0
+                    z2 = z0
+                    r2 = r0
+                else:
+                    x2 = x[j, 0] - p[k+1, 0]
+                    y2 = x[j, 1] - p[k+1, 1]
+                    z2 = x[j, 2] - p[k+1, 2]
+                    r2 = sqrt(x2**2+y2**2+z2**2)
+                l2 = (x1-x2)**2+(y1-y2)**2
+                if dd0:
+                    polygon_value_0(x1, x2, y1, y2, r1, r2, l2, z1,
+                            &d0[i, j])
+                if dd1:
+                    polygon_value_1(x1, x2, y1, y2, r1, r2, l2, z1,
+                            &d1[i, j, 0])
+                if dd2:
+                    polygon_value_2(x1, x2, y1, y2, r1, r2, l2, z1,
+                            &d2[i, j, 0])
+                if dd3:
+                    polygon_value_3(x1, x2, y1, y2, r1, r2, l2, z1,
+                            &d3[i, j, 0])
     return ret
 
 cdef inline polygon_value_0(double x1, double x2, double y1, double y2,
