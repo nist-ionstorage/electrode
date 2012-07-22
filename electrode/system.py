@@ -73,16 +73,15 @@ class System(HasTraits):
         return ret
 
     def get_potentials(self, x, typ, *d):
-        x = np.atleast_2d(x)
+        x = np.atleast_2d(x).astype(np.double)
         n = x.shape[0]
-        e = [np.zeros((n)), np.zeros((3,n)), np.zeros((3,3,n)),
-                np.zeros((3,3,3,n))]
+        out = [np.zeros((3,)*di+(n,), dtype=np.double) for di in d]
         for el in self.electrodes:
             v = getattr(el, "voltage_"+typ)
             if v != 0:
-                for di, pi in zip(d, el.potential(x, *d)):
-                    e[di] += v*pi
-        return [e[di] for di in d]
+                for di, pi in enumerate(el.potential(x, *d)):
+                    out[di] += v*pi
+        return out
 
     def field_dc(self, x):
         return self.get_potentials(x, "dc", 1)[0]

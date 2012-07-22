@@ -126,10 +126,10 @@ class PixelElectrode(Electrode):
 
     def value(self, x, *d):
         """potential and derivative value with cover plane"""
-        x = np.atleast_2d(x)
-        r = [0.] * len(d)
-        for n in range(-self.nmax, self.nmax+1):
-            xx = x + [[0., 0., 2.*n*self.cover_height]]
+        x = np.atleast_2d(x).astype(np.double)
+        r = self.value_no_cover(x, *d)
+        for n in range(-self.nmax, 0) + range(1, self.nmax+1):
+            xx = x + [[0, 0, 2*n*self.cover_height]]
             for i, ri in enumerate(self.value_no_cover(xx, *d)):
                 r[i] += ri
         return r
