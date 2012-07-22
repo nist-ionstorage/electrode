@@ -248,29 +248,8 @@ class PointPixelElectrode(PixelElectrode):
             ax.text(p[:,0].mean(), p[:,1].mean(), text)
 
     def value_no_cover(self, x, *d):
-        a = self.areas[:, None]
-        p1 = x[None, :] - self.points[:, None]
-        r = norm(p1)
-        x, y, z = p1.transpose((2, 0, 1))
-        if 0 in d:
-            yield a * z/(2*np.pi*r**3) #
-        if 1 in d:
-            yield a * np.array([-3*x*z, -3*y*z, x**2+y**2-2*z**2] # x y z
-            )/(2*np.pi*r**5)
-        if 2 in d:
-            yield a * np.array([-3*z*(-4*x**2+y**2+z**2), 15*x*y*z, # xx xy
-            -3*x*(x**2+y**2-4*z**2), -3*z*(x**2-4*y**2+z**2), # xz yy
-            -3*y*(x**2+y**2-4*z**2)] # yz
-            )/(2*np.pi*r**7)
-        if 3 in d:
-            yield a * np.array([15*y*z*(-6*x**2+y**2+z**2), # xxy
-            3*(4*x**4-y**4+3*y**2*z**2+4*z**4+3*x**2*(y**2-9*z**2)), # xxz
-            3*(-x**4+4*y**4-27*y**2*z**2+4*z**4+3*x**2*(y**2+z**2)), # yyz
-            15*x*z*(x**2-6*y**2+z**2), # yyx
-            45*x*(x**2+y**2)*z-60*x*z**3, # zzx
-            45*y*(x**2+y**2)*z-60*y*z**3, # xxy
-            15*x*y*(x**2+y**2-6*z**2)] # xyz
-            )/(2*np.pi*r**9)
+        return [v.transpose((2, 0, 1)) if v.ndim==3 else v
+                for v in point_value(x, self.areas, self.points, *d)]
 
 
 class PolygonPixelElectrode(PixelElectrode):
@@ -302,16 +281,45 @@ class PolygonPixelElectrode(PixelElectrode):
         v = [polygon_value(x, p, *d) for p in self.paths]
         for vi in zip(*v):
             vi = np.array(vi)
-            if len(vi.shape) > 2:
+            if vi.ndim == 3:
                 vi = vi.transpose((2, 0, 1))
             yield vi
 
 try:
-    from .speedups import polygon_value
+    from .speedups import point_value, polygon_value
 except ImportError:
+    def point_value(x, p, *d):
+        return [v.transpose((1, 2, 0)) if len(v.shape)>2 else v
+                for v in _point_value(x, p, *d)]
+
+    def _point_value(x, a, p, *d):
+        a = a[:, None]
+        p1 = x[None, :] - p[:, None]
+        r = norm(p1)
+        x, y, z = p1.transpose((2, 0, 1))
+        if 0 in d:
+            yield a * z/(2*np.pi*r**3) #
+        if 1 in d:
+            yield a * np.array([-3*x*z, -3*y*z, x**2+y**2-2*z**2] # x y z
+            )/(2*np.pi*r**5)
+        if 2 in d:
+            yield a * np.array([-3*z*(-4*x**2+y**2+z**2), 15*x*y*z, # xx xy
+            -3*x*(x**2+y**2-4*z**2), -3*z*(x**2-4*y**2+z**2), # xz yy
+            -3*y*(x**2+y**2-4*z**2)] # yz
+            )/(2*np.pi*r**7)
+        if 3 in d:
+            yield a * np.array([15*y*z*(-6*x**2+y**2+z**2), # xxy
+            3*(4*x**4-y**4+3*y**2*z**2+4*z**4+3*x**2*(y**2-9*z**2)), # xxz
+            3*(-x**4+4*y**4-27*y**2*z**2+4*z**4+3*x**2*(y**2+z**2)), # yyz
+            15*x*z*(x**2-6*y**2+z**2), # yyx
+            45*x*(x**2+y**2)*z-60*x*z**3, # zzx
+            45*y*(x**2+y**2)*z-60*y*z**3, # xxy
+            15*x*y*(x**2+y**2-6*z**2)] # xyz
+            )/(2*np.pi*r**9)
+
     def polygon_value(x, p, *d):
-        return [v.T if v.ndim == 2 else v for v in
-                _polygon_value(x, p, *d)]
+        return [v.T for v in _polygon_value(x, p, *d)]
+
     def _polygon_value(x, p, *d):
         p1 = x[None, :] - p[:, None]
         x1, y1, z = p1.transpose((2, 0, 1))

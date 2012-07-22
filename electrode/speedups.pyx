@@ -31,6 +31,87 @@ ctypedef np.double_t dtype_t
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+def point_value(np.ndarray[dtype_t, ndim=2] x not None,
+                np.ndarray[dtype_t, ndim=1] a not None,
+                np.ndarray[dtype_t, ndim=2] p not None,
+                *d):
+    cdef int xmax = x.shape[0], pmax = p.shape[0], i, j
+    cdef int dd0 = False, dd1 = False, dd2 = False, dd3 = False
+    cdef double x0, y0, z0, a0, r0
+    cdef list ret = []
+
+    cdef np.ndarray[dtype_t, ndim=2, mode="c"] d0
+    cdef np.ndarray[dtype_t, ndim=3, mode="c"] d1, d2, d3
+
+    if 0 in d:
+        d0 = np.zeros([pmax, xmax], dtype=dtype)
+        dd0 = True
+        ret.append(d0)
+    if 1 in d:
+        d1 = np.zeros([pmax, xmax, 3], dtype=dtype)
+        dd1 = True
+        ret.append(d1)
+    if 2 in d:
+        d2 = np.zeros([pmax, xmax, 5], dtype=dtype)
+        dd2 = True
+        ret.append(d2)
+    if 3 in d:
+        d3 = np.zeros([pmax, xmax, 7], dtype=dtype)
+        dd3 = True
+        ret.append(d3)
+
+    for i in range(pmax):
+        for j in range(xmax):
+            x0 = x[j, 0] - p[i, 0]
+            y0 = x[j, 1] - p[i, 1]
+            z0 = x[j, 2] - p[i, 2]
+            r0 = sqrt(x0**2+y0**2+z0**2)
+            a0 = a[i]
+            if dd0:
+                point_value_0(x0, y0, z0, r0, a0, &d0[i, j])
+            if dd1:
+                point_value_1(x0, y0, z0, r0, a0, &d1[i, j, 0])
+            if dd2:
+                point_value_2(x0, y0, z0, r0, a0, &d2[i, j, 0])
+            if dd3:
+                point_value_3(x0, y0, z0, r0, a0, &d3[i, j, 0])
+    return ret
+
+cdef inline point_value_0(double x, double y, double z, double r,
+                          double a, double *d):
+    cdef double n = a/(2*M_PI*r**3)
+    d[0] = z*n
+
+cdef inline point_value_1(double x, double y, double z, double r,
+                          double a, double *d):
+    cdef double n = a/(2*M_PI*r**5)
+    d[0] = -3*x*z*n
+    d[1] = -3*y*z*n
+    d[2] = (x**2+y**2-2*z**2)*n
+
+cdef inline point_value_2(double x, double y, double z, double r,
+                          double a, double *d):
+    cdef double n = a/(2*M_PI*r**7)
+    d[0] = -3*z*(-4*x**2+y**2+z**2)*n
+    d[1] = 15*x*y*z*n
+    d[2] = -3*x*(x**2+y**2-4*z**2)*n
+    d[3] = -3*z*(x**2-4*y**2+z**2)*n
+    d[4] = -3*y*(x**2+y**2-4*z**2)*n
+
+cdef inline point_value_3(double x, double y, double z, double r,
+                          double a, double *d):
+    cdef double n = a/(2*M_PI*r**9)
+    d[0] = 15*y*z*(-6*x**2+y**2+z**2)*n
+    d[1] = 3*(4*x**4-y**4+3*y**2*z**2+4*z**4+3*x**2*(y**2-9*z**2))*n
+    d[2] = 3*(-x**4+4*y**4-27*y**2*z**2+4*z**4+3*x**2*(y**2+z**2))*n
+    d[3] = 15*x*z*(x**2-6*y**2+z**2)*n
+    d[4] = (45*x*(x**2+y**2)*z-60*x*z**3)*n
+    d[5] = (45*y*(x**2+y**2)*z-60*y*z**3)*n
+    d[6] = 15*x*y*(x**2+y**2-6*z**2)*n
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
 def polygon_value(np.ndarray[dtype_t, ndim=2] x not None,
                   np.ndarray[dtype_t, ndim=2] p not None,
                   *d):
