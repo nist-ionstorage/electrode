@@ -1,16 +1,17 @@
 Source: python-electrode
 Section: python
 Priority: optional
-Maintainer: Robert Jordens <jordens@phys.ethz.ch>
-Build-Depends: debhelper (>= 8), python (>= 2.6.6-3~), python-setuptools
+Maintainer: Robert Jordens <jordens@gmail.com>
+Build-Depends: debhelper (>= 7), python-all-dev (>= 2.6.6-3),
+ python-setuptools (>= 0.6b3), cython, python-numpy-dev
 XS-Python-Version: >=2.5
 Standards-Version: 3.9.3
 
 Package: python-electrode
-Architecture: all
+Architecture: any
 Depends: ${misc:Depends}, ${python:Depends}
 Recommends: mayavi2 (>= 4), python-cvxopt (>= 1), ipython-notebook (>= 0.12),
- python-shapely (>= 1.2.13)
+ python-shapely (>= 1.2.13), python-gdsii
 Provides: ${python:Provides}
 Description: Numeric tools for RF ion traps
  Electrode is a toolkit to develop and analyze RF ion traps. It
