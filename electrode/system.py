@@ -167,8 +167,15 @@ class System(HasTraits):
             for i, ai in enumerate(axis):
                 x[ai] = xi[i]
             return float(self.potential(np.dot(coord, x)))
+        def g(xi):
+            for i, ai in enumerate(axis):
+                x[ai] = xi[i]
+            return rotate_tensor(self.gradient(np.dot(coord, x)),
+                    coord.T)[axis, 0]
         # downhill simplex
-        xs = optimize.fmin(p, np.array(x0)[:, axis], disp=False)
+        # bfgs seems better in test cases
+        xs = optimize.fmin_bfgs(p, np.array(x0)[:, axis], fprime=g,
+                disp=False)
         for i, ai in enumerate(axis):
             x[ai] = xs[i]
         return x
@@ -497,8 +504,7 @@ class System(HasTraits):
             return p.reshape(p.shape[0]*p.shape[1], -1)
 
         with np.errstate(divide="ignore", invalid="ignore"):
-            x, e0, itf, itg, ith, warn = optimize.fmin_ncg(
-                f=f, fprime=g, fhess=h, x0=x0.ravel(), full_output=1,
+            x = optimize.fmin_ncg(f=f, fprime=g, fhess=h, x0=x0.ravel(),
                 disp=0)
             #print warn
             #x1, e0, e1, e2, itf, itg, warn = optimize.fmin_bfgs(
