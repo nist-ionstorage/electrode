@@ -108,27 +108,36 @@ def area_centroid(p1):
 
 def mathieu(r, *a):
     """solve the mathieu/floquet equation 
-        x'' + (2 a_0 + 2 a_1 cos(2 t) + 2 a_2 cos(4 t) ... ) x = 0
+        x'' + (a_0 + 2 a_1 cos(2 t) + 2 a_2 cos(4 t) ... ) x = 0
     in n dimensions and with a frequency cutoff at +- r
     a.shape == (n, n)
     returns mu eigenvalues and b eigenvectors
-    mu.shape == (2*n*(2*r+1),) # duplicates for initial phase freedom
-    b.shape == (2*n*(2*r+1), 2*n*(2*r+1))
-    b[:, i] the eigenvector to the eigenvalue mu[i]
-    the lowest energy component is centered
+    b.shape == (2*r+1, 2, n, 2*n*(2*r+1))
+    with indices: frequency component (-r...r), derivative, dimension, eigenvalue
+    mu.shape == (2*n*(2*r+1),)
+    b[..., i] the eigenvector to the eigenvalue mu[i]
+    the eigenvalues and eigenvectors are not necessarily ordered
+    (see numpy.linalg.eig())
     """
     n = a[0].shape[0]
-    m = np.zeros((2*(2*r+1), 2*(2*r+1), n, n), dtype=np.complex)
+    m = np.zeros((2*r+1, 2*r+1, 2, 2, n, n), dtype=np.complex)
     for l in range(2*r+1):
-        m[2*l, 2*l] = np.identity(n)*2j*(l-r)
-        m[2*l, 2*l+1] = np.identity(n)
-        m[2*l+1, 2*l+1] = np.identity(n)*2j*(l-r)
+        # derivative on the diagonal
+        m[l, l, 0, 0] = m[l, l, 1, 1] = np.identity(n)*2j*(l-r)
+        # the off-diagonal 1st-1st derivative link
+        m[l, l, 0, 1] = np.identity(n)
+        # a_0, a_1... on the 2nd-0th component
+        # fill to the right and below instead of left and right and left
         for i, ai in enumerate(a):
-            if l <= 2*r+1-2*i:
-                m[2*l+1, 2*l+2*i] = -ai
-                m[2*l+1+2*i, 2*l] = -ai
-    m = m.transpose((0, 2, 1, 3)).reshape((2*r+1)*2*n, (2*r+1)*2*n)
+            if l+i < 2*r+1: # cutoff
+                # i=0 (a_0) written twice (no factor of two in diff eq)
+                m[l, l+i, 1, 0] = -ai
+                m[l+i, l, 1, 0] = -ai
+    # fold frequency components, derivative index and dimensions into
+    # one axis each
+    m = m.transpose((0, 2, 4, 1, 3, 5)).reshape((2*r+1)*2*n, -1)
     mu, b = np.linalg.eig(m)
+    # b = b.reshape((2*r+1, 2, n, -1))
     return mu, b
 
 

@@ -362,7 +362,7 @@ class System(HasTraits):
         fourier components"""
         c_rf, = self.get_potentials(x, "rf", 2)
         c_dc, = self.get_potentials(x, "dc", 2)
-        a = 2*u_dc*c_dc[..., 0] # mathieu(*a) takes each ai *2!
+        a = 4*u_dc*c_dc[..., 0]
         q = 2*u_rf*c_rf[..., 0]
         mu, b = mathieu(r, a, q)
         if sorted:
