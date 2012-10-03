@@ -530,9 +530,10 @@ class MagtrapCase(unittest.TestCase):
         nptest.assert_almost_equal(xsp, .00421, decimal=4)
     
     def test_modes(self):
+        """fails sometimes due to near degeneracy"""
         o, e = self.s.modes(self.x0)
         nptest.assert_almost_equal(o, [0, .1164, .1164], decimal=4)
-        a = -116.7*np.pi/180
+        a = -96.1*np.pi/180
         nptest.assert_almost_equal(e[1:, 1:],
                 [[np.cos(a), -np.sin(a)],[np.sin(a), np.cos(a)]], decimal=3)
     
@@ -637,6 +638,7 @@ class MagtrapCase(unittest.TestCase):
                 xis[np.argmin(np.abs(xis)[:, 0])], x, 3)
 
     def test_ions_modes(self):
+        """fails sometimes due to near degeneracy"""
         self.test_shims_build()
         x = self.x0
         n = 2
@@ -648,7 +650,7 @@ class MagtrapCase(unittest.TestCase):
 
     def test_analyze_static(self):
         s = list(self.s.analyze_static(self.x0))
-        self.assertEqual(len(s), 23)
+        self.assertEqual(len(s), 24)
 
     def test_analyze_shims(self):
         s = list(self.s.analyze_shims([self.x0]))

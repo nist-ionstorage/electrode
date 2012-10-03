@@ -380,16 +380,17 @@ class System(HasTraits):
                  "q = %.3g qe, l = %.3g µm, axis=%s" % (
                 u, o/(2e6*np.pi), m/ct.atomic_mass,
                 q/ct.elementary_charge, l/1e-6, axis)
+        yield "energy scale: %.3g eV" % dc_scale
         yield "analyze point: %s (%s µm)" % (x, x*l/1e-6)
         trap = self.minimum(x, axis=axis)
         yield " minimum is at offset: %s" % (trap - x)
         p_rf, p_dc = self.potential_rf(x), self.potential_dc(x)
         yield " rf, dc potentials: %.2g, %.2g (%.2g eV, %.2g eV)" % (
-            p_rf, p_dc, p_rf*scale/q, p_dc*dc_scale)
+            p_rf, p_dc, p_rf*dc_scale, p_dc*dc_scale)
         try:
             xs, xsp = self.saddle(x+1e-2, axis=axis)
             yield " saddle offset, height: %s, %.2g (%.2g eV)" % (
-                xs - x, xsp - p_rf - p_dc, (xsp - p_rf - p_dc)*scale/q)
+                xs - x, xsp - p_rf - p_dc, (xsp - p_rf - p_dc)*dc_scale)
         except:
             yield " saddle not found"
         curves, modes_pp = self.modes(x)
@@ -428,7 +429,7 @@ class System(HasTraits):
             r2 = norm(xis[1]-xis[0])
             r2a = ((q*l)**2/(2*np.pi*ct.epsilon_0*scale*curves[0]))**(1/3.)
             yield " two ion modes:"
-            yield "  separation: %.3g (%.3g µm, %.3g µm analytic)" % (
+            yield "  separation: %.3g (%.3g µm, %.3g µm harmonic)" % (
                 r2, r2*l/1e-6, r2a/1e-6)
             for fi, mi in zip(freqs_ppi, mis.transpose(2, 0, 1)):
                 yield "  %.4g MHz, %s/%s" % (fi/1e6, mi[0], mi[1])
