@@ -18,11 +18,10 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# qualitative color map
-# http://colorbrewer2.org/index.php?type=qualitative&scheme=Set3&n=12
-
 import numpy as np
 
+# qualitative color map
+# http://colorbrewer2.org/index.php?type=qualitative&scheme=Set3&n=12
 set3 = np.array([
     [141, 211, 199],
     [255, 255, 179],

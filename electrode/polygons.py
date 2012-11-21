@@ -60,6 +60,7 @@ def system_to_polygons(system):
             {-1: ints, 1: exts}[ei].append(pi.copy("C"))
         mp = []
         for ei in exts:
+            # FIXME: only those in ints that intersect ei
             mp.append((ei, ints))
         p.append((e.name, geometry.MultiPolygon(mp)))
     return p
