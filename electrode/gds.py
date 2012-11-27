@@ -60,6 +60,7 @@ def from_gds(fil, scale=1., layer=None):
             ele.voltage_rf = float(props.get(attr_vrf, 0.))
             path = np.array(e.xy)*lib.physical_unit/scale
             path = np.c_[path, np.zeros((path.shape[0],))]
+            path = path[:-1] # a gds boundary is a full loop
             ele.paths.append(path)
     return s
 
