@@ -141,7 +141,7 @@ class System(HasTraits):
         return r
 
     def plot(self, ax, alpha=.3, *a, **k):
-        """plot electrodes with random colors"""
+        """plot electrodes with sequential colors"""
         for e, c in zip(self.electrodes, itertools.cycle(colors.set3)):
             e.plot(ax, color=tuple(c/255.), alpha=alpha, *a, **k)
 
