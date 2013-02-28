@@ -32,15 +32,18 @@ def polygons_to_system(polygons):
     """
     s = System()
     for n, p in polygons:
-        paths = []
+        e = PolygonPixelElectrode(name=n, paths=[])
+        s.electrodes.append(e)
         if type(p) is geometry.Polygon:
             p = [p]
         for pi in p:
-            paths.append(np.array(pi.exterior.coords[:-1]))
+            ext = np.array(pi.exterior.coords[:-1]).copy()
+            ext.resize(ext.shape[0], 3)
+            e.paths.append(ext)
             for ii in pi.interiors:
-                paths.append(np.array(ii.coords)[-1::-1])
-        e = PolygonPixelElectrode(name=n, paths=paths)
-        s.electrodes.append(e)
+                int = np.array(ii.coords)[-1::-1].copy()
+                int.resize(int.shape[0], 3)
+                e.paths.append(int)
     return s
 
 def system_to_polygons(system):
