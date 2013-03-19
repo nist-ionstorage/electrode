@@ -37,6 +37,7 @@ def polygons_to_system(polygons):
         if type(p) is geometry.Polygon:
             p = [p]
         for pi in p:
+            pi = geometry.polygon.orient(pi, 1)
             ext = np.array(pi.exterior.coords[:-1]).copy()
             ext.resize(ext.shape[0], 3)
             e.paths.append(ext)

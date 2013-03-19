@@ -26,7 +26,7 @@ from .electrode import PolygonPixelElectrode
 
 
 # attribute namespaces anyone?
-attr_base = sum(ord(i) for i in "electrode")
+attr_base = sum(ord(i) for i in "electrode") # 951
 attr_info = attr_base + 5
 attr_name = attr_base + 10
 attr_vdc = attr_base + 11
