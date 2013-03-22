@@ -158,7 +158,7 @@ for line in s.analyze_shims([x0], electrodes=els, use_modes=True,
     forces=["x z".split()], curvatures=["xx xz".split()]):
     if type(line) == type(""):
         print line
-forces, curvatures, us = line
+us = line
 
 # add some yy curvature
 for eli, ui in zip(els, us[:, 2]):
@@ -194,7 +194,7 @@ for line in s.analyze_shims([x0], electrodes=els, use_modes=True,
     forces=["x y z".split()], curvatures=["xx yy xy xz yz".split()]):
     if type(line) == type(""):
         print line
-forces, curvatures, us = line
+us = line
 
 # add some xx curvature
 for eli, ui in zip(els, us[:, 3]):

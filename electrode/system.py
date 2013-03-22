@@ -260,13 +260,13 @@ class System(HasTraits):
         r = [pool.apply_async(apply_method,
             (el, "potential", x, 0, 1, 2)) for el in electrodes]
         p, f, c = zip(*map(lambda i: i.get(), r))
-        # m,n = len(electrodes), len(x)
-        # m,n potentials for electrodes at x0
+        m, n = len(electrodes), len(x)
         p = np.array(p)
-        # 3,m,n forces for electrodes at x0
+        assert p.shape == (m, n), p.shape
         f = np.array(f).transpose((1, 0, 2))
-        # 3,3,m,n curvatures for electrodes at x0
+        assert f.shape == (3, m, n), f.shape
         c = np.array(c).transpose((1, 2, 0, 3))
+        assert c.shape == (3, 3, m, n), c.shape
         return p, f, c
 
     def shims(self, x, electrodes=None, forces=None, curvatures=None,
@@ -280,8 +280,9 @@ class System(HasTraits):
         if electrodes is None:
             electrodes = self.electrodes
         p, f, c = self.effects(x, electrodes)
-        f = f.transpose((-1, 0, 1)) # x,fi,el
-        c = c.transpose((-1, 0, 1, 2)) # x,ci,cj,el
+        p = np.rollaxis(p, 1) # x,el
+        f = np.rollaxis(f, 2) # x,fi,el
+        c = np.rollaxis(c, 3) # x,ci,cj,el
         dc = []
         for i, (fi, ci) in enumerate(zip(f, c)): # over x
             if coords is not None:
@@ -435,7 +436,7 @@ class System(HasTraits):
                 yield "  %.4g MHz, %s/%s" % (fi/1e6, mi[0], mi[1])
 
     def analyze_shims(self, x, electrodes=None,
-            forces=None, curvatures=None, use_modes=True):
+            forces=None, curvatures=None, use_modes=True, **kwargs):
         x = np.atleast_2d(x)
         if electrodes is None:
             electrodes = [e.name for e in self.electrodes
@@ -453,7 +454,8 @@ class System(HasTraits):
             curvatures = [cn] * len(x)
         fx = [[fn.index(fi) for fi in fj] for fj in forces]
         cx = [[cn.index(ci) for ci in cj] for cj in curvatures]
-        us, (res, rank, sing) = self.shims(x, els, fx, cx, coords)
+        us, (res, rank, sing) = self.shims(x, els, fx, cx, coords,
+                **kwargs)
         yield "shim analysis for points: %s" % x
         yield " forces: %s" % forces
         yield " curvatures: %s" % curvatures
@@ -464,7 +466,7 @@ class System(HasTraits):
             for ni in forces[i]+curvatures[i]:
                 yield " sh_%i%-2s: %s" % (i, ni, us[:, n])
                 n += 1
-        yield forces, curvatures, us
+        yield us
 
     def ions(self, x0, q):
         """find the minimum energy configuration of several ions with
