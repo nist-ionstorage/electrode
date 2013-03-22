@@ -280,8 +280,34 @@ class PixelElectrodeCase(unittest.TestCase):
         nptest.assert_almost_equal(self.e.orientations(), [1.])
         nptest.assert_almost_equal(self.p.orientations(), [1.])
 
+    def test_pixel_derivatives(self):
+        x0 = np.array([1,2,5.])
+        ns = range(6)
+        p = self.e.potential(x0, *ns)
+        pp = lambda x: self.e.potential(x, 0)[0]
+        d = 5e-3
+        for n in ns:
+            for idx in combinations(range(3), n):
+                pn = nderiv(pp, x0, d, idx[:])
+                pa = p[n][tuple([i] for i in idx)][0]
+                nptest.assert_allclose(pn, pa, rtol=d,
+                    err_msg="n=%i, idx=%s" % (n, idx))
 
-class PolygonCase(unittest.TestCase):
+    def test_polygon_derivatives(self):
+        x0 = np.array([1,2,5.])
+        ns = range(6)
+        p = self.p.potential(x0, *ns)
+        pp = lambda x: self.p.potential(x, 0)[0]
+        d = 1e-2
+        for n in ns:
+            for idx in combinations(range(3), n):
+                pn = nderiv(pp, x0, d, idx[:])
+                pa = p[n][tuple([i] for i in idx)][0]
+                nptest.assert_allclose(pn, pa, rtol=d, atol=d*p[0][0],
+                    err_msg="n=%i, idx=%s" % (n, idx))
+
+
+class PolygonTestCase(unittest.TestCase):
     def setUp(self):
         p = np.array([[1, 0, 0], [2, 3, 0], [2, 7, 0], [3, 8, 0],
             [-2, 8, 0], [-5, 2, 0]])
@@ -311,6 +337,38 @@ class PolygonCase(unittest.TestCase):
         nptest.assert_almost_equal(
                 self.e.value([1,2,3], 2)[0][:, 0, 0],
                 [-0.0196946, -0.00747322, 0.0287624, -0.014943, -0.0182706])
+
+    def test_derivatives(self):
+        x0 = np.array([1,2,5.])
+        ns = range(6)
+        p = self.e.potential(x0, *ns)
+        pp = lambda x: self.e.potential(x, 0)[0]
+        d = 2e-3
+        for n in ns:
+            for idx in combinations(range(3), n):
+                pn = nderiv(pp, x0, d, idx[:])
+                pa = p[n][tuple([i] for i in idx)][0]
+                nptest.assert_allclose(pn, pa, rtol=d, atol=d*p[0][0],
+                    err_msg="n=%i, idx=%s" % (n, idx))
+
+
+def nderiv(f, x, d, p):
+    if not p:
+        return f(x)
+    dx = np.zeros_like(x)
+    dx[p[0]] = d
+    fa = nderiv(f, x+dx, d, p[1:])
+    fb = nderiv(f, x-dx, d, p[1:])
+    return (fa-fb)/(2*d)
+
+
+def combinations(choices, n):
+    if n == 0:
+        yield []
+    else:
+        for cc in combinations(choices, n-1):
+            for c in choices:
+                yield cc + [c]
 
 
 class ThreefoldOptimizeCase(unittest.TestCase):
