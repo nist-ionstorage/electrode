@@ -17,6 +17,10 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# cython: boundscheck=False
+# cython: wraparound=False
+# cython: cdivision=True
+
 from __future__ import division
 import cython
 import numpy as np
@@ -29,8 +33,6 @@ from libc.math cimport atan2, sqrt, fabs, M_PI
 dtype = np.double
 ctypedef np.double_t dtype_t
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
 def point_value(np.ndarray[dtype_t, ndim=2] x not None,
                 np.ndarray[dtype_t, ndim=1] a not None,
                 np.ndarray[dtype_t, ndim=2] p not None,
@@ -150,8 +152,6 @@ cdef inline point_value_5(double x, double y, double z, double r,
     d[10] = ((x**2-6*y**2)*(x**2+y**2)**2+(-11*x**4+90*x**2*y**2+101*y**4)*z**2-4*(x**2+29*y**2)*z**4+8*z**6)*n
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
 def polygon_value(np.ndarray[dtype_t, ndim=2] x not None,
                   list ps not None,
                   *d):
