@@ -122,6 +122,42 @@ def select_tensor(c):
         return c[(4, 5, 8, 13, 14, 17, 26, 41, 44, 125, 134), :]
 
 
+def cartesian_to_spherical_harmonics(c):
+    """given a cartesian derivative of a harmonic potential where the
+    derivative index is the first dimension (reduced as per
+    select_tensor, expand_tensor), rewrite it in terms of real 
+    spherical harmonics where m (-l...l) is the first dimension. l is
+    inferred from the input shape. 
+    Convention and conversion to complex spherical harmonics as per
+    http://theoretical-physics.net/dev/src/math/operators.html#real-spherical-harmonics
+    """
+    c = np.atleast_2d(c)
+    l = (c.shape[0] - 1)/2
+    if l == 0:
+        return np.sqrt(1/(4*np.pi))*c
+    elif l == 1:
+        x, y, z = c
+        c = np.array([-x, z, -y])
+        return np.sqrt(3/(4*np.pi))*c
+    elif l == 2:
+        xx, xy, xz, yy, yz = c
+        c = np.array([])
+        return np.sqrt(5/(16*np.pi))*c
+    elif l == 3:
+        xxy, xxz, yyz, yyx, zzx, zzy, xyz = c
+        c = np.array([])
+        return np.sqrt(7/(16*np.pi))*c
+    elif l == 4:
+        xxxy, xxxz, xxyy, xxzz, xyyy, xzzz, yyyz, yyzz, yzzz = c
+        c = np.array([])
+        return np.sqrt(5/(8*np.pi))*c
+    elif l == 5:
+        xxxyy, xxxyz, xxxzz, xxyyy, xxyyz, xxyzz, xxzzz, xyyyz, xyyzz, \
+            yyyzz, yyzzz = c
+        c = np.array([])
+        return np.sqrt(5/(8*np.pi))*c
+
+
 def rotate_tensor(c, r, order=None):
     """rotate a tensor c into the coordinate system r
     assumes that its order is len(c.shape)-1
