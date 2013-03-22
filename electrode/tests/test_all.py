@@ -61,7 +61,7 @@ class BasicFunctionsCase(unittest.TestCase):
         nptest.assert_equal(ce[5], -c[0]-c[3])
     
     def test_expand_select_tensor(self):
-        for n in 3, 5, 7:
+        for n in 3, 5, 7, 9, 11:
             d = np.random.random(n)[:, None]
             de = utils.expand_tensor(d)
             ds = utils.select_tensor(de)
@@ -74,6 +74,12 @@ class BasicFunctionsCase(unittest.TestCase):
         d = np.random.random(7)[:, None]
         de = utils.expand_tensor(d)
         nptest.assert_almost_equal(de.trace(), np.zeros((3,1)))
+        d = np.random.random(9)[:, None]
+        de = utils.expand_tensor(d)
+        nptest.assert_almost_equal(de.trace(), np.zeros((3,3,1)))
+        d = np.random.random(11)[:, None]
+        de = utils.expand_tensor(d)
+        nptest.assert_almost_equal(de.trace(), np.zeros((3,3,3,1)))
 
     def test_rotate_tensor_identity(self):
         dr = np.identity(3)

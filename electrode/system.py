@@ -99,7 +99,7 @@ class System(HasTraits):
 
     def potential_rf(self, x):
         e_rf, = self.get_potentials(x, "rf", 1)
-        return (e_rf**2).sum(axis=0)
+        return np.einsum("ij,ij->j", e_rf, e_rf)
 
     def potential(self, x):
         """combined electrical and ponderomotive potential"""
@@ -109,8 +109,8 @@ class System(HasTraits):
         return self.get_potentials(x, "dc", 1)[0]
 
     def gradient_rf(self, x):
-        e_rf, c_rf = self.get_potentials(x, "rf", 1, 2)
-        return 2*(e_rf[:, None]*c_rf).sum(axis=0)
+        e, c = self.get_potentials(x, "rf", 1, 2)
+        return 2*np.einsum("ik,ijk->jk", e, c)
 
     def gradient(self, x):
         """gradient of the combined electric and ponderomotive
@@ -121,14 +121,48 @@ class System(HasTraits):
         return self.get_potentials(x, "dc", 2)[0]
 
     def curvature_rf(self, x):
-        e_rf, c_rf, d_rf = self.get_potentials(x, "rf", 1, 2, 3)
-        return 2*(c_rf[:, :, None]*c_rf[:, None, :]+
-                e_rf[:, None, None]*d_rf).sum(axis=0)
+        e, c, d = self.get_potentials(x, "rf", 1, 2, 3)
+        return 2*(np.einsum("ijl,ikl->jkl", c, c)
+                + np.einsum("il,ijkl->jkl", e, d))
 
     def curvature(self, x):
         """curvature of the combined electric and ponderomotive
         potential"""
         return self.curvature_dc(x) + self.curvature_rf(x)
+
+    def supercurvature_dc(self, x):
+        return self.get_potentials(x, "dc", 3)[0]
+
+    def supercurvature_rf(self, x):
+        e, c, d, f = self.get_potentials(x, "rf", 1, 2, 3, 4)
+        return 2*(np.einsum("im,ijklm->jklm", e, f)
+                + np.einsum("ijm,iklm->jklm", c, d)
+                + np.einsum("ikm,ijlm->jklm", c, d)
+                + np.einsum("ilm,ijkm->jklm", c, d))
+
+    def supercurvature(self, x):
+        """supercurvature of the combined electric and ponderomotive
+        potential"""
+        return self.supercurvature_dc(x) + self.supercurvature_rf(x)
+
+    def hypercurvature_dc(self, x):
+        return self.get_potentials(x, "dc", 4)[0]
+
+    def hypercurvature_rf(self, x):
+        e, c, d, f, g = self.get_potentials(x, "rf", 1, 2, 3, 4, 5)
+        return 2*(np.einsum("in,ijklmn->jklmn", e, g)
+                + np.einsum("ijn,iklmn->jklmn", c, f)
+                + np.einsum("ikn,ijlmn->jklmn", c, f)
+                + np.einsum("iln,ijkmn->jklmn", c, f)
+                + np.einsum("imn,ijkln->jklmn", c, f)
+                + np.einsum("ijmn,ikln->jklmn", d, d)
+                + np.einsum("ikmn,ijln->jklmn", d, d)
+                + np.einsum("ilmn,ijkn->jklmn", d, d))
+
+    def hypercurvature(self, x):
+        """hypercurvature of the combined electric and ponderomotive
+        potential"""
+        return self.hypercurvature_dc(x) + self.hypercurvature_rf(x)
 
     def parallel(self, pool, x, y, z, fn="potential"):
         """paralelize the calculation of method fn over the indices of
