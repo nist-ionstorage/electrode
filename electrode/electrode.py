@@ -81,6 +81,12 @@ class CoverElectrode(Electrode):
             r.append(ri)
         if 2 in d:
             r.append(np.zeros((3, 3, x.shape[0])))
+        if 3 in d:
+            r.append(np.zeros((3, 3, 3, x.shape[0])))
+        if 4 in d:
+            r.append(np.zeros((3, 3, 3, 3, x.shape[0])))
+        if 5 in d:
+            r.append(np.zeros((3, 3, 3, 3, 3, x.shape[0])))
         return r
 
     def electrical_potential(self, x):

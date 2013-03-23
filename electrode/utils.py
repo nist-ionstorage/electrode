@@ -32,6 +32,7 @@ def apply_method(s, name, *args, **kwargs):
 def norm(a, axis=-1):
     """special version of np.linalg.norm() that only covers the
     specified axis"""
+    # return np.sqrt(np.einsum("ij,ij->i", a, a))
     return np.sqrt(np.square(a).sum(axis=axis))
 
 
@@ -224,8 +225,17 @@ def rotate_tensor(c, r, order=None):
     r = np.atleast_2d(r)
     if order is None:
         order = len(c.shape)-1
+    #slower: O(n**order)
+    #ops = [c, range(order) + [Ellipsis]]
+    #for i in range(order):
+    #    ops.extend([r, [i, i+order]])
+    #ops.append(range(order, 2*order) + [Ellipsis])
+    #c = np.einsum(*ops)
     for i in range(order):
+        #O(n*order):
         c = np.dot(c.swapaxes(i, -1), r).swapaxes(i, -1)
+        #incorrect and probably not faster:
+        #c = np.tensordot(c, r, axes=[i, 0])
     return c
 
 
