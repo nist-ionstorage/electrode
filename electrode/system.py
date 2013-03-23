@@ -38,10 +38,8 @@ from .transformations import euler_from_matrix
 from .saddle import rfo
 from .electrode import Electrode
 from .utils import (select_tensor, expand_tensor, norm, rotate_tensor,
-    apply_method, mathieu, DummyPool)
+    apply_method, mathieu)
 from . import colors
-
-_dummy_pool = DummyPool()
 
 
 class System(HasTraits):
@@ -164,16 +162,6 @@ class System(HasTraits):
         potential"""
         return self.hypercurvature_dc(x) + self.hypercurvature_rf(x)
 
-    def parallel(self, pool, x, y, z, fn="potential"):
-        """paralelize the calculation of method fn over the indices of
-        the x axis"""
-        r = [pool.apply_async(apply_method, (self, fn,
-                np.array([x[i], y[i], z[i]]).reshape(3, -1).T))
-            for i in range(x.shape[0])]
-        r = np.array([ri.get().reshape((x.shape[1], x.shape[2]))
-            for ri in r])
-        return r
-
     def plot(self, ax, alpha=.3, *a, **k):
         """plot electrodes with sequential colors"""
         for e, c in zip(self.electrodes, itertools.cycle(colors.set3)):
@@ -281,7 +269,7 @@ class System(HasTraits):
                 break
         return map(np.array, (t, q, p))
 
-    def effects(self, x, electrodes=None, pool=_dummy_pool):
+    def effects(self, x, electrodes=None):
         """
         return potential, gradient and curvature for the system at x and
         contribution of each of the specified electrodes per volt
@@ -291,9 +279,8 @@ class System(HasTraits):
         if electrodes is None:
             electrodes = self.electrodes
         x = np.atleast_2d(x) # n,3 positions
-        r = [pool.apply_async(apply_method,
-            (el, "potential", x, 0, 1, 2)) for el in electrodes]
-        p, f, c = zip(*map(lambda i: i.get(), r))
+        r = [el.potential(x, 0, 1, 2) for el in electrodes]
+        p, f, c = zip(*r)
         m, n = len(electrodes), len(x)
         p = np.array(p)
         assert p.shape == (m, n), p.shape
@@ -334,7 +321,7 @@ class System(HasTraits):
         return u, (res, rank, sing)
 
     def solve(self, x, constraints, 
-            electrodes=None, verbose=True, pool=_dummy_pool):
+            electrodes=None, verbose=True):
         """
         optimize dc voltages at positions x to satisfy constraints.
 
@@ -348,7 +335,7 @@ class System(HasTraits):
         p0, f0, c0 = self.potential(x), self.gradient(x), self.curvature(x)
         for el, vi in zip(electrodes, v0):
             el.voltage_dc = vi
-        p, f, c = self.effects(x, electrodes, pool)
+        p, f, c = self.effects(x, electrodes)
 
         variables = []
         pots = []

@@ -34,7 +34,7 @@ from electrode import (transformations, utils, electrode, system,
 class BasicFunctionsCase(unittest.TestCase):
     def test_dummy_pool(self):
         f = lambda x, y=1, *a, **k: (x, y, a, k)
-        r = system._dummy_pool.apply_async(f, (2, 3, 4), {"a": 5})
+        r = utils.DummyPool().apply_async(f, (2, 3, 4), {"a": 5})
         self.assertEqual(r.get(), (2, 3, (4,), {"a": 5}))
 
     def test_apply_method(self):
@@ -500,18 +500,6 @@ class FiveWireCase(unittest.TestCase):
         nptest.assert_almost_equal(o0, [0, .1013, .1013], decimal=3)
         abc = np.array(transformations.euler_from_matrix(e0))/2/pi
         nptest.assert_allclose(abc, [0, 0, 0], atol=1, rtol=1e-3)
-
-    def test_parallel(self):
-        n = 10
-        xyz = np.mgrid[-1:1:1j*n, -1:1:1j*n, .5:1.5:1j*n]
-        r = self.s.parallel(system._dummy_pool, *xyz)
-
-    def test_parallel_pool(self):
-        import multiprocessing
-        pool = multiprocessing.Pool()
-        n = 10
-        xyz = np.mgrid[-1:1:1j*n, -1:1:1j*n, .5:1.5:1j*n]
-        r = self.s.parallel(pool, *xyz)
 
     def test_integrate(self):
         h = 1.
