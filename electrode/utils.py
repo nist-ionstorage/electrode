@@ -19,6 +19,7 @@
 
 
 import numpy as np
+from math import factorial
 
 
 def apply_method(s, name, *args, **kwargs):
@@ -133,29 +134,86 @@ def cartesian_to_spherical_harmonics(c):
     """
     c = np.atleast_2d(c)
     l = (c.shape[0] - 1)/2
+    n = 1/(factorial(l)*2**l*np.sqrt(np.pi/(2*l+1)))
     if l == 0:
-        return np.sqrt(1/(4*np.pi))*c
+        c = c/2
     elif l == 1:
         x, y, z = c
-        c = np.array([-x, z, -y])
-        return np.sqrt(3/(4*np.pi))*c
+        c = np.array([
+            -y,
+            z,
+            -x
+        ])
     elif l == 2:
         xx, xy, xz, yy, yz = c
-        c = np.array([])
-        return np.sqrt(5/(16*np.pi))*c
+        zz = -xx-yy
+        c = np.array([
+            2*np.sqrt(3)*xy,
+            -2*np.sqrt(3)*yz,
+            -xx-yy+2*zz,
+            -2*np.sqrt(3)*xz,
+            np.sqrt(3)*(xx-yy),
+        ])
     elif l == 3:
-        xxy, xxz, yyz, yyx, zzx, zzy, xyz = c
-        c = np.array([])
-        return np.sqrt(7/(16*np.pi))*c
+        xxy, xxz, yyz, xyy, xzz, yzz, xyz = c
+        yyy = -xxy-yzz
+        xxx = -xyy-xzz
+        zzz = -xxz-yyz
+        c = np.array([
+            np.sqrt(10)*(-3*xxy+yyy),
+            4*np.sqrt(15)*xyz,
+            np.sqrt(6)*(xxy+yyy-4*yzz),
+            2*(-3*xxz-3*yyz+2*zzz),
+            np.sqrt(6)*(xxx+xyy-4*xzz),
+            2*np.sqrt(15)*(xxz-yyz),
+            np.sqrt(10)*(-xxx+3*xyy),
+        ])
     elif l == 4:
         xxxy, xxxz, xxyy, xxzz, xyyy, xzzz, yyyz, yyzz, yzzz = c
-        c = np.array([])
-        return np.sqrt(5/(8*np.pi))*c
+        xxyz = -yyyz-yzzz
+        xyzz = -xyyy-xxxy
+        xxxx = -xxyy-xxzz
+        yyyy = -xxyy-yyzz
+        zzzz = -yyzz-xxzz
+        xyyz = -xxxz-xzzz
+        c = np.array([
+            4*np.sqrt(35)*(xxxy-xyyy),
+            2*np.sqrt(70)*(-3*xxyz+yyyz),
+            4*np.sqrt(5)*(-xxxy-xyyy+6*xyzz),
+            2*np.sqrt(10)*(3*xxyz+3*yyyz-4*yzzz),
+            3*xxxx+6*xxyy-24*xxzz+3*yyyy-24*yyzz+8*zzzz,
+            2*np.sqrt(10)*(3*xxxz+3*xyyz-4*xzzz),
+            2*np.sqrt(5)*(-xxxx+6*xxzz+yyyy-6*yyzz),
+            2*np.sqrt(70)*(-xxxz+3*xyyz),
+            np.sqrt(35)*(xxxx-6*xxyy+yyyy),
+        ])
     elif l == 5:
         xxxyy, xxxyz, xxxzz, xxyyy, xxyyz, xxyzz, xxzzz, xyyyz, xyyzz, \
             yyyzz, yyzzz = c
-        c = np.array([])
-        return np.sqrt(5/(8*np.pi))*c
+        xxxxy = -xxyyy-xxyzz
+        yyyyy = -xxyyy-yyyzz
+        xyzzz = -xxxyz-xyyyz
+        yzzzz = -xxyzz-yyyzz
+        xxxxz = -xxyyz-xxzzz
+        yyyyz = -xxyyz-yyzzz
+        zzzzz = -yyzzz-xxzzz
+        xxxxx = -xxxyy-xxxzz
+        xyyyy = -xxxyy-xyyzz
+        xzzzz = -xyyzz-xxxzz
+        c = np.array([
+            3*np.sqrt(14)*(-5*xxxxy+10*xxyyy-yyyyy),
+            24*np.sqrt(35)*(xxxyz-xyyyz),
+            np.sqrt(70)*(3*xxxxy+2*xxyyy-24*xxyzz-yyyyy+8*yyyzz),
+            8*np.sqrt(105)*(-xxxyz-xyyyz+2*xyzzz),
+            2*np.sqrt(15)*(-xxxxy-2*xxyyy+12*xxyzz-yyyyy+12*yyyzz-8*yzzzz),
+            2*(15*xxxxz+30*xxyyz-40*xxzzz+15*yyyyz-40*yyzzz+8*zzzzz),
+            2*np.sqrt(15)*(-xxxxx-2*xxxyy+12*xxxzz-xyyyy+12*xyyzz-8*xzzzz),
+            4*np.sqrt(105)*(-xxxxz+2*xxzzz+yyyyz-2*yyzzz),
+            np.sqrt(70)*(xxxxx-2*xxxyy-8*xxxzz-3*xyyyy+24*xyyzz),
+            6*np.sqrt(35)*(xxxxz-6*xxyyz+yyyyz),
+            3*np.sqrt(14)*(-xxxxx+10*xxxyy-5*xyyyy),
+        ])
+    return n*c
 
 
 def rotate_tensor(c, r, order=None):

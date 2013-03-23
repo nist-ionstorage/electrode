@@ -339,7 +339,7 @@ class PolygonTestCase(unittest.TestCase):
                 [-0.0196946, -0.00747322, 0.0287624, -0.014943, -0.0182706])
 
     def test_derivatives(self):
-        x0 = np.array([1,2,5.])
+        x0 = np.array([1, 2, 5.])
         ns = range(6)
         p = self.e.potential(x0, *ns)
         pp = lambda x: self.e.potential(x, 0)[0]
@@ -350,6 +350,15 @@ class PolygonTestCase(unittest.TestCase):
                 pa = p[n][tuple([i] for i in idx)][0]
                 nptest.assert_allclose(pn, pa, rtol=d, atol=d*p[0][0],
                     err_msg="n=%i, idx=%s" % (n, idx))
+
+    def test_spherical_harmonics(self):
+        x = np.array([1, 2, 3.])
+        ns = range(6)
+        v = self.e.value(x, *ns)
+        for i, vi in enumerate(v):
+            vi = np.atleast_3d(vi)
+            s = utils.cartesian_to_spherical_harmonics(vi)
+            self.assertEqual(s.shape, vi.shape)
 
 
 def nderiv(f, x, d, p):
