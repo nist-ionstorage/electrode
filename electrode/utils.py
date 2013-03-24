@@ -135,7 +135,9 @@ def cartesian_to_spherical_harmonics(c):
     """
     c = np.atleast_2d(c)
     l = (c.shape[0] - 1)/2
-    n = 1/(factorial(l)*2**l*np.sqrt(np.pi/(2*l+1)))
+    #n = 1/(factorial(l)*2**l*np.sqrt(np.pi/(2*l+1)))
+    #n *= 4*np.pi*2**(l+1)/(l+1)*factorial(l+1)**2/factorial(2*l+2)
+    n = 8*np.sqrt(np.pi*(2*l+1))*factorial(l+1)/factorial(2*l+2)
     if l == 0:
         c = c/2
     elif l == 1:

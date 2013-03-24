@@ -222,6 +222,17 @@ class PixelElectrode(Electrode):
         p = np.array(p.value).ravel()
         return p, c
 
+    def split(self, thresholds=[.5**.5]):
+        ts = [-np.inf] + thresholds + [np.inf]
+        eles = []
+        for i, (ta, tb) in enumerate(zip(ts[:-1], ts[1:])):
+            good = (ta <= self.pixel_factors) & (self.pixel_factors < tb)
+            paths = [self.paths[j] for j in np.argwhere(good)]
+            name = "%s_%i" % (self.name, i)
+            eles.append(self.__class__(name=name, paths=paths,
+                voltage_dc=self.voltage_dc, voltage_rf=self.voltage_rf))
+        return eles
+
 
 class PointPixelElectrode(PixelElectrode):
     points = Array(dtype=np.float64, shape=(None, 3))

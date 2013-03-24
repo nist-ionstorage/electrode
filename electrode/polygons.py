@@ -47,7 +47,7 @@ def polygons_to_system(polygons):
                 e.paths.append(int)
     return s
 
-def system_to_polygons(system):
+def system_to_polygons(system, pixel_threshold=np.sqrt(.5)):
     """
     convert a System() to a list of [("electrode name",
     MultiPolygon(...)), ...]
@@ -58,7 +58,9 @@ def system_to_polygons(system):
             continue
         # assert type(e) is PolygonPixelElectrode, (e, e.name)
         exts, ints = [], []
-        for pi, ei in zip(e.paths, e.orientations()):
+        for pi, ei, qi in zip(e.paths, e.orientations(), e.pixel_factors):
+            if qi < pixel_threshold:
+                continue
             # shapely ignores f-contiguous arrays
             # https://github.com/sgillies/shapely/issues/26
             {-1: ints, 1: exts}[ei].append(pi.copy("C"))
@@ -110,6 +112,13 @@ def add_gaps(polygons, gapsize):
                 pi = pc
         p.append((ni, pi))
     return p
+
+def simplify_polygons(polygons, theshold=.5**.5):
+    out = []
+    for name, poly in polygons:
+        poly = poly.buffer(0)
+        out.append((name, poly))
+    return out
 
 
 if __name__ == "__main__":
