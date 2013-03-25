@@ -25,7 +25,7 @@ from traits.api import HasTraits, Array, Float, Int
 from .utils import select_tensor, expand_tensor, rotate_tensor
 
 
-class PatternConstraint(HasTraits):
+class Constraint(HasTraits):
     def objective(self, electrode, variables):
         return
         yield
@@ -35,7 +35,7 @@ class PatternConstraint(HasTraits):
         yield
 
 
-class PatternValueConstraint(PatternConstraint):
+class PatternValueConstraint(Constraint):
     x = Array(dtype=np.float64, shape=(3,))
     d = Int
     v = Array(dtype=np.float64)
@@ -50,7 +50,7 @@ class PatternValueConstraint(PatternConstraint):
         return zip(c, v)
 
 
-class PatternRangeConstraint(PatternConstraint):
+class PatternRangeConstraint(Constraint):
     min = Float
     max = Float
 
@@ -61,4 +61,27 @@ class PatternRangeConstraint(PatternConstraint):
             yield variables <= self.max
 
 
+class PotentialObjective(Constraint):
+    x = Array(dtype=np.float64, shape=(3,))
+    d = Int # derivative order
+    e = Int # derivative component
+    v = Float # value
 
+    def objective(self, electrode, variables):
+        c = electrode.value(self.x, self.d)[0][self.e, :, 0]
+        return [(c, self.v)]
+
+
+class PotentialConstraint(Constraint):
+    x = Array(dtype=np.float64, shape=(3,))
+    d = Int # derivative order
+    e = Int # derivative component
+    min = Float # value
+    max = Float # value
+
+    def constraints(self, electrode, variables):
+        c = electrode.value(self.x, self.d)[0][self.e, :, 0]
+        if self.min is not None:
+            yield c*variables >= self.min
+        if self.max is not None:
+            yield c*variables <= self.max
