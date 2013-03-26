@@ -38,16 +38,16 @@ def polygons_to_system(polygons):
             p = [p]
         for pi in p:
             pi = geometry.polygon.orient(pi, 1)
-            ext = np.array(pi.exterior.coords[:-1]).copy()
-            ext.resize(ext.shape[0], 3)
+            ext = np.zeros((len(pi.exterior.coords)-1, 3))
+            ext[:, :2] = pi.exterior.coords[:-1]
             e.paths.append(ext)
             for ii in pi.interiors:
-                int = np.array(ii.coords)[-1::-1].copy()
-                int.resize(int.shape[0], 3)
+                int = np.zeros((len(ii.coords)-1, 3))
+                int[:, :2] = ii.coords[-2::-1]
                 e.paths.append(int)
     return s
 
-def system_to_polygons(system, pixel_threshold=np.sqrt(.5)):
+def system_to_polygons(system):
     """
     convert a System() to a list of [("electrode name",
     MultiPolygon(...)), ...]
@@ -58,9 +58,7 @@ def system_to_polygons(system, pixel_threshold=np.sqrt(.5)):
             continue
         # assert type(e) is PolygonPixelElectrode, (e, e.name)
         exts, ints = [], []
-        for pi, ei, qi in zip(e.paths, e.orientations(), e.pixel_factors):
-            if qi < pixel_threshold:
-                continue
+        for pi, ei in zip(e.paths, e.orientations()):
             # shapely ignores f-contiguous arrays
             # https://github.com/sgillies/shapely/issues/26
             {-1: ints, 1: exts}[ei].append(pi.copy("C"))
@@ -113,10 +111,10 @@ def add_gaps(polygons, gapsize):
         p.append((ni, pi))
     return p
 
-def simplify_polygons(polygons, theshold=.5**.5):
+def simplify_polygons(polygons, buffer=0.):
     out = []
     for name, poly in polygons:
-        poly = poly.buffer(0)
+        poly = poly.buffer(buffer)
         out.append((name, poly))
     return out
 
