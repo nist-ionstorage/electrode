@@ -222,11 +222,15 @@ class PixelElectrode(Electrode):
         p = np.array(p.value).ravel()
         return p, c
 
-    def split(self, thresholds=[.5**.5]):
+    def split(self, thresholds=[0]):
+        if thresholds is None:
+            threshold = sorted(np.unique(self.pixel_factors))
         ts = [-np.inf] + thresholds + [np.inf]
         eles = []
         for i, (ta, tb) in enumerate(zip(ts[:-1], ts[1:])):
             good = (ta <= self.pixel_factors) & (self.pixel_factors < tb)
+            if not np.any(good):
+                continue
             paths = [self.paths[j] for j in np.argwhere(good)]
             name = "%s_%i" % (self.name, i)
             eles.append(self.__class__(name=name, paths=paths,

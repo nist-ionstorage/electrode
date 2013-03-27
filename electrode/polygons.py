@@ -39,11 +39,11 @@ def polygons_to_system(polygons):
         for pi in p:
             pi = geometry.polygon.orient(pi, 1)
             ext = np.zeros((len(pi.exterior.coords)-1, 3))
-            ext[:, :2] = pi.exterior.coords[:-1]
+            ext[:, :2] = np.array(pi.exterior.coords)[:-1, :2]
             e.paths.append(ext)
             for ii in pi.interiors:
                 int = np.zeros((len(ii.coords)-1, 3))
-                int[:, :2] = ii.coords[-2::-1]
+                int[:, :2] = np.array(ii.coords)[-2::-1, :2]
                 e.paths.append(int)
     return s
 

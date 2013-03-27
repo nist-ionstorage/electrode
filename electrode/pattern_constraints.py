@@ -20,9 +20,10 @@
 
 import numpy as np
 
-from traits.api import HasTraits, Array, Float, Int
+from traits.api import HasTraits, Array, Float, Int, List, Instance, Str
 
-from .utils import select_tensor, expand_tensor, rotate_tensor
+from .utils import (select_tensor, expand_tensor, rotate_tensor,
+        name_to_deriv)
 
 
 class Constraint(HasTraits):
@@ -63,13 +64,33 @@ class PatternRangeConstraint(Constraint):
 
 class PotentialObjective(Constraint):
     x = Array(dtype=np.float64, shape=(3,))
-    d = Int # derivative order
-    e = Int # derivative component
-    v = Float # value
+    derivative = Str # derivative name
+    value = Float # value
+    rotation = Array(dtype=np.float64, shape=(3, 3), value=np.identity(3))
 
     def objective(self, electrode, variables):
-        c = electrode.value(self.x, self.d)[0][self.e, :, 0]
-        return [(c, self.v)]
+        d, e = name_to_deriv(self.derivative)
+        c, = electrode.value(self.x, d)
+        c = c[..., 0]
+        if not np.allclose(self.rotation, np.identity(3)):
+            c = expand_tensor(c)
+            c = rotate_tensor(c, self.rotation, d)
+            c = select_tensor(c)
+        c = c[e]
+        return [(c, self.value)]
+
+
+class MultiPotentialObjective(Constraint):
+    components = List(Instance(PotentialObjective))
+    weights = Array(dtype=np.float64, shape=(None,))
+    value = Float
+
+    def objective(self, electrode, variables):
+        c = 0.
+        for wi, oi in zip(self.weights, self.components):
+            for ci, vi in oi.objective(electrode, variables):
+                c += wi*ci
+        return [(c, self.value)]
 
 
 class PotentialConstraint(Constraint):

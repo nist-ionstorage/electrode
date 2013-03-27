@@ -124,6 +124,28 @@ def select_tensor(c):
         return c[(4, 5, 8, 13, 14, 17, 26, 41, 44, 125, 134), :]
 
 
+derivative_names = [[""]] + [s.split() for s in [
+    "x y z",
+    "xx xy xz yy yz",
+    "xxy xxz yyz yyx xzz yzz xyz",
+    "xxxy xxxz xxyy xxzz xyyy xzzz yyyz yyzz yzzz",
+    "xxxyy xxxyz xxxzz xxyyy xxyyz xxyzz xxzzz xyyyz xyyzz yyyzz yyzzz",
+    ]]
+
+derivatives_map = {}
+name_map = {}
+for deriv, names in enumerate(derivative_names):
+    for idx, name in enumerate(names):
+        derivatives_map[name] = (deriv, idx)
+        name_map[(deriv, idx)] = name
+
+def name_to_deriv(name):
+    return derivatives_map[name]
+
+def deriv_to_name(deriv, idx):
+    return name_map[(deriv, idx)]
+
+
 def cartesian_to_spherical_harmonics(c):
     """given a cartesian derivative of a harmonic potential where the
     derivative index is the first dimension (reduced as per
