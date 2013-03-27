@@ -127,23 +127,49 @@ def select_tensor(c):
 derivative_names = [[""]] + [s.split() for s in [
     "x y z",
     "xx xy xz yy yz",
-    "xxy xxz yyz yyx xzz yzz xyz",
+    "xxy xxz yyz xyy xzz yzz xyz",
     "xxxy xxxz xxyy xxzz xyyy xzzz yyyz yyzz yzzz",
     "xxxyy xxxyz xxxzz xxyyy xxyyz xxyzz xxzzz xyyyz xyyzz yyyzz yyzzz",
     ]]
 
 derivatives_map = {}
 name_map = {}
+
 for deriv, names in enumerate(derivative_names):
     for idx, name in enumerate(names):
         derivatives_map[name] = (deriv, idx)
         name_map[(deriv, idx)] = name
+
+laplace_map = {
+    "zz": ("xx", "yy"),
+    "yyy": ("xxy", "yzz"),
+    "xxx": ("xyy", "xzz"),
+    "zzz": ("xxz", "yyz"),
+    "xxyz": ("yyyz", "yzzz"),
+    "xyzz": ("xyyy", "xxxy"),
+    "xxxx": ("xxyy", "xxzz"),
+    "yyyy": ("xxyy", "yyzz"),
+    "zzzz": ("yyzz", "xxzz"),
+    "xyyz": ("xxxz", "xzzz"),
+    "xxxxy": ("xxyyy", "xxyzz"),
+    "yyyyy": ("xxyyy", "yyyzz"),
+    "xyzzz": ("xxxyz", "xyyyz"),
+    "yzzzz": ("xxyzz", "yyyzz"),
+    "xxxxz": ("xxyyz", "xxzzz"),
+    "yyyyz": ("xxyyz", "yyzzz"),
+    "zzzzz": ("yyzzz", "xxzzz"),
+    "xxxxx": ("xxxyy", "xxxzz"),
+    "xyyyy": ("xxxyy", "xyyzz"),
+    "xzzzz": ("xyyzz", "xxxzz"),
+} 
+
 
 def name_to_deriv(name):
     return derivatives_map[name]
 
 def deriv_to_name(deriv, idx):
     return name_map[(deriv, idx)]
+
 
 
 def cartesian_to_spherical_harmonics(c):
