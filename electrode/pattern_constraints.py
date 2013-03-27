@@ -82,14 +82,14 @@ class PotentialObjective(Constraint):
 
 class MultiPotentialObjective(Constraint):
     components = List(Instance(PotentialObjective))
-    weights = Array(dtype=np.float64, shape=(None,))
+    # component values are weights
     value = Float
 
     def objective(self, electrode, variables):
         c = 0.
-        for wi, oi in zip(self.weights, self.components):
+        for oi in self.components:
             for ci, vi in oi.objective(electrode, variables):
-                c += wi*ci
+                c += vi*ci
         return [(c, self.value)]
 
 
