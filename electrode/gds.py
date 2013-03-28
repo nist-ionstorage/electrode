@@ -64,26 +64,37 @@ def from_gds(fil, scale=1., layer=None):
             ele.paths.append(path)
     return s
 
-def to_gds(sys, scale=1., layer=0, phys_unit=1e-9):
+def to_gds(sys, scale=1., layer=0, phys_unit=1e-9, gap_layer=1):
     lib = library.Library(version=5, name=b"trap", physical_unit=phys_unit,
             logical_unit=.001)
-    stru = structure.Structure(name=b"electrodes")
-    lib.append(stru)
+    eles = structure.Structure(name=b"electrodes")
+    lib.append(eles)
+    gaps = structure.Structure(name=b"gaps")
+    lib.append(gaps)
+
     #stru.append(elements.Node(layer=layer, node_type=0, xy=[(0, 0)]))
     for e in sys.electrodes:
         if not type(e) is PolygonPixelElectrode:
             print "%s skipped" % e
             continue
         for p in e.paths:
-            b = elements.Boundary(layer=layer, data_type=0,
-                    xy=p[:, :2]*scale/phys_unit)
-            b.properties = []
-            if e.name:
-                b.properties.append((attr_name, e.name))
-            b.properties.append((attr_vdc, str(e.voltage_dc)))
-            b.properties.append((attr_vrf, str(e.voltage_rf)))
-            stru.append(b)
+            xy = p[:, :2]*scale/phys_unit
+            xyb = np.r_[xy, xy[0:1]]
+            b = elements.Boundary(layer=layer, data_type=0, xy=xy)
+            p = elements.Path(layer=gap_layer, data_type=0, xy=xyb)
+            for i in p, b:
+                i.properties = []
+                if e.name:
+                    i.properties.append((attr_name, e.name))
+                i.properties.append((attr_vdc, str(e.voltage_dc)))
+                i.properties.append((attr_vrf, str(e.voltage_rf)))
+            eles.append(b)
+            gaps.append(p)
+            for l in eles, gaps:
+                l.append(elements.Text(layer=layer, text_type=0,
+                    xy=xy[0:1], string=bytes(e.name)))
     return lib
+
 
 if __name__ == "__main__":
     import sys

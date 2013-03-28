@@ -119,6 +119,59 @@ def simplify_polygons(polygons, buffer=0.):
     return out
 
 
+def square_pads(step=10., edge=200., odd=False, start_corner=0):
+    """generates a (n, 2) array of xy coordinates of pad centers
+    pad are spaced by `step`, on the edges with edge length `edge`.
+    if odd=True, there is a pad the center of an edge. The corner to
+    start is given in `start_corner`. 0 is top left (-x, +y). counter
+    clockwise from that"""
+    n = int(edge/step)
+    if odd: n += (n % 2) + 1
+    p = np.arange(-n/2.+.5, n/2.+.5)*step
+    assert len(p) == n, (p, n)
+    # top left as origin is common for packages
+    q = (edge/2-step/2)*np.ones_like(p)
+    edges = [(-q, -p), (p, -q), (q, p), (-p, q)]
+    xy = np.concatenate(edges[start_corner:] + edges[:start_corner], axis=1)
+    assert xy.shape == (2, 4*n), xy.shape
+    return xy.T
+
+        
+def assign_to_pad(polygons, pads, pad_number=True):
+    """given a list of polygons or multipolygons and a list
+    of pad xy coordinates, yield tuples of
+    (pad number, polygon index, polygon)"""
+    polys = list(enumerate(polygons))
+    for pad, (x, y) in enumerate(pads):
+        p = geometry.Point(x, y)
+        for i in range(len(polys)):
+            j, poly = polys[i]
+            if poly.contains(p):
+                yield pad, j, poly
+                del polys[i]
+                break
+        if not polys:
+            break
+    assert not polys, polys
+
+
+def gaps_union(polys):
+    """returns the union of the boundaries of the polygons.
+    if the boundaries of adjacent polygons coincide, this returns
+     only the gap paths.
+
+    polys is a list of multipolygons or polygons"""
+    gaps = geometry.MultiLineString()
+    for multipoly in polys:
+        if type(multipoly) is geometry.Polygon:
+            multipoly = [multipoly]
+        for poly in multipoly:
+            for i in [poly.exterior] + list(poly.interiors):
+                xy = np.array(i.coords)[:, :2].copy()
+                gaps = gaps.union(geometry.LineString(xy))
+    return gaps
+
+
 if __name__ == "__main__":
     import cPickle as pickle
     s = pickle.load(open("rfjunction.pickle", "rb"))
