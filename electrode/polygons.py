@@ -114,7 +114,7 @@ def add_gaps(polygons, gapsize):
 def simplify_polygons(polygons, buffer=0.):
     out = []
     for name, poly in polygons:
-        poly = poly.buffer(buffer)
+        poly = poly.buffer(buffer, 0)
         out.append((name, poly))
     return out
 
