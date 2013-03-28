@@ -146,7 +146,7 @@ def assign_to_pad(polygons, pads, pad_number=True):
         p = geometry.Point(x, y)
         for i in range(len(polys)):
             j, poly = polys[i]
-            if poly.contains(p):
+            if p.intersects(poly):
                 yield pad, j, poly
                 del polys[i]
                 break
