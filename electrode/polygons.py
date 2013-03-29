@@ -59,14 +59,16 @@ def system_to_polygons(system):
         # assert type(e) is PolygonPixelElectrode, (e, e.name)
         exts, ints = [], []
         for pi, ei in zip(e.paths, e.orientations()):
-            # shapely ignores f-contiguous arrays
+            # shapely ignores f-contiguous arrays so copy
             # https://github.com/sgillies/shapely/issues/26
-            {-1: ints, 1: exts}[ei].append(pi.copy("C"))
-        mp = []
-        for ei in exts:
-            # FIXME: only those in ints that intersect ei
-            mp.append((ei, ints))
-        p.append((e.name, geometry.MultiPolygon(mp)))
+            pi = geometry.Polygon(pi.copy("C"))
+            {-1: ints, 0: [], 1: exts}[ei].append(pi)
+        if not exts:
+            continue
+        mp = geometry.MultiPolygon(exts)
+        if ints:
+            mp = mp.difference(geometry.MultiPolygon(ints))
+        p.append((e.name, mp))
     return p
 
 def check_validity(polygons):
@@ -137,7 +139,7 @@ def square_pads(step=10., edge=200., odd=False, start_corner=0):
     return xy.T
 
         
-def assign_to_pad(polygons, pads, pad_number=True):
+def assign_to_pad(polygons, pads):
     """given a list of polygons or multipolygons and a list
     of pad xy coordinates, yield tuples of
     (pad number, polygon index, polygon)"""
@@ -152,7 +154,7 @@ def assign_to_pad(polygons, pads, pad_number=True):
                 break
         if not polys:
             break
-    assert not polys, polys
+    # assert not polys, polys
 
 
 def gaps_union(polys):

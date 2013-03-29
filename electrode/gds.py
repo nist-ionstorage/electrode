@@ -62,6 +62,9 @@ def from_gds(fil, scale=1., layer=None):
             path = np.c_[path, np.zeros((path.shape[0],))]
             path = path[:-1] # a gds boundary is a full loop
             ele.paths.append(path)
+    # there are only outer loops
+    for e in s.electrodes:
+        e.paths = [p[::o] for p, o in zip(e.paths, e.orientations())]
     return s
 
 def to_gds(sys, scale=1., layer=0, phys_unit=1e-9, gap_layer=1):
