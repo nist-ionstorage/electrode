@@ -29,9 +29,9 @@ from .utils import norm, expand_tensor, area_centroid
 
 try:
     # raise ImportError
-    from .cexpressions import point_value, polygon_value
+    from .cexpressions import point_potential, polygon_potential
 except ImportError:
-    from .expressions import point_value, polygon_value
+    from .expressions import point_potential, polygon_potential
 
 
 class Electrode(HasTraits):
@@ -136,7 +136,8 @@ class PointPixelElectrode(SurfaceElectrode):
             ax.text(p[:,0].mean(), p[:,1].mean(), label)
 
     def bare_potential(self, x, derivative=0):
-        return point_value(x, self.points, self.areas, derivative)
+        return point_potential(x, self.points, self.areas,
+                np.ones(self.points.shape[0]), derivative)
 
 
 class PolygonPixelElectrode(SurfaceElectrode):
@@ -164,4 +165,5 @@ class PolygonPixelElectrode(SurfaceElectrode):
                 areas=a, points=c)
 
     def bare_potential(self, x, derivative=0):
-        return polygon_value(x, list(self.paths), derivative)
+        return polygon_potential(x, list(self.paths),
+                np.ones(len(self.paths)), derivative)

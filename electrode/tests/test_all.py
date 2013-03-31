@@ -139,7 +139,7 @@ class BasicFunctionsCase(unittest.TestCase):
             [-2, 8, 0], [-5, 2, 0]])
         x = np.array([[1,2,3.]])
         nptest.assert_almost_equal(
-                electrode.polygon_value(x, [p], 0),
+                electrode.polygon_potential(x, [p], np.ones(1), 0),
                 [[.24907]])
     
     def test_polygon_value_grad(self):
@@ -147,7 +147,7 @@ class BasicFunctionsCase(unittest.TestCase):
             [-2, 8, 0], [-5, 2, 0]])
         x = np.array([[1,2,3.]])
         nptest.assert_almost_equal(
-                electrode.polygon_value(x, [p], 1),
+                electrode.polygon_potential(x, [p], np.ones(1), 1),
                 [[-0.0485227, 0.0404789, -0.076643]])
 
 

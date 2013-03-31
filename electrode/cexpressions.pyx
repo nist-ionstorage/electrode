@@ -31,9 +31,10 @@ from libc.math cimport atan2, sqrt, fabs, M_PI
 dtype = np.double
 ctypedef np.double_t dtype_t
 
-def point_value(np.ndarray[dtype_t, ndim=2] x not None,
+def point_potential(np.ndarray[dtype_t, ndim=2] x not None,
                 np.ndarray[dtype_t, ndim=2] points not None,
                 np.ndarray[dtype_t, ndim=1] areas not None,
+                np.ndarray[dtype_t, ndim=1] potentials not None,
                 int derivative):
     cdef int nx=x.shape[0], nv=points.shape[0]
     cdef int i, j
@@ -48,11 +49,11 @@ def point_value(np.ndarray[dtype_t, ndim=2] x not None,
             y0 = x[j, 1] - points[i, 1]
             z0 = x[j, 2] - points[i, 2]
             r0 = sqrt(x0**2+y0**2+z0**2)
-            a0 = areas[i]
-            point_value_expr(x0, y0, z0, r0, a0, derivative, &value[j, 0])
+            a0 = areas[i]*potentials[i]
+            point_potential_expr(x0, y0, z0, r0, a0, derivative, &value[j, 0])
     return value
 
-cdef inline point_value_expr(double x, double y, double z, double r,
+cdef inline point_potential_expr(double x, double y, double z, double r,
                              double a, int derivative, double *d):
     cdef double n
     if derivative == 0:
@@ -105,12 +106,13 @@ cdef inline point_value_expr(double x, double y, double z, double r,
         d[10] += ((x**2-6*y**2)*(x**2+y**2)**2+(-11*x**4+90*x**2*y**2+101*y**4)*z**2-4*(x**2+29*y**2)*z**4+8*z**6)*n
 
 
-def polygon_value(np.ndarray[dtype_t, ndim=2] x not None,
+def polygon_potential(np.ndarray[dtype_t, ndim=2] x not None,
                   list polygons not None,
+                  np.ndarray[dtype_t, ndim=1] potentials not None,
                   int derivative):
     cdef int nx=x.shape[0], nv=len(polygons)
     cdef int i, j, k, no
-    cdef double x1, y1, z1, r1, x2, y2, z2, r2, l2, a
+    cdef double x1, y1, z1, r1, x2, y2, z2, r2, l2, potential
     cdef np.ndarray[dtype_t, ndim=2] polygon
     cdef np.ndarray[dtype_t, ndim=2, mode="c"] value
 
@@ -119,6 +121,7 @@ def polygon_value(np.ndarray[dtype_t, ndim=2] x not None,
     for j in range(nx):
         for i in range(nv):
             polygon = polygons[i]
+            potential = potentials[i]
             no = polygon.shape[0]
             x2, y2, z2 = x[j] - polygon[no-1]
             r2 = sqrt(x2**2+y2**2+z2**2)
@@ -127,11 +130,11 @@ def polygon_value(np.ndarray[dtype_t, ndim=2] x not None,
                 x2, y2, z2 = x[j] - polygon[k]
                 r2 = sqrt(x2**2+y2**2+z2**2)
                 l2 = (x1-x2)**2+(y1-y2)**2
-                polygon_value_expr(x1, x2, y1, y2, r1, r2, l2, z1, 1,
-                    derivative, &value[j, 0])
+                polygon_potential_expr(x1, x2, y1, y2, r1, r2, l2, z1,
+                        potential, derivative, &value[j, 0])
     return value
 
-cdef inline polygon_value_expr(double x1, double x2, double y1, double y2,
+cdef inline polygon_potential_expr(double x1, double x2, double y1, double y2,
                                double r1, double r2, double l2, double z,
                                double a, int derivative, double *d):
     cdef double zs, n

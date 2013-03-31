@@ -109,6 +109,7 @@ for deriv, names in enumerate(derivative_names):
         name = idx_to_name(idx)
         if name in names:
             expand_map[deriv][nidx] = (names.index(name),)
+            laplace_map[name] = name,
         else:
             a, b = find_laplace(name)
             laplace_map[name] = a, b
@@ -123,35 +124,37 @@ def deriv_to_name(deriv, idx):
     return name_map[(deriv, idx)]
 
 
-def expand_tensor(c):
+def expand_tensor(c, order=None):
     """from the minimal linearly independent entries of a derivative of
     a harmonic field c build the complete tensor using its symmtry
     and laplace
 
     inverse of select_tensor()"""
     c = np.atleast_2d(c)
-    order = (c.shape[-1]-1)/2
+    if order is None:
+        order = (c.shape[-1]-1)/2
     if order == 0:
-        return c[..., 0]
+        c = c[..., 0]
     elif order == 1:
-        return c
+        c = c
     else:
         d = np.array([
             c[..., i[0]] if len(i) == 1 else -c[..., i[0]]-c[..., i[1]]
             for i in expand_map[order]
             ])
-        d = d.swapaxes(0, -1).reshape(c.shape[:-1] + (3,)*order)
-        return d
+        c = d.swapaxes(0, -1).reshape(c.shape[:-1] + (3,)*order)
+    return c
 
 
-def select_tensor(c):
+def select_tensor(c, order=None):
     """select only a linealy idependent subset from a derivative of a
     harmonic field
 
     inverse of expand_tensor()"""
     c = np.atleast_2d(c)
-    order = len(c.shape) - 1 # nx, 3, ..., 3
-    c = c.reshape(-1, 3**order)
+    if order is None:
+        order = len(c.shape) - 1 # nx, 3, ..., 3
+    c = c.reshape(c.shape[:len(c.shape)-order]+(-1,))
     if order < 2:
         return c # fastpath
     else:
