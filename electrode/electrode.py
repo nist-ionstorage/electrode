@@ -36,7 +36,7 @@ try:
     # raise ImportError
     from .cexpressions import point_value, polygon_value
 except ImportError:
-    from .expressions import point_value, polygong_value
+    from .expressions import point_value, polygon_value
 
 
 class Electrode(HasTraits):
@@ -305,5 +305,12 @@ class PolygonPixelElectrode(PixelElectrode):
                 cover_height=self.cover_height, areas=a, points=c)
 
     def value_no_cover(self, x, *d):
-        return [v.transpose((2, 0, 1)) if v.ndim==3 else v
-                for v in polygon_value(x, list(self.paths), *d)]
+        ret = []
+        vi = np.ones(1)
+        for di in d:
+            v = np.array([polygon_value(x, [pi], vi, di) for pi in
+                self.paths])
+            ret.append(v.transpose(2, 0, 1)
+                    if v.shape[2]>1 else v[:, :, 0])
+        return ret
+
