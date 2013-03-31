@@ -18,8 +18,10 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import numpy as np
 from math import factorial
+from itertools import product
+
+import numpy as np
 
 
 def apply_method(s, name, *args, **kwargs):
@@ -32,96 +34,30 @@ def apply_method(s, name, *args, **kwargs):
 def norm(a, axis=-1):
     """special version of np.linalg.norm() that only covers the
     specified axis"""
-    # return np.sqrt(np.einsum("ij,ij->i", a, a))
+    # return np.sqrt(np.einsum("...j,...j->...", a, a))
     return np.sqrt(np.square(a).sum(axis=axis))
 
 
-def expand_tensor(c):
-    """from the minimal linearly independent entries of a derivative of
-    a harmonic field c build the complete tensor using its symmtry
-    and laplace
-
-    inverse of select_tensor()"""
+def rotate_tensor(c, r, order=None):
+    """rotate a tensor c into the coordinate system r
+    assumes that its order is len(c.shape)-1
+    the first dimension is used for parallelizing"""
     c = np.atleast_1d(c)
-    if len(c.shape) == 1: # scalar
-        return c
-    order = c.shape[0]
-    if order == 3:
-        return c
-    elif order == 5: # xx xy xz yy yz
-        return np.array([
-            [c[0], c[1], c[2]], [c[1], c[3], c[4]], [c[2], c[4], -c[3]-c[0]]
-            ])
-    elif order == 7: # xxy xxz yyz yyx zzx zzy xyz
-        return np.array([
-            [[-c[3]-c[4], c[0], c[1]], [c[0], c[3], c[6]], [c[1], c[6], c[4]]],
-            [[c[0], c[3], c[6]], [c[3], -c[0]-c[5], c[2]], [c[6], c[2], c[5]]],
-            [[c[1], c[6], c[4]], [c[6], c[2], c[5]], [c[4], c[5], -c[1]-c[2]]],
-            ])
-    elif order == 9: # xxxy xxxz xxyy xxzz xyyy xzzz yyyz yyzz yzzz
-        return np.array([
-            [[[-c[2]-c[3], c[0], c[1]], [c[0], c[2], -c[6]-c[8]], [c[1], -c[6]-c[8], c[3]]], 
-              [[c[0], c[2], -c[6]-c[8]], [c[2], c[4], -c[1]-c[5]], [-c[6]-c[8], -c[1]-c[5], -c[0]-c[4]]], 
-              [[c[1], -c[6]-c[8], c[3]], [-c[6]-c[8], -c[1]-c[5], -c[0]-c[4]], [c[3], -c[0]-c[4], c[5]]]], 
-            [[[c[0], c[2], -c[6]-c[8]], [c[2], c[4], -c[1]-c[5]], [-c[6]-c[8], -c[1]-c[5], -c[0]-c[4]]], 
-              [[c[2], c[4], -c[1]-c[5]], [c[4], -c[2]-c[7], c[6]], [-c[1]-c[5], c[6], c[7]]], 
-              [[-c[6]-c[8], -c[1]-c[5], -c[0]-c[4]], [-c[1]-c[5], c[6], c[7]], [-c[0]-c[4], c[7], c[8]]]], 
-            [[[c[1], -c[6]-c[8], c[3]], [-c[6]-c[8], -c[1]-c[5], -c[0]-c[4]], [c[3], -c[0]-c[4], c[5]]], 
-              [[-c[6]-c[8], -c[1]-c[5], -c[0]-c[4]], [-c[1]-c[5], c[6], c[7]], [-c[0]-c[4], c[7], c[8]]], 
-              [[c[3], -c[0]-c[4], c[5]], [-c[0]-c[4], c[7], c[8]], [c[5], c[8], -c[3]-c[7]]]]
-            ])
-    elif order == 11: # xxxyy xxxyz xxxzz xxyyy xxyyz xxyzz xxzzz xyyyz xyyzz yyyzz yyzzz
-        return np.array([
-            [[[[-c[0]-c[2], -c[3]-c[5], -c[4]-c[6]], [-c[3] -c[5], c[0], c[1]], [-c[4]-c[6], c[1], c[2]]],
-              [[-c[3]-c[5], c[0], c[1]], [c[0], c[3], c[4]], [c[1], c[4], c[5]]],
-              [[-c[4]-c[6], c[1], c[2]], [c[1], c[4], c[5]], [c[2], c[5], c[6]]]],
-             [[[-c[3]-c[5], c[0], c[1]], [c[0], c[3], c[4]], [c[1], c[4], c[5]]],
-              [[c[0], c[3], c[4]], [c[3], -c[0]-c[8], c[7]], [c[4], c[7], c[8]]],
-              [[c[1], c[4], c[5]], [c[4], c[7], c[8]], [c[5], c[8], -c[1]-c[7]]]],
-             [[[-c[4]-c[6], c[1], c[2]], [c[1], c[4], c[5]], [c[2], c[5], c[6]]],
-              [[c[1], c[4], c[5]], [c[4], c[7], c[8]], [c[5], c[8], -c[1]-c[7]]],
-              [[c[2], c[5], c[6]], [c[5], c[8], -c[1]-c[7]], [c[6], -c[1]-c[7], -c[2]-c[8]]]]],
-            [[[[-c[3]-c[5], c[0], c[1]], [c[0], c[3], c[4]], [c[1], c[4], c[5]]],
-              [[c[0], c[3], c[4]], [c[3], -c[0]-c[8], c[7]], [c[4], c[7], c[8]]],
-              [[c[1], c[4], c[5]], [c[4], c[7], c[8]], [c[5], c[8], -c[1]-c[7]]]],
-             [[[c[0], c[3], c[4]], [c[3], -c[0]-c[8], c[7]], [c[4], c[7], c[8]]],
-              [[c[3], -c[0]-c[8], c[7]], [-c[0]-c[8], -c[3]-c[9], -c[4]-c[10]], [c[7], -c[4]-c[10], c[9]]],
-              [[c[4], c[7], c[8]], [c[7], -c[4]-c[10], c[9]], [c[8], c[9], c[10]]]],
-             [[[c[1], c[4], c[5]], [c[4], c[7], c[8]], [c[5], c[8], -c[1]-c[7]]],
-              [[c[4], c[7], c[8]], [c[7], -c[4]-c[10], c[9]], [c[8], c[9], c[10]]],
-              [[c[5], c[8], -c[1]-c[7]], [c[8], c[9], c[10]], [-c[1]-c[7], c[10], -c[5]-c[9]]]]],
-            [[[[-c[4]-c[6], c[1], c[2]], [c[1], c[4], c[5]], [c[2], c[5], c[6]]],
-              [[c[1], c[4], c[5]], [c[4], c[7], c[8]], [c[5], c[8], -c[1]-c[7]]],
-              [[c[2], c[5], c[6]], [c[5], c[8], -c[1]-c[7]], [c[6], -c[1]-c[7], -c[2]-c[8]]]],
-             [[[c[1], c[4], c[5]], [c[4], c[7], c[8]], [c[5], c[8], -c[1]-c[7]]],
-              [[c[4], c[7], c[8]], [c[7], -c[4]-c[10], c[9]], [c[8], c[9], c[10]]],
-              [[c[5], c[8], -c[1]-c[7]], [c[8], c[9], c[10]], [-c[1]-c[7], c[10], -c[5]-c[9]]]],
-             [[[c[2], c[5], c[6]], [c[5], c[8], -c[1]-c[7]], [c[6], -c[1]-c[7], -c[2]-c[8]]],
-              [[c[5], c[8], -c[1]-c[7]], [c[8], c[9], c[10]], [-c[1]-c[7], c[10], -c[5]-c[9]]],
-              [[c[6], -c[1]-c[7], -c[2]-c[8]], [-c[1]-c[7], c[10], -c[5]-c[9]], [-c[2]-c[8], -c[5]-c[9], -c[6]-c[10]]]]]
-            ])
-
-
-def select_tensor(c):
-    """select only a linealy idependent subset from a derivative of a
-    harmonic field
-
-    inverse of expand_tensor()"""
-    c = np.atleast_1d(c)
-    if len(c.shape) == 1: # scalar
-        return c
-    c = c.reshape((-1, c.shape[-1]))
-    order = c.shape[0]
-    if order == 3:
-        return c
-    elif order == 3**2: # xx xy xz yy yz
-        return c[(0, 1, 2, 4, 5), :]
-    elif order == 3**3: # xxy xxz yyz yyx zzx zzy xyz
-        return c[(1, 2, 14, 4, 8, 17, 5), :]
-    elif order == 3**4: # xxxy xxxz xxyy xxzz xyyy xzzz yyyz yyzz yzzz
-        return c[(1, 2, 4, 8, 13, 26, 41, 44, 53), :]
-    elif order == 3**5: # xxxyy xxxyz xxxzz xxyyy xxyyz xxyzz xxzzz xyyyz xyyzz yyyzz yyzzz
-        return c[(4, 5, 8, 13, 14, 17, 26, 41, 44, 125, 134), :]
+    r = np.atleast_2d(r)
+    if order is None:
+        order = len(c.shape)-1
+    #slower: O(n**order)
+    #ops = [c, range(order) + [Ellipsis]]
+    #for i in range(order):
+    #    ops.extend([r, [i, i+order]])
+    #ops.append(range(order, 2*order) + [Ellipsis])
+    #c = np.einsum(*ops)
+    for i in range(order):
+        #O(n*order):
+        c = np.dot(c.swapaxes(i+1, -1), r).swapaxes(i+1, -1)
+        #incorrect and probably not faster:
+        #c = np.tensordot(c, r, axes=[i, 0])
+    return c
 
 
 derivative_names = [[""]] + [s.split() for s in [
@@ -132,37 +68,53 @@ derivative_names = [[""]] + [s.split() for s in [
     "xxxyy xxxyz xxxzz xxyyy xxyyz xxyzz xxzzz xyyyz xyyzz yyyzz yyzzz",
     ]]
 
+laplace_map = {}
 derivatives_map = {}
 name_map = {}
+expand_map = {}
+select_map = {}
 
+def name_to_idx(name):
+    return tuple("xyz".index(n) for n in name)
+
+def idx_to_name(idx):
+    return "".join(sorted("xyz"[i] for i in idx))
+
+def idx_to_nidx(idx):
+    return sum(j*3**(len(idx)-i-1) for i, j in enumerate(idx))
+
+def find_laplace(c):
+    """given derivative name c returns the two derivatives a and b
+    such that a+b+c=0 for a harmonic tensor"""
+    name = sorted(list(c))
+    letters = list("xyz")
+    for i in letters:
+        if name.count(i) >= 2:
+            break
+    k = name.index(i)
+    del name[k:k+2], letters[letters.index(i)]
+    a, b = ("".join(sorted(name+[j]*2)) for j in letters)
+    return a, b
+
+# populate the maps
 for deriv, names in enumerate(derivative_names):
     for idx, name in enumerate(names):
         derivatives_map[name] = (deriv, idx)
         name_map[(deriv, idx)] = name
+    idx = tuple(idx_to_nidx(name_to_idx(name)) for name in names)
+    select_map[deriv] =  idx
+    expand_map[deriv] = [None] * 3**deriv
+    for idx in product(range(3), repeat=deriv):
+        nidx = idx_to_nidx(idx)
+        name = idx_to_name(idx)
+        if name in names:
+            expand_map[deriv][nidx] = (names.index(name),)
+        else:
+            a, b = find_laplace(name)
+            laplace_map[name] = a, b
+            expand_map[deriv][nidx] = (names.index(a), names.index(b))
 
-laplace_map = {
-    "zz": ("xx", "yy"),
-    "yyy": ("xxy", "yzz"),
-    "xxx": ("xyy", "xzz"),
-    "zzz": ("xxz", "yyz"),
-    "xxyz": ("yyyz", "yzzz"),
-    "xyzz": ("xyyy", "xxxy"),
-    "xxxx": ("xxyy", "xxzz"),
-    "yyyy": ("xxyy", "yyzz"),
-    "zzzz": ("yyzz", "xxzz"),
-    "xyyz": ("xxxz", "xzzz"),
-    "xxxxy": ("xxyyy", "xxyzz"),
-    "yyyyy": ("xxyyy", "yyyzz"),
-    "xyzzz": ("xxxyz", "xyyyz"),
-    "yzzzz": ("xxyzz", "yyyzz"),
-    "xxxxz": ("xxyyz", "xxzzz"),
-    "yyyyz": ("xxyyz", "yyzzz"),
-    "zzzzz": ("yyzzz", "xxzzz"),
-    "xxxxx": ("xxxyy", "xxxzz"),
-    "xyyyy": ("xxxyy", "xyyzz"),
-    "xzzzz": ("xyyzz", "xxxzz"),
-} 
-
+expand_map[0] = None
 
 def name_to_deriv(name):
     return derivatives_map[name]
@@ -170,6 +122,40 @@ def name_to_deriv(name):
 def deriv_to_name(deriv, idx):
     return name_map[(deriv, idx)]
 
+
+def expand_tensor(c):
+    """from the minimal linearly independent entries of a derivative of
+    a harmonic field c build the complete tensor using its symmtry
+    and laplace
+
+    inverse of select_tensor()"""
+    c = np.atleast_2d(c)
+    order = (c.shape[-1]-1)/2
+    if order == 0:
+        return c[..., 0]
+    elif order == 1:
+        return c
+    else:
+        d = np.array([
+            c[..., i[0]] if len(i) == 1 else -c[..., i[0]]-c[..., i[1]]
+            for i in expand_map[order]
+            ])
+        d = d.swapaxes(0, -1).reshape(c.shape[:-1] + (3,)*order)
+        return d
+
+
+def select_tensor(c):
+    """select only a linealy idependent subset from a derivative of a
+    harmonic field
+
+    inverse of expand_tensor()"""
+    c = np.atleast_2d(c)
+    order = len(c.shape) - 1 # nx, 3, ..., 3
+    c = c.reshape(-1, 3**order)
+    if order < 2:
+        return c # fastpath
+    else:
+        return c[:, select_map[order]]
 
 
 def cartesian_to_spherical_harmonics(c):
@@ -265,28 +251,6 @@ def cartesian_to_spherical_harmonics(c):
             3*np.sqrt(14)*(-xxxxx+10*xxxyy-5*xyyyy),
         ])
     return n*c
-
-
-def rotate_tensor(c, r, order=None):
-    """rotate a tensor c into the coordinate system r
-    assumes that its order is len(c.shape)-1
-    the last dimension is used for parallelizing"""
-    c = np.atleast_1d(c)
-    r = np.atleast_2d(r)
-    if order is None:
-        order = len(c.shape)-1
-    #slower: O(n**order)
-    #ops = [c, range(order) + [Ellipsis]]
-    #for i in range(order):
-    #    ops.extend([r, [i, i+order]])
-    #ops.append(range(order, 2*order) + [Ellipsis])
-    #c = np.einsum(*ops)
-    for i in range(order):
-        #O(n*order):
-        c = np.dot(c.swapaxes(i, -1), r).swapaxes(i, -1)
-        #incorrect and probably not faster:
-        #c = np.tensordot(c, r, axes=[i, 0])
-    return c
 
 
 def area_centroid(p1):

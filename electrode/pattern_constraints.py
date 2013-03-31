@@ -28,11 +28,11 @@ from .utils import (select_tensor, expand_tensor, rotate_tensor,
 
 
 class Constraint(HasTraits):
-    def objective(self, electrode, variables):
+    def objective(self, system, variables):
         return
         yield
 
-    def constraints(self, electrode, variables):
+    def constraints(self, system, variables):
         return
         yield
 
@@ -43,13 +43,11 @@ class PatternValueConstraint(Constraint):
     v = Array(dtype=np.float64)
     r = Array(dtype=np.float64, shape=(3, 3), value=np.identity(3))
 
-    def objective(self, electrode, variables):
-        v = select_tensor(self.v[..., None]).ravel()
-        c, = electrode.value(self.x, self.d)
-        c = expand_tensor(c[..., 0])
-        c = np.array(rotate_tensor(c, self.r))
-        c = select_tensor(c).reshape((v.shape[0], -1))
-        return zip(c, v)
+    def objective(self, system, variables):
+        v = select_tensor(self.v[None, ...]) # TODO: no select
+        c = system.individual_potential(self.x, self.d)[:, 0, :]
+        c = select_tensor(rotate_tensor(expand_tensor(c), self.r))
+        return zip(c.T, v[0])
 
 
 class PatternRangeConstraint(Constraint):
@@ -57,7 +55,7 @@ class PatternRangeConstraint(Constraint):
     max = Float
     index = Trait(None, Int)
 
-    def constraints(self, electrode, variables):
+    def constraints(self, system, variables):
         if self.index is not None:
             variables = variables[self.index]
         if self.min is not None:
@@ -72,15 +70,14 @@ class PotentialObjective(Constraint):
     value = Float # value
     rotation = Array(dtype=np.float64, shape=(3, 3), value=np.identity(3))
 
-    def objective(self, electrode, variables):
+    def objective(self, system, variables):
         d, e = name_to_deriv(self.derivative)
-        c, = electrode.value(self.x, d)
-        c = c[..., 0]
+        c = system.individual_potential(self.x, d)[:, 0, :]
         if not np.allclose(self.rotation, np.identity(3)):
             c = expand_tensor(c)
             c = rotate_tensor(c, self.rotation, d)
             c = select_tensor(c)
-        c = c[e]
+        c = c[:, e]
         return [(c, self.value)]
 
 
@@ -89,24 +86,31 @@ class MultiPotentialObjective(Constraint):
     # component values are weights
     value = Float
 
-    def objective(self, electrode, variables):
+    def objective(self, system, variables):
         c = 0.
         for oi in self.components:
-            for ci, vi in oi.objective(electrode, variables):
+            for ci, vi in oi.objective(system, variables):
                 c += vi*ci
         return [(c, self.value)]
 
 
 class PotentialConstraint(Constraint):
     x = Array(dtype=np.float64, shape=(3,))
-    d = Int # derivative order
-    e = Int # derivative component
+    derivative = Str
     min = Float # value
     max = Float # value
+    rotation = Array(dtype=np.float64, shape=(3, 3), value=np.identity(3))
 
-    def constraints(self, electrode, variables):
-        c = electrode.value(self.x, self.d)[0][self.e, :, 0]
+    def constraints(self, system, variables):
+        d, e = name_to_deriv(self.derivative)
+        c = system.individual_potential(self.x, d)[:, 0, :]
+        if not np.allclose(self.rotation, np.identity(3)):
+            c = expand_tensor(c)
+            c = rotate_tensor(c, self.rotation, d)
+            c = select_tensor(c)
+        c = c[:, e]
         if self.min is not None:
             yield c*variables >= self.min
         if self.max is not None:
             yield c*variables <= self.max
+

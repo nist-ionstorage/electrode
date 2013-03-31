@@ -18,6 +18,7 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import warnings, itertools
+from contextlib import contextmanager
 
 import numpy as np
 from scipy import optimize, constants as ct
@@ -45,134 +46,124 @@ from . import colors
 class System(HasTraits):
     electrodes = List(Instance(Electrode))
     names = Property()
-    voltages = Property()
+    dcs = Property()
+    rfs = Property()
 
+    def __init__(self, *electrodes, **kwargs):
+        super(System, self).__init__(**kwargs)
+        self.electrodes.extend(electrodes)
+    
     def _get_names(self):
         return [el.name for el in self.electrodes]
 
-    def _get_voltages(self):
-        return [(el.voltage_dc, el.voltage_rf)
-                for el in self.electrodes]
+    def _set_names(self, names):
+        for ei, ni in zip(self.electrodes, names):
+            ei.name = ni
 
-    def _set_voltages(self, voltages):
-        for el, (v_dc, v_rf) in zip(self.electrodes, voltages):
-            el.voltage_dc = v_dc
-            el.voltage_rf = v_rf
+    def _get_dcs(self):
+        return [el.dc for el in self.electrodes]
+
+    def _set_dcs(self, voltages):
+        for ei, vi in zip(self.electrodes, voltages):
+            ei.dc = vi
+
+    def _get_rfs(self):
+        return [el.rf for el in self.electrodes]
+
+    def _set_rfs(self, voltages):
+        for ei, vi in zip(self.electrodes, voltages):
+            ei.rf = vi
 
     def electrode(self, name):
         """return the first electrode named name or None if not found"""
-        return self.electrodes[self.names.index(name)]
+        for ei in self.electrodes:
+            if ei.name == name:
+                return ei
 
-    def with_voltages(self, voltages, function, *args, **kwargs):
-        """execute function(*args, **kwargs) with voltages set to voltages"""
-        voltages, self.voltages = self.voltages, voltages
-        ret = function(*args, **kwargs)
-        self.voltages = voltages
-        return ret
+    __getitem__ = electrode
+    by_name = electrode
 
-    def get_potentials(self, x, typ, *d):
+    @contextmanager
+    def with_voltages(self, dcs, rfs):
+        """contextmanager with set to voltages"""
+        orig = self.dcs, self.rfs
+        self.dcs, self.rfs = dcs, rfs
+        yield
+        self.dcs, self.rfs = orig
+
+    def electrical_potential(self, x, typ="dc", derivative=0,
+            expand=False):
         x = np.atleast_2d(x).astype(np.double)
-        n = x.shape[0]
-        out = [np.zeros((3,)*di+(n,), dtype=np.double) for di in d]
-        for el in self.electrodes:
-            v = getattr(el, "voltage_"+typ)
-            if v != 0:
-                for di, pi in enumerate(el.potential(x, *d)):
-                    out[di] += v*pi
-        return out
+        pot = np.zeros((x.shape[0], 2*derivative+1))
+        for ei in self.electrodes:
+            vi = getattr(ei, typ)
+            if vi != 0.:
+                pot += vi*ei.potential(x, derivative)
+        if expand:
+            pot = expand_tensor(pot)
+        return pot
 
-    def field_dc(self, x):
-        return self.get_potentials(x, "dc", 1)[0]
+    def individual_potential(self, x, derivative=0):
+        """
+        return potential, gradient and curvature for the system at x and
+        contribution of each of the specified electrodes per volt
 
-    def field_rf(self, x, t=0.):
-        return np.cos(t)*self.get_potentials(x, "rf", 1)[0]
+        O(len(electrodes)*len(x))
+        """
+        x = np.atleast_2d(x) # n,3 positions
+        eff = np.array([el.potential(x, derivative) for el in self.electrodes])
+        assert eff.shape == (len(self.electrodes), x.shape[0],
+                2*derivative+1)
+        return eff
 
-    def field(self, x, t=0.):
+    def time_potential(self, x, t=0., derivative=0, expand=False):
         """electrical field at an instant in time t (physical units:
         1/omega_rf), no adiabatic approximation here"""
-        return self.field_dc(x) + self.field_rf(x, t)
+        dc, rf = (self.electrical_potential(x, typ, derivative, expand)
+                for typ in ("dc", "rf"))
+        return dc + np.cos(t)*rf
 
-    def potential_dc(self, x):
-        return self.get_potentials(x, "dc", 0)[0]
+    def pseudo_potential(self, x, derivative=0):
+        p = [self.electrical_potential(x, "rf", i, expand=True)
+                for i in range(1, derivative+2)]
+        if derivative == 0:
+            return np.einsum("ij,ij->i", p[0], p[0])
+        elif derivative == 1:
+            return 2*np.einsum("ik,ijk->ij", p[0], p[1])
+        elif derivative == 2:
+            return 2*(np.einsum("ijl,ikl->ijk", p[1], p[1])
+                    + np.einsum("il,ijkl->ijk", p[0], p[2]))
+        elif derivative == 3:
+            return 2*(np.einsum("im,ijklm->ijkl", p[0], p[3])
+                    + np.einsum("ijm,iklm->ijkl", p[1], p[2])
+                    + np.einsum("ikm,ijlm->ijkl", p[1], p[2])
+                    + np.einsum("ilm,ijkm->ijkl", p[1], p[2]))
+        elif derivative == 4:
+            return 2*(np.einsum("in,ijklmn->ijklm", p[0], p[5])
+                    + np.einsum("ijn,iklmn->ijklm", p[1], p[3])
+                    + np.einsum("ikn,ijlmn->ijklm", p[1], p[3])
+                    + np.einsum("iln,ijkmn->ijklm", p[1], p[3])
+                    + np.einsum("imn,ijkln->ijklm", p[1], p[3])
+                    + np.einsum("ijmn,ikln->ijklm", p[2], p[4])
+                    + np.einsum("ikmn,ijln->ijklm", p[2], p[4])
+                    + np.einsum("ilmn,ijkn->ijklm", p[2], p[4]))
 
-    def potential_rf(self, x):
-        e_rf, = self.get_potentials(x, "rf", 1)
-        return np.einsum("ij,ij->j", e_rf, e_rf)
-
-    def potential(self, x):
+    def potential(self, x, derivative=0):
         """combined electrical and ponderomotive potential"""
-        return self.potential_dc(x) + self.potential_rf(x)
-
-    def gradient_dc(self, x):
-        return self.get_potentials(x, "dc", 1)[0]
-
-    def gradient_rf(self, x):
-        e, c = self.get_potentials(x, "rf", 1, 2)
-        return 2*np.einsum("ik,ijk->jk", e, c)
-
-    def gradient(self, x):
-        """gradient of the combined electric and ponderomotive
-        potential"""
-        return self.gradient_dc(x) + self.gradient_rf(x)
-
-    def curvature_dc(self, x):
-        return self.get_potentials(x, "dc", 2)[0]
-
-    def curvature_rf(self, x):
-        e, c, d = self.get_potentials(x, "rf", 1, 2, 3)
-        return 2*(np.einsum("ijl,ikl->jkl", c, c)
-                + np.einsum("il,ijkl->jkl", e, d))
-
-    def curvature(self, x):
-        """curvature of the combined electric and ponderomotive
-        potential"""
-        return self.curvature_dc(x) + self.curvature_rf(x)
-
-    def supercurvature_dc(self, x):
-        return self.get_potentials(x, "dc", 3)[0]
-
-    def supercurvature_rf(self, x):
-        e, c, d, f = self.get_potentials(x, "rf", 1, 2, 3, 4)
-        return 2*(np.einsum("im,ijklm->jklm", e, f)
-                + np.einsum("ijm,iklm->jklm", c, d)
-                + np.einsum("ikm,ijlm->jklm", c, d)
-                + np.einsum("ilm,ijkm->jklm", c, d))
-
-    def supercurvature(self, x):
-        """supercurvature of the combined electric and ponderomotive
-        potential"""
-        return self.supercurvature_dc(x) + self.supercurvature_rf(x)
-
-    def hypercurvature_dc(self, x):
-        return self.get_potentials(x, "dc", 4)[0]
-
-    def hypercurvature_rf(self, x):
-        e, c, d, f, g = self.get_potentials(x, "rf", 1, 2, 3, 4, 5)
-        return 2*(np.einsum("in,ijklmn->jklmn", e, g)
-                + np.einsum("ijn,iklmn->jklmn", c, f)
-                + np.einsum("ikn,ijlmn->jklmn", c, f)
-                + np.einsum("iln,ijkmn->jklmn", c, f)
-                + np.einsum("imn,ijkln->jklmn", c, f)
-                + np.einsum("ijmn,ikln->jklmn", d, d)
-                + np.einsum("ikmn,ijln->jklmn", d, d)
-                + np.einsum("ilmn,ijkn->jklmn", d, d))
-
-    def hypercurvature(self, x):
-        """hypercurvature of the combined electric and ponderomotive
-        potential"""
-        return self.hypercurvature_dc(x) + self.hypercurvature_rf(x)
+        dc = self.electrical_potential(x, "dc", derivative,
+                expand=True)
+        rf = self.pseudo_potential(x, derivative)
+        return dc + rf
 
     def plot(self, ax, alpha=.3, *a, **k):
         """plot electrodes with sequential colors"""
         for e, c in zip(self.electrodes, itertools.cycle(colors.set3)):
             e.plot(ax, color=tuple(c/255.), alpha=alpha, *a, **k)
 
-    def plot_voltages(self, ax, u=None, els=None, um=None, *a, **kw):
+    def plot_voltages(self, ax, u=None, um=None, *a, **kw):
         """plot electrodes with alpha proportional to voltage (scaled to
         max abs voltage being opaque), red for positive, blue for
         negative"""
-        if els is None:
-            els = self.electrodes
         if u is None:
             u = np.array([el.voltage_dc for el in els])
         if um is None:
@@ -188,12 +179,12 @@ class System(HasTraits):
         def p(xi):
             for i, ai in enumerate(axis):
                 x[ai] = xi[i]
-            return float(self.potential(np.dot(coord, x)))
+            return self.potential(np.dot(coord, x), 0)[0]
         def g(xi):
             for i, ai in enumerate(axis):
                 x[ai] = xi[i]
-            return rotate_tensor(self.gradient(np.dot(coord, x)),
-                    coord.T)[axis, 0]
+            return rotate_tensor(self.potential(np.dot(coord, x), 1),
+                    coord.T)[0, axis]
         # downhill simplex
         # bfgs seems better in test cases
         xs = optimize.fmin_bfgs(p, np.array(x0)[:, axis], fprime=g,
@@ -211,14 +202,14 @@ class System(HasTraits):
         def f(xi):
             for i, ai in enumerate(axis):
                 x[ai] = xi[i]
-            return float(self.potential(np.dot(coord, x)))
+            return self.potential(np.dot(coord, x), 0)[0]
         def g(xi):
             for i, ai in enumerate(axis):
                 x[ai] = xi[i]
-            return rotate_tensor(self.gradient(np.dot(coord, x)),
-                    coord.T)[axis, 0]
-        h = rotate_tensor(self.curvature(np.dot(coord, x)),
-                coord.T)[axis, :][:, axis, 0]
+            return rotate_tensor(self.potential(np.dot(coord, x), 1),
+                    coord.T)[0, axis]
+        h = rotate_tensor(self.potential(np.dot(coord, x), 2),
+                coord.T)[0, axis, :][:, axis]
         # rational function optimization
         xs, p, ret = rfo(f, g, np.array(x0)[:, axis], h=h, **kwargs)
         if not ret in ("ftol", "xtol"):
@@ -232,7 +223,7 @@ class System(HasTraits):
         scale = (q*u/(omega*scale))**2/(4*m)
         (scale*ew/scale**2/m)**.5/(2*pi)
         """
-        ew, ev = np.linalg.eigh(self.curvature(x)[:, :, 0])
+        ew, ev = np.linalg.eigh(self.potential(x, 2)[0])
         if sorted:
             i = ew.argsort()
             ew, ev = ew[i], ev[:, i]
@@ -247,13 +238,13 @@ class System(HasTraits):
         and speed every nsteps time steps"""
         integ = getattr(gni, integ)
         if field is None:
-            field = self.field
+            field = lambda x0, t: self.time_potential(x0, t, 1)[0]
         t, p, q = t0, v0[:, axis], x0[:, axis]
         x0 = np.array(x0)
         def ddx(t, q, f):
             for i, ai in enumerate(axis):
                 x0[ai] = q[i]
-            f[:len(axis)] = field(x0, t)[axis, 0]
+            f[:len(axis)] = field(x0, t)[axis, :]
         while t < t1:
             integ(ddx, nsteps, t, p, q, t+dt, methc, *args, **kwargs)
             t += dt
@@ -269,28 +260,8 @@ class System(HasTraits):
                 break
         return map(np.array, (t, q, p))
 
-    def effects(self, x, electrodes=None):
-        """
-        return potential, gradient and curvature for the system at x and
-        contribution of each of the specified electrodes per volt
-
-        O(len(electrodes)*len(x))
-        """
-        if electrodes is None:
-            electrodes = self.electrodes
-        x = np.atleast_2d(x) # n,3 positions
-        r = [el.potential(x, 0, 1, 2) for el in electrodes]
-        p, f, c = zip(*r)
-        m, n = len(electrodes), len(x)
-        p = np.array(p)
-        assert p.shape == (m, n), p.shape
-        f = np.array(f).transpose((1, 0, 2))
-        assert f.shape == (3, m, n), f.shape
-        c = np.array(c).transpose((1, 2, 0, 3))
-        assert c.shape == (3, 3, m, n), c.shape
-        return p, f, c
-
-    def shims(self, x, electrodes=None, forces=None, curvatures=None,
+    # FIXME
+    def shims(self, x, forces=None, curvatures=None,
             coords=None, rcond=1e-3):
         """
         solve the shim equations simultaneously at all points x0,
@@ -298,9 +269,7 @@ class System(HasTraits):
         len(x0). -zz=xx+yy is dropped.
         """
         x = np.atleast_2d(x)
-        if electrodes is None:
-            electrodes = self.electrodes
-        p, f, c = self.effects(x, electrodes)
+        p, f, c = (self.individual_potential(x, i) for i in range(3))
         p = np.rollaxis(p, 1) # x,el
         f = np.rollaxis(f, 2) # x,fi,el
         c = np.rollaxis(c, 3) # x,ci,cj,el
@@ -320,29 +289,26 @@ class System(HasTraits):
         u, res, rank, sing = np.linalg.lstsq(dc, ev, rcond=rcond)
         return u, (res, rank, sing)
 
-    def solve(self, x, constraints, 
-            electrodes=None, verbose=True):
+    def solve(self, x, constraints, verbose=True):
         """
         optimize dc voltages at positions x to satisfy constraints.
 
         O(len(constraints)*len(x)*len(electrodes)) if sparse (most of the time)
         """
-        if electrodes is None:
-            electrodes = self.electrodes
-        v0 = [el.voltage_dc for el in electrodes]
-        for el in electrodes:
+        v0 = [el.voltage_dc for el in self.electrodes]
+        for el in self.electrodes:
             el.voltage_dc = 0.
         p0, f0, c0 = self.potential(x), self.gradient(x), self.curvature(x)
-        for el, vi in zip(electrodes, v0):
+        for el, vi in zip(self.electrodes, v0):
             el.voltage_dc = vi
-        p, f, c = self.effects(x, electrodes)
+        p, f, c = (self.individual_potential(x, i) for i in range(3))
 
         variables = []
         pots = []
         for i, xi in enumerate(x):
-            v = cvxopt.modeling.variable(len(electrodes), "u%i" % i)
+            v = cvxopt.modeling.variable(len(self.electrodes), "u%i" % i)
             v.value = cvxopt.matrix(
-                    [float(el.voltage_dc) for el in electrodes])
+                    [float(el.voltage_dc) for el in self.electrodes])
             variables.append(v)
             pots.append((p0[i], f0[:, i], c0[:, :, i],
                 p[:, i], f[:, :, i], c[:, :, :, i]))
@@ -351,8 +317,8 @@ class System(HasTraits):
         obj = 0.
         ctrs = []
         for ci in constraints:
-            obj += sum(ci.objective(self, electrodes, x, variables, pots))
-            ctrs.extend(ci.constraints(self, electrodes, x, variables, pots))
+            obj += sum(ci.objective(self, self.electrodes, x, variables, pots))
+            ctrs.extend(ci.constraints(self, self.electrodes, x, variables, pots))
         solver = cvxopt.modeling.op(obj, ctrs)
 
         if not verbose:
@@ -379,11 +345,67 @@ class System(HasTraits):
                 u, c.transpose(-1, 0, 1, -2))])
         return u, p, f, c
 
+    def optimize(self, constraints, verbose=True):
+        """optimize this electrode voltages with respect to
+        constraints"""
+        p = cvxopt.modeling.variable(len(self.electrodes))
+        obj = []
+        ctrs = []
+        for ci in constraints:
+            obj.extend(ci.objective(self, p))
+            ctrs.extend(ci.constraints(self, p))
+        B = np.matrix([i[0] for i in obj])
+        b = np.matrix([i[1] for i in obj])
+        # the inhomogeneous solution
+        g = b*np.linalg.pinv(B).T
+        # maximize this
+        obj = cvxopt.matrix(g)*p
+        # B*g_perp
+        B1 = B - b.T*g/(g*g.T)
+        #u, l, v = np.linalg.svd(B1)
+        #li = np.argmin(l)
+        #print li, l[li], v[li], B1*v[li].T
+        #self.pixel_factors = np.array(v)[li]
+        #return 0.
+        #FIXME: there is one singular value, drop one constraint
+        B1 = B1[:-1]
+        # B*g_perp*p == 0
+        ctrs.append(cvxopt.matrix(B1)*p == 0.)
+        solver = cvxopt.modeling.op(-obj, ctrs)
+        if not verbose:
+            cvxopt.solvers.options["show_progress"] = False
+        else:
+            print "variables:", sum(v._size
+                    for v in solver.variables())
+            print "inequalities", sum(v.multiplier._size
+                    for v in solver.inequalities())
+            print "equalities", sum(v.multiplier._size
+                    for v in solver.equalities())
+        solver.solve("sparse")
+        c = float(np.matrix(p.value).T*g.T/(g*g.T))
+        p = np.array(p.value).ravel()
+        return p, c
+
+    def split(self, thresholds=[0]):
+        if thresholds is None:
+            threshold = sorted(np.unique(self.pixel_factors))
+        ts = [-np.inf] + thresholds + [np.inf]
+        eles = []
+        for i, (ta, tb) in enumerate(zip(ts[:-1], ts[1:])):
+            good = (ta <= self.pixel_factors) & (self.pixel_factors < tb)
+            if not np.any(good):
+                continue
+            paths = [self.paths[j] for j in np.argwhere(good)]
+            name = "%s_%i" % (self.name, i)
+            eles.append(self.__class__(name=name, paths=paths,
+                voltage_dc=self.voltage_dc, voltage_rf=self.voltage_rf))
+        return eles
+
     def mathieu(self, x, u_dc, u_rf, r=2, sorted=True):
         """return characteristic exponents (mode frequencies) and
         fourier components"""
-        c_rf, = self.get_potentials(x, "rf", 2)
-        c_dc, = self.get_potentials(x, "dc", 2)
+        c_rf = self.electrical_potential(x, "rf", 2)
+        c_dc = self.electrical_potential(x, "dc", 2)
         a = 4*u_dc*c_dc[..., 0]
         q = 2*u_rf*c_rf[..., 0]
         mu, b = mathieu(r, a, q)
@@ -406,7 +428,8 @@ class System(HasTraits):
         yield "analyze point: %s (%s µm)" % (x, x*l/1e-6)
         trap = self.minimum(x, axis=axis)
         yield " minimum is at offset: %s" % (trap - x)
-        p_rf, p_dc = self.potential_rf(x), self.potential_dc(x)
+        p_rf = self.pseudo_potential(x, 0)
+        p_dc = self.electrical_potential(x, "dc", 0)
         yield " rf, dc potentials: %.2g, %.2g (%.2g eV, %.2g eV)" % (
             p_rf, p_dc, p_rf*dc_scale, p_dc*dc_scale)
         try:
@@ -431,13 +454,10 @@ class System(HasTraits):
                 yield "  %.4g MHz, %s" % (fi/1e6, mi)
             yield "  euler angles: %s" % (
                     np.array(euler_from_matrix(mj, "rxyz"))*180/np.pi)
-        se = sum(list(el.potential(x, 1))[0][:, 0]**2
+        se = sum(list(el.potential(x, 1))[0]**2
                 for el in self.electrodes)/l**2
-        ee = sum(list(el.potential(x, 0))[0][0]**2
-                for el in self.electrodes)
         yield " heating for 1 nV²/Hz white on each electrode:"
         yield "  field-noise psd: %s V²/(m² Hz)" % (se*1e-9**2)
-        yield "  pot-noise psd: %.4g V²/Hz" % (ee*1e-9**2)
         for fi, mi in zip(freqs_pp, modes_pp.T):
             sej = (np.abs(mi)*se**.5).sum()**2
             ndot = sej*q**2/(4*m*ct.h*fi)
@@ -456,13 +476,10 @@ class System(HasTraits):
             for fi, mi in zip(freqs_ppi, mis.transpose(2, 0, 1)):
                 yield "  %.4g MHz, %s/%s" % (fi/1e6, mi[0], mi[1])
 
-    def analyze_shims(self, x, electrodes=None,
-            forces=None, curvatures=None, use_modes=True, **kwargs):
+    def analyze_shims(self, x, forces=None, curvatures=None,
+            use_modes=True, **kwargs):
         x = np.atleast_2d(x)
-        if electrodes is None:
-            electrodes = [e.name for e in self.electrodes
-                    if e.voltage_rf == 0.]
-        els = [self.electrode(n) for n in electrodes]
+        els = self.electrodes
         if use_modes:
             coords = [self.modes(xi)[1] for xi in x]
         else:
@@ -481,7 +498,7 @@ class System(HasTraits):
         yield " forces: %s" % forces
         yield " curvatures: %s" % curvatures
         yield " matrix shape: %s, rank: %i" % (us.shape, rank)
-        yield " electrodes: %s" % np.array(electrodes)
+        yield " electrodes: %s" % np.array(self.names)
         n = 0
         for i in range(len(x)):
             for ni in forces[i]+curvatures[i]:
@@ -498,7 +515,7 @@ class System(HasTraits):
 
         def f(x0):
             x0 = x0.reshape(-1, 3)
-            p0 = self.potential(x0)
+            p0 = self.potential(x0, 0)
             x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
             pi = .5*qs/np.ma.array(
                     x**2+y**2+z**2)**(1/2.)
@@ -506,7 +523,7 @@ class System(HasTraits):
 
         def g(x0):
             x0 = x0.reshape(-1, 3)
-            p0 = self.gradient(x0)
+            p0 = self.potential(x0, 1)
             x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
             pi = qs*[x, y, z]/np.ma.array(
                     x**2+y**2+z**2)**(3/2.)
@@ -516,7 +533,7 @@ class System(HasTraits):
             x0 = x0.reshape(-1, 3)
             x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
             i, j = np.indices(x.shape)
-            p0 = self.curvature(x0)
+            p0 = self.potential(x0, 2)
             p = expand_tensor(
                 -qs*[2*x**2-y**2-z**2, 3*x*y, 3*x*z,
                     2*y**2-x**2-z**2, 3*y*z]/np.ma.array(
@@ -542,6 +559,3 @@ class System(HasTraits):
         i = np.argsort(ew)
         ew, ev = ew[i], ev[i, :].reshape(n, 3, -1)
         return x.reshape(-1, 3), ew, ev
-
-
-
