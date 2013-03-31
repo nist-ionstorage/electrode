@@ -34,9 +34,9 @@ from .utils import norm, expand_tensor, area_centroid
 
 try:
     # raise ImportError
-    from .speedups import point_value, polygon_value
+    from .cexpressions import point_value, polygon_value
 except ImportError:
-    from .value_formulas import point_value, polygong_value
+    from .expressions import point_value, polygong_value
 
 
 class Electrode(HasTraits):

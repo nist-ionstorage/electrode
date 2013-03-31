@@ -20,7 +20,8 @@
 
 import numpy as np
 
-from traits.api import HasTraits, Array, Float, Int, List, Instance, Str
+from traits.api import (HasTraits, Array, Float, Int, List, Instance,
+    Str, Trait)
 
 from .utils import (select_tensor, expand_tensor, rotate_tensor,
         name_to_deriv)
@@ -54,8 +55,11 @@ class PatternValueConstraint(Constraint):
 class PatternRangeConstraint(Constraint):
     min = Float
     max = Float
+    index = Trait(None, Int)
 
     def constraints(self, electrode, variables):
+        if self.index is not None:
+            variables = variables[self.index]
         if self.min is not None:
             yield variables >= self.min
         if self.max is not None:
