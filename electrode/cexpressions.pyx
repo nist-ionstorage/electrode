@@ -34,9 +34,9 @@ ctypedef np.double_t dtype_t
 def point_value(np.ndarray[dtype_t, ndim=2] x not None,
                 np.ndarray[dtype_t, ndim=2] points not None,
                 np.ndarray[dtype_t, ndim=1] areas not None,
-                np.ndarray[dtype_t, ndim=1] voltages not None,
+                np.ndarray[dtype_t, ndim=1] potentials not None,
                 int derivative):
-    cdef int nx=x.shape[0], nv=voltages.shape[0]
+    cdef int nx=x.shape[0], nv=potentials.shape[0]
     cdef int i, j
     cdef double x0, y0, z0, a0, r0
     cdef np.ndarray[dtype_t, ndim=2, mode="c"] value
@@ -49,7 +49,7 @@ def point_value(np.ndarray[dtype_t, ndim=2] x not None,
             y0 = x[j, 1] - points[i, 1]
             z0 = x[j, 2] - points[i, 2]
             r0 = sqrt(x0**2+y0**2+z0**2)
-            a0 = areas[i]*voltages[i]
+            a0 = areas[i]*potentials[i]
             point_value_expr(x0, y0, z0, r0, a0, derivative, &value[j, 0])
     return value
 
@@ -108,9 +108,9 @@ cdef inline point_value_expr(double x, double y, double z, double r,
 
 def polygon_value(np.ndarray[dtype_t, ndim=2] x not None,
                   list polygons not None,
-                  np.ndarray[dtype_t, ndim=1] voltages not None,
+                  np.ndarray[dtype_t, ndim=1] potentials not None,
                   int derivative):
-    cdef int nx=x.shape[0], nv=voltages.shape[0]
+    cdef int nx=x.shape[0], nv=potentials.shape[0]
     cdef int i, j, k, no
     cdef double x1, y1, z1, r1, x2, y2, z2, r2, l2, a
     cdef np.ndarray[dtype_t, ndim=2] polygon
@@ -122,7 +122,7 @@ def polygon_value(np.ndarray[dtype_t, ndim=2] x not None,
         for i in range(nv):
             polygon = polygons[i]
             no = polygon.shape[0]
-            a = voltages[i]
+            a = potentials[i]
             x2, y2, z2 = x[j] - polygon[no-1]
             r2 = sqrt(x2**2+y2**2+z2**2)
             for k in range(no):
