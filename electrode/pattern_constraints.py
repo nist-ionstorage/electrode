@@ -53,7 +53,7 @@ class PatternValueConstraint(Constraint):
 class PatternRangeConstraint(Constraint):
     min = Float
     max = Float
-    index = Trait(None, Int)
+    index = Trait(None, None, Int)
 
     def constraints(self, system, variables):
         if self.index is not None:
@@ -68,12 +68,13 @@ class PotentialObjective(Constraint):
     x = Array(dtype=np.float64, shape=(3,))
     derivative = Str # derivative name
     value = Float # value
-    rotation = Array(dtype=np.float64, shape=(3, 3), value=np.identity(3))
+    rotation = Trait(None, None,
+            Array(dtype=np.float64, shape=(3, 3), value=np.identity(3)))
 
     def objective(self, system, variables):
         d, e = name_to_deriv(self.derivative)
         c = system.individual_potential(self.x, d)[:, 0, :]
-        if not np.allclose(self.rotation, np.identity(3)):
+        if self.rotation is not None:
             c = expand_tensor(c)
             c = rotate_tensor(c, self.rotation, d)
             c = select_tensor(c)
@@ -97,14 +98,15 @@ class MultiPotentialObjective(Constraint):
 class PotentialConstraint(Constraint):
     x = Array(dtype=np.float64, shape=(3,))
     derivative = Str
-    min = Float # value
-    max = Float # value
-    rotation = Array(dtype=np.float64, shape=(3, 3), value=np.identity(3))
+    min = Trait(None, None, Float) # value
+    max = Trait(None, None, Float) # value
+    rotation = Trait(None, None,
+            Array(dtype=np.float64, shape=(3, 3), value=np.identity(3)))
 
     def constraints(self, system, variables):
         d, e = name_to_deriv(self.derivative)
         c = system.individual_potential(self.x, d)[:, 0, :]
-        if not np.allclose(self.rotation, np.identity(3)):
+        if self.rotation is not None:
             c = expand_tensor(c)
             c = rotate_tensor(c, self.rotation, d)
             c = select_tensor(c)

@@ -556,27 +556,30 @@ class MagtrapCase(unittest.TestCase):
         mu, b = self.s.mathieu(self.x0, 4*.018, 30*.018)
         nptest.assert_almost_equal(mu.real, 0., 9)
 
+    def test_with(self):
+        n = len(self.s.electrodes)
+        dcs, rfs = np.arange(n), np.arange(n, 2*n)
+        self.s.voltages = np.zeros((n, 2))
+        nptest.assert_allclose(self.s.voltages, np.zeros((n, 2)))
+        with self.s.with_voltages(dcs=dcs, rfs=rfs):
+            nptest.assert_allclose(self.s.dcs, dcs)
+            nptest.assert_allclose(self.s.rfs, rfs)
+        nptest.assert_allclose(self.s.voltages, np.zeros((n, 2)))
+
     def test_shims_shift(self):
         x = self.x0
         eln = "c1 c2 c3 c4 c5 c6".split()
-        els = [self.s.electrode(n) for n in eln]
-        us, (res, rank, sing) = self.s.shims([x] , els, curvatures=[[]])
-        self.assertEqual(us.shape, (len(eln), 3))
-        self.assertEqual(rank, 3)
-        c0 = self.s.curvature(x)[..., 0]
-        for i, usi in enumerate(us.T):
-            for ui, el in zip(usi, els):
-                el.voltage_dc = ui
-            nptest.assert_almost_equal(self.s.gradient(x)[i, 0], 1,
-                    decimal=2)
-            if i == 0:
-                nptest.assert_almost_equal(usi[(0, 3), :], -usi[(2, 5), :])
-            elif i in (1, 2):
-                nptest.assert_almost_equal(usi[(0, 3), :], usi[(2, 5), :])
-            if i == 2:
-                self.assertEqual(np.alltrue(usi > 0), True)
-                nptest.assert_almost_equal(usi[:3]/usi[3:], 1,
-                        decimal=1)
+        s = system.System(*[self.s[n] for n in eln])
+        derivs = "x y z xx yy".split()
+        vectors = s.shims([(x, None, d) for d in derivs])
+        self.assertEqual(vectors.shape, (len(derivs), len(eln)))
+        for v, n in zip(vectors, derivs):
+            d, e = utils.name_to_deriv(n)
+            s.dcs = v
+            p = s.electrical_potential(x, "dc", d)[0]
+            #v = np.identity(2*d+1)[e]
+            #nptest.assert_almost_equal(p, v)
+            nptest.assert_allclose(p[e], 1)
 
     def test_shims_shift_modes(self):
         x = self.x0

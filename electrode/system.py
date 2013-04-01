@@ -39,7 +39,9 @@ from .transformations import euler_from_matrix
 from .saddle import rfo
 from .electrode import Electrode
 from .utils import (select_tensor, expand_tensor, norm, rotate_tensor,
-    apply_method, mathieu)
+    mathieu, name_to_deriv)
+from .pattern_constraints import (PatternRangeConstraint,
+        PotentialObjective)
 from . import colors
 
 
@@ -84,10 +86,13 @@ class System(HasTraits):
     by_name = electrode
 
     @contextmanager
-    def with_voltages(self, dcs, rfs):
+    def with_voltages(self, dcs=None, rfs=None):
         """contextmanager with set to voltages"""
         orig = self.dcs, self.rfs
-        self.dcs, self.rfs = dcs, rfs
+        if dcs is not None:
+            self.dcs = dcs
+        if rfs is not None:
+            self.rfs = rfs
         yield
         self.dcs, self.rfs = orig
 
@@ -260,34 +265,22 @@ class System(HasTraits):
                 break
         return map(np.array, (t, q, p))
 
-    # FIXME
-    def shims(self, x, forces=None, curvatures=None,
-            coords=None, rcond=1e-3):
+    def shims(self, x_coord_deriv, constraints=None):
         """
-        solve the shim equations simultaneously at all points x0,
-        return an array of voltages (x, y, z, xx, xy, yy, xz, yz) *
-        len(x0). -zz=xx+yy is dropped.
+        solve the shim equations simultaneously at all points 
+        [(x, rotation, derivative), ...]
         """
-        x = np.atleast_2d(x)
-        p, f, c = (self.individual_potential(x, i) for i in range(3))
-        p = np.rollaxis(p, 1) # x,el
-        f = np.rollaxis(f, 2) # x,fi,el
-        c = np.rollaxis(c, 3) # x,ci,cj,el
-        dc = []
-        for i, (fi, ci) in enumerate(zip(f, c)): # over x
-            if coords is not None:
-                fi = rotate_tensor(fi, coords[i], 1)
-                ci = rotate_tensor(ci, coords[i], 2)
-            ci = select_tensor(ci)
-            if forces is not None:
-                fi = fi[forces[i], ...]
-            if curvatures is not None:
-                ci = ci[curvatures[i], ...]
-            dc.extend(fi)
-            dc.extend(ci)
-        ev = np.identity(len(dc))
-        u, res, rank, sing = np.linalg.lstsq(dc, ev, rcond=rcond)
-        return u, (res, rank, sing)
+        objectives = [PotentialObjective(x=x, derivative=deriv, value=0,
+                rotation=coord) for x, coord, deriv in x_coord_deriv]
+        if constraints is None:
+            constraints = [PatternRangeConstraint(min=-1, max=1)]
+        vectors = []
+        for objective in objectives:
+            objective.value = 1
+            p, c = self.optimize(constraints+objectives, verbose=False)
+            objective.value = 0
+            vectors.append(p/c)
+        return np.array(vectors)
 
     def solve(self, x, constraints, verbose=True):
         """
@@ -362,11 +355,11 @@ class System(HasTraits):
         obj = cvxopt.matrix(g)*p
         # B*g_perp
         B1 = B - b.T*g/(g*g.T)
-        #u, l, v = np.linalg.svd(B1)
-        #li = np.argmin(l)
-        #print li, l[li], v[li], B1*v[li].T
-        #self.pixel_factors = np.array(v)[li]
-        #return 0.
+        if False:
+            u, l, v = np.linalg.svd(B1)
+            li = np.argmin(l)
+            print li, l[li], v[li], B1*v[li].T
+            return np.array(v)[li], 0
         #FIXME: there is one singular value, drop one constraint
         B1 = B1[:-1]
         # B*g_perp*p == 0
