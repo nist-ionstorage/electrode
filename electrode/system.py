@@ -160,22 +160,23 @@ class System(HasTraits):
         rf = self.pseudo_potential(x, derivative)
         return dc + rf
 
-    def plot(self, ax, alpha=.3, *a, **k):
+    def plot(self, ax, alpha=.3, **kwargs):
         """plot electrodes with sequential colors"""
         for e, c in zip(self.electrodes, itertools.cycle(colors.set3)):
-            e.plot(ax, color=tuple(c/255.), alpha=alpha, *a, **k)
+            e.plot(ax, color=tuple(c/255.), alpha=alpha, **kwargs)
 
-    def plot_voltages(self, ax, u=None, um=None, *a, **kw):
+    def plot_voltages(self, ax, u=None, um=None, **kwargs):
         """plot electrodes with alpha proportional to voltage (scaled to
         max abs voltage being opaque), red for positive, blue for
         negative"""
         if u is None:
-            u = np.array([el.voltage_dc for el in els])
+            u = np.array(self.dcs)
         if um is None:
-            um = abs(u).max() or 1.
-        for el, ui in zip(els, u):
-            el.plot(ax, color=(ui > 0 and "red" or "blue"),
-                    alpha=abs(ui)/um, text="", *a, **kw)
+            um = np.fabs(u).max() or 1.
+        u = (u/um+1)/2
+        colors = np.array((1-u, 1-2*np.fabs(.5-u), u)).T
+        for el, ui, ci in zip(self.electrodes, u, colors):
+            el.plot(ax, color=tuple(ci), **kwargs)
 
     def minimum(self, x0, axis=(0, 1, 2), coord=np.identity(3)):
         """find a potential minimum near x0 searching along the
@@ -379,20 +380,28 @@ class System(HasTraits):
         p = np.array(p.value).ravel()
         return p, c
 
-    def split(self, thresholds=[0]):
+    def group(self, thresholds=[0], voltages=None):
+        if voltages is None:
+            voltages = np.array(self.dcs)
         if thresholds is None:
-            threshold = sorted(np.unique(self.pixel_factors))
+            threshold = sorted(np.unique(voltages))
         ts = [-np.inf] + thresholds + [np.inf]
         eles = []
         for i, (ta, tb) in enumerate(zip(ts[:-1], ts[1:])):
-            good = (ta <= self.pixel_factors) & (self.pixel_factors < tb)
+            good = (ta <= voltages) & (voltages < tb)
             if not np.any(good):
                 continue
-            paths = [self.paths[j] for j in np.argwhere(good)]
-            name = "%s_%i" % (self.name, i)
-            eles.append(self.__class__(name=name, paths=paths,
-                voltage_dc=self.voltage_dc, voltage_rf=self.voltage_rf))
-        return eles
+            paths = []
+            dcs = []
+            rfs = []
+            for j in np.argwhere(good):
+                el = self.electrodes[j]
+                paths.extend(el.paths)
+                dcs.append(el.dc)
+                rfs.append(el.rf)
+            eles.append(PolygonPixelElectrode(name="%i" % i,
+                paths=paths, dc=np.mean(dcs), rf=np.mean(rfs)))
+        return System(electrodes=eles)
 
     def mathieu(self, x, u_dc, u_rf, r=2, sorted=True):
         """return characteristic exponents (mode frequencies) and
