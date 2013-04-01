@@ -178,16 +178,15 @@ class System(HasTraits):
             e.plot(ax, color=tuple(c/255.), alpha=alpha, **kwargs)
 
     def plot_voltages(self, ax, u=None, um=None, **kwargs):
-        """plot electrodes with alpha proportional to voltage (scaled to
-        max abs voltage being opaque), red for positive, blue for
-        negative"""
+        """plot electrodes with color proportional to voltage 
+        red for positive, blue for negative"""
         if u is None:
             u = np.array(self.dcs)
         if um is None:
             um = np.fabs(u).max() or 1.
-        u = u / um + 1
-        colors = np.array((np.clip(1-u, 0, 1), 0*u, np.clip(u, 0, 1))).T
-        for el, ui, ci in zip(self.electrodes, u, colors):
+        u = u / um / 2
+        colors = np.clip((u+.5, .5-np.fabs(u), -u+.5), 0, 1).T
+        for el, ci in zip(self.electrodes, colors):
             el.plot(ax, color=tuple(ci), **kwargs)
 
     def minimum(self, x0, axis=(0, 1, 2), coord=np.identity(3)):
@@ -418,10 +417,10 @@ class System(HasTraits):
     def mathieu(self, x, u_dc, u_rf, r=2, sorted=True):
         """return characteristic exponents (mode frequencies) and
         fourier components"""
-        c_rf = self.electrical_potential(x, "rf", 2)
-        c_dc = self.electrical_potential(x, "dc", 2)
-        a = 4*u_dc*c_dc[..., 0]
-        q = 2*u_rf*c_rf[..., 0]
+        c_rf = self.electrical_potential(x, "rf", 2, expand=True)[0]
+        c_dc = self.electrical_potential(x, "dc", 2, expand=True)[0]
+        q = 2*u_rf*c_rf
+        a = 4*u_dc*c_dc
         mu, b = mathieu(r, a, q)
         if sorted:
             i = mu.imag >= 0
@@ -429,7 +428,8 @@ class System(HasTraits):
             i = mu.imag.argsort()
             mu, b = mu[i], b[:, i]
         return mu/2, b
-    
+
+    # FIXME
     def analyze_static(self, x, axis=(0, 1, 2), do_ions=False,
             m=1., q=1., u=1., l=1., o=1.):
         scale = (u*q/l/o)**2/(4*m) # rf pseudopotential energy scale
@@ -442,8 +442,8 @@ class System(HasTraits):
         yield "analyze point: %s (%s µm)" % (x, x*l/1e-6)
         trap = self.minimum(x, axis=axis)
         yield " minimum is at offset: %s" % (trap - x)
-        p_rf = self.pseudo_potential(x, 0)
-        p_dc = self.electrical_potential(x, "dc", 0)
+        p_rf = self.pseudo_potential(x, 0)[0]
+        p_dc = self.electrical_potential(x, "dc", 0)[0]
         yield " rf, dc potentials: %.2g, %.2g (%.2g eV, %.2g eV)" % (
             p_rf, p_dc, p_rf*dc_scale, p_dc*dc_scale)
         try:
@@ -456,7 +456,7 @@ class System(HasTraits):
         freqs_pp = (scale*curves/l**2/m)**.5/(2*np.pi)
         q_o2l2m = q/((l*o)**2*m)
         mu, b = self.mathieu(x, u_dc=dc_scale*q_o2l2m, u_rf=u*q_o2l2m,
-                r=3, sorted=True)
+                r=4, sorted=True)
         freqs = mu[:3].imag*o/(2*np.pi)
         modes = b[len(b)/2-3:len(b)/2, :3].real
         yield " pp+dc normal curvatures: %s" % curves
