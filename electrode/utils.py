@@ -24,6 +24,13 @@ from itertools import product
 import numpy as np
 
 
+def shaper(func, x, *args, **kwargs):
+    y = x.reshape(-1, 3)
+    v = func(y, *args, **kwargs)
+    w = v.reshape(x.shape[:-1]+(v.shape[-1],))
+    return w
+
+
 def apply_method(s, name, *args, **kwargs):
     """small helper to work around non-picklable
     instance methods and allow them to be called by multiprocessing

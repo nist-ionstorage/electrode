@@ -37,7 +37,7 @@ except ImportError:
 
 from .transformations import euler_from_matrix
 from .saddle import rfo
-from .electrode import Electrode
+from .electrode import Electrode, PolygonPixelElectrode
 from .utils import (select_tensor, expand_tensor, norm, rotate_tensor,
     mathieu, name_to_deriv)
 from .pattern_constraints import (PatternRangeConstraint,
@@ -76,30 +76,40 @@ class System(HasTraits):
         for ei, vi in zip(self.electrodes, voltages):
             ei.rf = vi
 
-    def electrode(self, name):
+    def electrode(self, name_or_index):
         """return the first electrode named name or None if not found"""
+        if type(name_or_index) == type(0):
+            return self.electrodes[name_or_index]
         for ei in self.electrodes:
-            if ei.name == name:
+            if ei.name == name_or_index:
                 return ei
 
     __getitem__ = electrode
     by_name = electrode
+    by_index = electrode
 
     @contextmanager
     def with_voltages(self, dcs=None, rfs=None):
-        """contextmanager with set to voltages"""
-        orig = self.dcs, self.rfs
+        """contextmanager with temporary voltage setting"""
+        odc = self.dcs
+        orf = self.rfs
         if dcs is not None:
             self.dcs = dcs
         if rfs is not None:
             self.rfs = rfs
         yield
-        self.dcs, self.rfs = orig
+        self.dcs = odc
+        self.rfs = orf
 
     def electrical_potential(self, x, typ="dc", derivative=0,
             expand=False):
+        """
+        return electrical potential derivative due to the electrodes at x
+        electrode voltage given in typ names attribute, expand the
+        tensor to full form if expand==True
+        """
         x = np.atleast_2d(x).astype(np.double)
-        pot = np.zeros((x.shape[0], 2*derivative+1))
+        pot = np.zeros((x.shape[0], 2*derivative+1), np.double)
         for ei in self.electrodes:
             vi = getattr(ei, typ)
             if vi != 0.:
@@ -110,15 +120,15 @@ class System(HasTraits):
 
     def individual_potential(self, x, derivative=0):
         """
-        return potential, gradient and curvature for the system at x and
+        return derivatives of the electrical potential at x and
         contribution of each of the specified electrodes per volt
-
         O(len(electrodes)*len(x))
         """
-        x = np.atleast_2d(x) # n,3 positions
-        eff = np.array([el.potential(x, derivative) for el in self.electrodes])
-        assert eff.shape == (len(self.electrodes), x.shape[0],
-                2*derivative+1)
+        x = np.atleast_2d(x).astype(np.double)
+        eff = np.empty((len(self.electrodes), x.shape[0], 2*derivative+1),
+                np.double)
+        for i, el in enumerate(self.electrodes):
+            eff[i] = el.potential(x, derivative)
         return eff
 
     def time_potential(self, x, t=0., derivative=0, expand=False):
@@ -129,6 +139,8 @@ class System(HasTraits):
         return dc + np.cos(t)*rf
 
     def pseudo_potential(self, x, derivative=0):
+        """return given derivative or the ponderomotive/pseudo potential
+        at x"""
         p = [self.electrical_potential(x, "rf", i, expand=True)
                 for i in range(1, derivative+2)]
         if derivative == 0:
@@ -173,8 +185,8 @@ class System(HasTraits):
             u = np.array(self.dcs)
         if um is None:
             um = np.fabs(u).max() or 1.
-        u = (u/um+1)/2
-        colors = np.array((1-u, 1-2*np.fabs(.5-u), u)).T
+        u = u / um + 1
+        colors = np.array((np.clip(1-u, 0, 1), 0*u, np.clip(u, 0, 1))).T
         for el, ui, ci in zip(self.electrodes, u, colors):
             el.plot(ax, color=tuple(ci), **kwargs)
 
@@ -361,7 +373,7 @@ class System(HasTraits):
             li = np.argmin(l)
             print li, l[li], v[li], B1*v[li].T
             return np.array(v)[li], 0
-        #FIXME: there is one singular value, drop one constraint
+        #FIXME: there is one singular value, drop one line
         B1 = B1[:-1]
         # B*g_perp*p == 0
         ctrs.append(cvxopt.matrix(B1)*p == 0.)
@@ -389,8 +401,8 @@ class System(HasTraits):
         eles = []
         for i, (ta, tb) in enumerate(zip(ts[:-1], ts[1:])):
             good = (ta <= voltages) & (voltages < tb)
-            if not np.any(good):
-                continue
+            #if not np.any(good):
+            #    continue
             paths = []
             dcs = []
             rfs = []
@@ -399,8 +411,8 @@ class System(HasTraits):
                 paths.extend(el.paths)
                 dcs.append(el.dc)
                 rfs.append(el.rf)
-            eles.append(PolygonPixelElectrode(name="%i" % i,
-                paths=paths, dc=np.mean(dcs), rf=np.mean(rfs)))
+            eles.append(PolygonPixelElectrode(paths=paths,
+                dc=np.mean(dcs), rf=np.mean(rfs)))
         return System(electrodes=eles)
 
     def mathieu(self, x, u_dc, u_rf, r=2, sorted=True):

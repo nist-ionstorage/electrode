@@ -34,27 +34,30 @@ ctypedef np.double_t dtype_t
 def point_potential(np.ndarray[dtype_t, ndim=2] x not None,
                 np.ndarray[dtype_t, ndim=2] points not None,
                 np.ndarray[dtype_t, ndim=1] areas not None,
-                np.ndarray[dtype_t, ndim=1] potentials not None,
+                np.ndarray[dtype_t, ndim=1] potentials,
                 int derivative):
-    cdef int nx=x.shape[0], nv=points.shape[0]
+    cdef int nx = x.shape[0], nv = points.shape[0]
+    cdef int have_pot = bool(potentials is not None)
     cdef int i, j
     cdef double x0, y0, z0, a0, r0
     cdef np.ndarray[dtype_t, ndim=2, mode="c"] value
 
     value = np.zeros([nx, derivative*2+1], dtype=dtype)
 
-    for j in range(nx):
-        for i in range(nv):
+    for i in range(nv):
+        a0 = areas[i]
+        if have_pot:
+            a0 *= potentials[i]
+        for j in range(nx):
             x0 = x[j, 0] - points[i, 0]
             y0 = x[j, 1] - points[i, 1]
             z0 = x[j, 2] - points[i, 2]
             r0 = sqrt(x0**2+y0**2+z0**2)
-            a0 = areas[i]*potentials[i]
             point_potential_expr(x0, y0, z0, r0, a0, derivative, &value[j, 0])
     return value
 
-cdef inline point_potential_expr(double x, double y, double z, double r,
-                             double a, int derivative, double *d):
+cdef inline void point_potential_expr(double x, double y, double z,
+        double r, double a, int derivative, double *d):
     cdef double n
     if derivative == 0:
         n = a/(2*M_PI*r**3)
@@ -107,36 +110,43 @@ cdef inline point_potential_expr(double x, double y, double z, double r,
 
 
 def polygon_potential(np.ndarray[dtype_t, ndim=2] x not None,
-                  list polygons not None,
-                  np.ndarray[dtype_t, ndim=1] potentials not None,
+                  polygons not None,
+                  np.ndarray[dtype_t, ndim=1] potentials,
                   int derivative):
-    cdef int nx=x.shape[0], nv=len(polygons)
+    cdef int nx = x.shape[0]
+    cdef int have_pot = potentials is not None
     cdef int i, j, k, no
-    cdef double x1, y1, z1, r1, x2, y2, z2, r2, l2, potential
+    cdef double x1, y1, z1, r1, x2, y2, z2, r2, l2, potential=1
     cdef np.ndarray[dtype_t, ndim=2] polygon
     cdef np.ndarray[dtype_t, ndim=2, mode="c"] value
 
     value = np.zeros([nx, derivative*2+1], dtype=dtype)
+    if have_pot:
+        iter_potentials = iter(potentials)
 
-    for j in range(nx):
-        for i in range(nv):
-            polygon = polygons[i]
-            potential = potentials[i]
-            no = polygon.shape[0]
-            x2, y2, z2 = x[j] - polygon[no-1]
+    for i, polygon in enumerate(iter(polygons)):
+        if have_pot:
+            potential = iter_potentials.next()
+        no = polygon.shape[0]
+        for j in range(nx):
+            x2 = x[j, 0] - polygon[no-1, 0]
+            y2 = x[j, 1] - polygon[no-1, 1]
+            z2 = x[j, 2] - polygon[no-1, 2]
             r2 = sqrt(x2**2+y2**2+z2**2)
             for k in range(no):
                 x1, y1, z1, r1 = x2, y2, z2, r2
-                x2, y2, z2 = x[j] - polygon[k]
+                x2 = x[j, 0] - polygon[k, 0]
+                y2 = x[j, 1] - polygon[k, 1]
+                z2 = x[j, 2] - polygon[k, 2]
                 r2 = sqrt(x2**2+y2**2+z2**2)
                 l2 = (x1-x2)**2+(y1-y2)**2
                 polygon_potential_expr(x1, x2, y1, y2, r1, r2, l2, z1,
                         potential, derivative, &value[j, 0])
     return value
 
-cdef inline polygon_potential_expr(double x1, double x2, double y1, double y2,
-                               double r1, double r2, double l2, double z,
-                               double a, int derivative, double *d):
+cdef inline void polygon_potential_expr(double x1, double x2,
+        double y1, double y2, double r1, double r2,
+        double l2, double z, double a, int derivative, double *d):
     cdef double zs, n
     if derivative == 0:
         zs = fabs(z)

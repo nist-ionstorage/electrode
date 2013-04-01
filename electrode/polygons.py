@@ -25,100 +25,130 @@ from .system import System
 from .electrode import PolygonPixelElectrode
 
 
-def polygons_to_system(polygons):
-    """
-    convert a list of [("electrode name", MultiPolygon(...)), ...] to a
-    System()
-    """
-    s = System()
-    for n, p in polygons:
-        e = PolygonPixelElectrode(name=n, paths=[])
-        s.electrodes.append(e)
-        if type(p) is geometry.Polygon:
-            p = [p]
-        for pi in p:
-            pi = geometry.polygon.orient(pi, 1)
-            ext = np.zeros((len(pi.exterior.coords)-1, 3))
-            ext[:, :2] = np.array(pi.exterior.coords)[:-1, :2]
-            e.paths.append(ext)
-            for ii in pi.interiors:
-                int = np.zeros((len(ii.coords)-1, 3))
-                int[:, :2] = np.array(ii.coords)[-2::-1, :2]
-                e.paths.append(int)
-    return s
+class Polygons(list):
+    @classmethod
+    def from_system(cls, system):
+        """
+        convert a System() to a list of [("electrode name",
+        MultiPolygon(...)), ...]
+        """
+        obj = cls()
+        for e in system.electrodes:
+            if not hasattr(e, "paths"):
+                continue
+            # assert type(e) is PolygonPixelElectrode, (e, e.name)
+            exts, ints = [], []
+            for pi, ei in zip(e.paths, e.orientations()):
+                # shapely ignores f-contiguous arrays so copy
+                # https://github.com/sgillies/shapely/issues/26
+                pi = geometry.Polygon(pi.copy("C"))
+                {-1: ints, 0: [], 1: exts}[ei].append(pi)
+            if not exts:
+                continue
+            mp = geometry.MultiPolygon(exts)
+            if ints:
+                mp = mp.difference(geometry.MultiPolygon(ints))
+            obj.append((e.name, mp))
+        return obj
 
-def system_to_polygons(system):
-    """
-    convert a System() to a list of [("electrode name",
-    MultiPolygon(...)), ...]
-    """
-    p = []
-    for e in system.electrodes:
-        if not hasattr(e, "paths"):
-            continue
-        # assert type(e) is PolygonPixelElectrode, (e, e.name)
-        exts, ints = [], []
-        for pi, ei in zip(e.paths, e.orientations()):
-            # shapely ignores f-contiguous arrays so copy
-            # https://github.com/sgillies/shapely/issues/26
-            pi = geometry.Polygon(pi.copy("C"))
-            {-1: ints, 0: [], 1: exts}[ei].append(pi)
-        if not exts:
-            continue
-        mp = geometry.MultiPolygon(exts)
-        if ints:
-            mp = mp.difference(geometry.MultiPolygon(ints))
-        p.append((e.name, mp))
-    return p
+    def to_system(self):
+        s = System()
+        for n, p in self:
+            e = PolygonPixelElectrode(name=n, paths=[])
+            s.electrodes.append(e)
+            if type(p) is geometry.Polygon:
+                p = [p]
+            for pi in p:
+                pi = geometry.polygon.orient(pi, 1)
+                ext = np.zeros((len(pi.exterior.coords)-1, 3))
+                ext[:, :2] = np.array(pi.exterior.coords)[:-1, :2]
+                e.paths.append(ext)
+                for ii in pi.interiors:
+                    int = np.zeros((len(ii.coords)-1, 3))
+                    int[:, :2] = np.array(ii.coords)[-2::-1, :2]
+                    e.paths.append(int)
+        return s
 
-def check_validity(polygons):
-    """
-    asserts geometric validity of all electrodes
-    """
-    for ni, pi in polygons:
-        if not pi.is_valid:
-            raise ValueError, (ni, pi)
+    def validate(self):
+        """
+        asserts geometric validity of all electrodes
+        """
+        for ni, pi in self:
+            if not pi.is_valid:
+                raise ValueError, (ni, pi)
 
-def remove_overlaps(polygons):
-    """
-    successively removes overlaps with preceeding electrodes
-    """
-    p = []
-    acc = geometry.Point()
-    for ni, pi in polygons:
-        pa = acc.intersection(pi)
-        if pa.is_valid and pa.area > np.finfo(np.float32).eps:
-            pc = pi.difference(pa)
-            if pc.is_valid:
-                pi = pc
-        acca = acc.union(pi)
-        if acca.is_valid:
-            acc = acca
-        p.append((ni, pi))
-    return p
+    def remove_overlaps(self):
+        """
+        successively removes overlaps with preceeding electrodes
+        """
+        p = Polygons()
+        acc = geometry.Point()
+        for ni, pi in self:
+            pa = acc.intersection(pi)
+            if pa.is_valid and pa.area > np.finfo(np.float32).eps:
+                pc = pi.difference(pa)
+                if pc.is_valid:
+                    pi = pc
+            acca = acc.union(pi)
+            if acca.is_valid:
+                acc = acca
+            p.append((ni, pi))
+        return p
 
-def add_gaps(polygons, gapsize):
-    """
-    shrinks each electrode by adding a gapsize buffer around it
-    gaps between previously touching electrodes will be 2*gapsize wide
-    electrodes must not be overlapping
-    """
-    p = []
-    for ni, pi in polygons:
-        pb = pi.boundary.buffer(gapsize, 0)
-        if pb.is_valid:
-            pc = pi.difference(pb)
-            if pc.is_valid:
-                pi = pc
-        p.append((ni, pi))
-    return p
+    def add_gaps(self, gapsize):
+        """
+        shrinks each electrode by adding a gapsize buffer around it
+        gaps between previously touching electrodes will be 2*gapsize wide
+        electrodes must not be overlapping
+        """
+        p = Polygons()
+        for ni, pi in self:
+            pb = pi.boundary.buffer(gapsize, 0)
+            if pb.is_valid:
+                pc = pi.difference(pb)
+                if pc.is_valid:
+                    pi = pc
+            p.append((ni, pi))
+        return p
 
-def simplify_polygons(polygons, buffer=0.):
-    out = []
-    for name, poly in polygons:
-        poly = poly.buffer(buffer, 0)
-        out.append((name, poly))
-    return out
+    def simplify(self, buffer=0.):
+        p = Polygons()
+        for ni, pi in self:
+            p.append((ni, pi.buffer(buffer, 0)))
+        return p
+        
+    def assign_to_pad(self, pads):
+        """given a list of polygons or multipolygons and a list
+        of pad xy coordinates, yield tuples of
+        (pad number, polygon index, polygon)"""
+        polys = list(enumerate(self))
+        for pad, (x, y) in enumerate(pads):
+            p = geometry.Point(x, y)
+            for i in range(len(polys)):
+                j, (name, poly) = polys[i]
+                if p.intersects(poly):
+                    yield pad, j, poly
+                    del polys[i]
+                    break
+            if not polys:
+                break
+        # assert not polys, polys
+
+    def gaps_union(self):
+        """returns the union of the boundaries of the polygons.
+        if the boundaries of adjacent polygons coincide, this returns
+        only the gap paths.
+
+        polys is a list of multipolygons or polygons"""
+        gaps = geometry.MultiLineString()
+        for name, multipoly in self:
+            if type(multipoly) is geometry.Polygon:
+                multipoly = [multipoly]
+            for poly in multipoly:
+                for i in [poly.exterior] + list(poly.interiors):
+                    xy = np.array(i.coords)[:, :2].copy()
+                    gaps = gaps.union(geometry.LineString(xy))
+        return gaps
 
 
 def square_pads(step=10., edge=200., odd=False, start_corner=0):
@@ -138,49 +168,14 @@ def square_pads(step=10., edge=200., odd=False, start_corner=0):
     assert xy.shape == (2, 4*n), xy.shape
     return xy.T
 
-        
-def assign_to_pad(polygons, pads):
-    """given a list of polygons or multipolygons and a list
-    of pad xy coordinates, yield tuples of
-    (pad number, polygon index, polygon)"""
-    polys = list(enumerate(polygons))
-    for pad, (x, y) in enumerate(pads):
-        p = geometry.Point(x, y)
-        for i in range(len(polys)):
-            j, poly = polys[i]
-            if p.intersects(poly):
-                yield pad, j, poly
-                del polys[i]
-                break
-        if not polys:
-            break
-    # assert not polys, polys
-
-
-def gaps_union(polys):
-    """returns the union of the boundaries of the polygons.
-    if the boundaries of adjacent polygons coincide, this returns
-     only the gap paths.
-
-    polys is a list of multipolygons or polygons"""
-    gaps = geometry.MultiLineString()
-    for multipoly in polys:
-        if type(multipoly) is geometry.Polygon:
-            multipoly = [multipoly]
-        for poly in multipoly:
-            for i in [poly.exterior] + list(poly.interiors):
-                xy = np.array(i.coords)[:, :2].copy()
-                gaps = gaps.union(geometry.LineString(xy))
-    return gaps
-
 
 if __name__ == "__main__":
     import cPickle as pickle
     s = pickle.load(open("rfjunction.pickle", "rb"))
-    p = system_to_polygons(s)
-    p = remove_overlaps(p)
-    p = add_gaps(p, .05)
-    s1 = polygons_to_system(p)
+    p = Polygons.from_system(s)
+    p = p.remove_overlaps()
+    p = p.add_gaps(.05)
+    s1 = p.to_system()
     for si in s, s1:
         for ei in si.electrodes:
             if not hasattr(ei, "paths"):

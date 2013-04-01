@@ -21,8 +21,9 @@ import numpy as np
 from utils import norm
 
 def point_potential(x, points, areas, potentials, derivative):
-    return _point_potential(x, areas*potentials, points,
-            derivative).sum(1).T
+    if potentials is not None:
+        areas = areas*potentials
+    return _point_potential(x, areas, points, derivative).sum(1).T
 
 def _point_potential(x, a, p, d):
     a = a[:, None]
@@ -84,6 +85,8 @@ def _point_potential(x, a, p, d):
 
 
 def polygon_potential(x, polygons, potentials, derivative):
+    if potentials is None:
+        potentials = np.ones(len(polygons))
     return np.array(sum(vi*_polygon_potential(x, pi, derivative) for vi, pi in
             zip(potentials, polygons))).T
 

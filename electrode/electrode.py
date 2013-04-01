@@ -28,7 +28,8 @@ from traits.api import HasTraits, Array, Float, Int, Str, List
 from .utils import norm, expand_tensor, area_centroid
 
 try:
-    # raise ImportError
+    if False: # test slow python only expressions
+        raise ImportError
     from .cexpressions import point_potential, polygon_potential
 except ImportError:
     from .expressions import point_potential, polygon_potential
@@ -136,17 +137,14 @@ class PointPixelElectrode(SurfaceElectrode):
             ax.text(p[:,0].mean(), p[:,1].mean(), label)
 
     def bare_potential(self, x, derivative=0):
-        return point_potential(x, self.points, self.areas,
-                np.ones(self.points.shape[0]), derivative)
+        return point_potential(x, self.points, self.areas, None, derivative)
 
 
 class PolygonPixelElectrode(SurfaceElectrode):
     paths = List(Array(dtype=np.float64, shape=(None, 3)))
 
     def orientations(self):
-        x = np.array([[0, 0, 1.]])
-        p = self.bare_potential(x, 0)
-        return np.sign(p[:, 0])
+        return np.sign([area_centroid(pi)[0] for pi in self.paths])
 
     def plot(self, ax, label=None, color=None, **kw):
         if label is None:
@@ -165,5 +163,4 @@ class PolygonPixelElectrode(SurfaceElectrode):
                 areas=a, points=c)
 
     def bare_potential(self, x, derivative=0):
-        return polygon_potential(x, list(self.paths),
-                np.ones(len(self.paths)), derivative)
+        return polygon_potential(x, self.paths, None, derivative)

@@ -532,16 +532,16 @@ class MagtrapCase(unittest.TestCase):
     def setUp(self):
         self.s = self.magtrap()
         self.s["c1"].dc = 1e-4 # lift degeneracy
-        self.x0 = self.s.minimum((0, .5, 1.), axis=(1,2))
+        self.x0 = self.s.minimum((.01, .5, 1.), axis=(1,2))
 
     def test_minimum(self):
         x0 = self.s.minimum(self.x0, axis=(1, 2))
-        nptest.assert_almost_equal(self.s.potential(x0, 0)[0], 0.)
-        nptest.assert_almost_equal(x0, [0, .8125, 1.015], decimal=3)
+        nptest.assert_allclose(self.s.potential(x0, 0)[0], 0., atol=1e-5)
+        nptest.assert_allclose(x0, [.01, .8125, 1.015], atol=1e-3)
 
     def test_saddle(self):
         xs, xsp = self.s.saddle(self.x0+[0,0,.1], axis=(1, 2))
-        nptest.assert_almost_equal(xs, [0, .883, 1.828], decimal=3)
+        nptest.assert_almost_equal(xs, [.01, .883, 1.828], decimal=3)
         nptest.assert_almost_equal(xsp, .00421, decimal=4)
     
     def test_modes(self):
@@ -570,7 +570,7 @@ class MagtrapCase(unittest.TestCase):
         x = self.x0
         eln = "c1 c2 c3 c4 c5 c6".split()
         s = system.System(*[self.s[n] for n in eln])
-        derivs = "x y z xx yy".split()
+        derivs = "x y z xx yy yz".split()
         vectors = s.shims([(x, None, d) for d in derivs])
         self.assertEqual(vectors.shape, (len(derivs), len(eln)))
         for v, n in zip(vectors, derivs):
@@ -579,7 +579,7 @@ class MagtrapCase(unittest.TestCase):
             p = s.electrical_potential(x, "dc", d)[0]
             #v = np.identity(2*d+1)[e]
             #nptest.assert_almost_equal(p, v)
-            nptest.assert_allclose(p[e], 1)
+            nptest.assert_allclose(p[e], 1, rtol=1e-5)
 
     def test_shims_shift_modes(self):
         x = self.x0
