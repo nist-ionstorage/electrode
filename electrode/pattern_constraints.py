@@ -17,6 +17,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import warnings
 
 import numpy as np
 
@@ -41,12 +42,20 @@ class PatternValueConstraint(Constraint):
     x = Array(dtype=np.float64, shape=(3,))
     d = Int
     v = Array(dtype=np.float64)
-    r = Array(dtype=np.float64, shape=(3, 3), value=np.identity(3))
+    r = Trait(None, None,
+            Array(dtype=np.float64, shape=(3, 3), value=np.identity(3)))
+
+    def __init__(self, **kwargs):
+        warnings.warn("use PotentialObjective and MultiPotentialObjective",
+                DeprecationWarning)
+        super(PatternValueConstraint, self).__init__(**kwargs)
 
     def objective(self, system, variables):
         v = select_tensor(self.v[None, ...]) # TODO: no select
         c = system.individual_potential(self.x, self.d)[:, 0, :]
-        c = select_tensor(rotate_tensor(expand_tensor(c), self.r))
+        if self.r is not None:
+            c = select_tensor(rotate_tensor(expand_tensor(c), self.r,
+                self.d))
         return zip(c.T, v[0])
 
 
@@ -64,55 +73,50 @@ class PatternRangeConstraint(Constraint):
             yield variables <= self.max
 
 
-class PotentialObjective(Constraint):
+class SingleValueConstraint(Constraint):
+    value = Trait(None, None, Float) # value
+    min = Trait(None, None, Float) # value
+    max = Trait(None, None, Float) # value
+
+    def get(self, system, variables):
+        raise NotImplementedError
+
+    def objective(self, system, variables):
+        if self.value is not None:
+            c = self.get(system, variables)
+            yield (c, self.value)
+    
+    def constraints(self, system, variables):
+        if self.min is not None or self.max is not None:
+            c = self.get(system, variables)
+            if self.min is not None:
+                yield c*variables >= self.min
+            if self.max is not None:
+                yield c*variables <= self.max
+
+
+class PotentialObjective(SingleValueConstraint):
     x = Array(dtype=np.float64, shape=(3,))
     derivative = Str # derivative name
-    value = Float # value
     rotation = Trait(None, None,
             Array(dtype=np.float64, shape=(3, 3), value=np.identity(3)))
 
-    def objective(self, system, variables):
+    def get(self, system, variables):
         d, e = name_to_deriv(self.derivative)
         c = system.individual_potential(self.x, d)[:, 0, :]
         if self.rotation is not None:
-            c = expand_tensor(c)
-            c = rotate_tensor(c, self.rotation, d)
-            c = select_tensor(c)
-        c = c[:, e]
-        return [(c, self.value)]
+            c = select_tensor(rotate_tensor(expand_tensor(c),
+                self.rotation, d))
+        return c[:, e]
+    
 
-
-class MultiPotentialObjective(Constraint):
+class MultiPotentialObjective(SingleValueConstraint):
     components = List(Instance(PotentialObjective))
     # component values are weights
-    value = Float
 
-    def objective(self, system, variables):
+    def get(self, system, variables):
         c = 0.
         for oi in self.components:
             for ci, vi in oi.objective(system, variables):
                 c += vi*ci
-        return [(c, self.value)]
-
-
-class PotentialConstraint(Constraint):
-    x = Array(dtype=np.float64, shape=(3,))
-    derivative = Str
-    min = Trait(None, None, Float) # value
-    max = Trait(None, None, Float) # value
-    rotation = Trait(None, None,
-            Array(dtype=np.float64, shape=(3, 3), value=np.identity(3)))
-
-    def constraints(self, system, variables):
-        d, e = name_to_deriv(self.derivative)
-        c = system.individual_potential(self.x, d)[:, 0, :]
-        if self.rotation is not None:
-            c = expand_tensor(c)
-            c = rotate_tensor(c, self.rotation, d)
-            c = select_tensor(c)
-        c = c[:, e]
-        if self.min is not None:
-            yield c*variables >= self.min
-        if self.max is not None:
-            yield c*variables <= self.max
-
+        return c

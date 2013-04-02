@@ -91,18 +91,19 @@ class System(HasTraits):
     @contextmanager
     def with_voltages(self, dcs=None, rfs=None):
         """contextmanager with temporary voltage setting"""
-        odc = self.dcs
-        orf = self.rfs
         if dcs is not None:
+            odc = self.dcs
             self.dcs = dcs
         if rfs is not None:
+            orf = self.rfs
             self.rfs = rfs
         yield
-        self.dcs = odc
-        self.rfs = orf
+        if dcs is not None:
+            self.dcs = odc
+        if rfs is not None:
+            self.rfs = orf
 
-    def electrical_potential(self, x, typ="dc", derivative=0,
-            expand=False):
+    def electrical_potential(self, x, typ="dc", derivative=0, expand=False):
         """
         return electrical potential derivative due to the electrodes at x
         electrode voltage given in typ names attribute, expand the
@@ -111,9 +112,9 @@ class System(HasTraits):
         x = np.atleast_2d(x).astype(np.double)
         pot = np.zeros((x.shape[0], 2*derivative+1), np.double)
         for ei in self.electrodes:
-            vi = getattr(ei, typ)
-            if vi != 0.:
-                pot += vi*ei.potential(x, derivative)
+            vi = getattr(ei, typ, None)
+            if vi:
+                ei.potential(x, derivative, potential=vi, out=pot)
         if expand:
             pot = expand_tensor(pot)
         return pot
@@ -125,18 +126,18 @@ class System(HasTraits):
         O(len(electrodes)*len(x))
         """
         x = np.atleast_2d(x).astype(np.double)
-        eff = np.empty((len(self.electrodes), x.shape[0], 2*derivative+1),
+        eff = np.zeros((len(self.electrodes), x.shape[0], 2*derivative+1),
                 np.double)
-        for i, el in enumerate(self.electrodes):
-            eff[i] = el.potential(x, derivative)
+        for i, ei in enumerate(self.electrodes):
+            ei.potential(x, derivative, out=eff[i])
         return eff
 
-    def time_potential(self, x, t=0., derivative=0, expand=False):
+    def time_potential(self, x, derivative=0, t=0., alpha_rf=1., expand=False):
         """electrical field at an instant in time t (physical units:
         1/omega_rf), no adiabatic approximation here"""
         dc, rf = (self.electrical_potential(x, typ, derivative, expand)
                 for typ in ("dc", "rf"))
-        return dc + np.cos(t)*rf
+        return dc + alpha_rf*np.cos(t)*rf
 
     def pseudo_potential(self, x, derivative=0):
         """return given derivative or the ponderomotive/pseudo potential
@@ -254,8 +255,10 @@ class System(HasTraits):
         time step dt, from time t0 to time t1, yielding current position
         and speed every nsteps time steps"""
         integ = getattr(gni, integ)
+        alpha_rf = 1.
         if field is None:
-            field = lambda x0, t: self.time_potential(x0, t, 1)[0]
+            field = lambda x0, t: self.time_potential(x0, 1, t,
+                    alpha_rf=alpha_rf, expand=True)[0]
         t, p, q = t0, v0[:, axis], x0[:, axis]
         x0 = np.array(x0)
         def ddx(t, q, f):
@@ -286,13 +289,14 @@ class System(HasTraits):
                 rotation=coord) for x, coord, deriv in x_coord_deriv]
         if constraints is None:
             constraints = [PatternRangeConstraint(min=-1, max=1)]
-        vectors = []
-        for objective in objectives:
+        vectors = np.empty((len(x_coord_deriv), len(self.electrodes)),
+                np.double)
+        for i, objective in enumerate(objectives):
             objective.value = 1
             p, c = self.optimize(constraints+objectives, verbose=False)
             objective.value = 0
-            vectors.append(p/c)
-        return np.array(vectors)
+            vectors[i] = p/c
+        return vectors
 
     def solve(self, x, constraints, verbose=True):
         """
@@ -388,7 +392,7 @@ class System(HasTraits):
                     for v in solver.equalities())
         solver.solve("sparse")
         c = float(np.matrix(p.value).T*g.T/(g*g.T))
-        p = np.array(p.value).ravel()
+        p = np.array(p.value, np.double).ravel()
         return p, c
 
     def group(self, thresholds=[0], voltages=None):
@@ -417,10 +421,8 @@ class System(HasTraits):
     def mathieu(self, x, u_dc, u_rf, r=2, sorted=True):
         """return characteristic exponents (mode frequencies) and
         fourier components"""
-        c_rf = self.electrical_potential(x, "rf", 2, expand=True)[0]
-        c_dc = self.electrical_potential(x, "dc", 2, expand=True)[0]
-        q = 2*u_rf*c_rf
-        a = 4*u_dc*c_dc
+        a = 4*u_dc*self.electrical_potential(x, "dc", 2, expand=True)[0]
+        q = 2*u_rf*self.electrical_potential(x, "rf", 2, expand=True)[0]
         mu, b = mathieu(r, a, q)
         if sorted:
             i = mu.imag >= 0
@@ -467,7 +469,7 @@ class System(HasTraits):
             for fi, mi in zip(fj, mj.T):
                 yield "  %.4g MHz, %s" % (fi/1e6, mi)
             yield "  euler angles: %s" % (
-                    np.array(euler_from_matrix(mj, "rxyz"))*180/np.pi)
+                    np.rad2deg(np.array(euler_from_matrix(mj, "rxyz"))))
         se = sum(list(el.potential(x, 1))[0]**2
                 for el in self.electrodes)/l**2
         yield " heating for 1 nV²/Hz white on each electrode:"

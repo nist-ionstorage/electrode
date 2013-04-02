@@ -30,9 +30,11 @@ from .utils import norm, expand_tensor, area_centroid
 try:
     if False: # test slow python only expressions
         raise ImportError
-    from .cexpressions import point_potential, polygon_potential
+    from .cexpressions import (point_potential, polygon_potential,
+            mesh_potential)
 except ImportError:
-    from .expressions import point_potential, polygon_potential
+    from .expressions import (point_potential, polygon_potential,
+            mesh_potential)
 
 
 class Electrode(HasTraits):
@@ -94,24 +96,24 @@ class SurfaceElectrode(Electrode):
     cover_height = Float(50) # cover plane height
     cover_nmax = Int(0) # max components in cover plane potential expansion
 
-    def bare_potential(self, x, derivative=0):
+    def bare_potential(self, x, derivative, potential, out):
         """bare pixel potential and derivative (d) value at x.
-        indices are (components if d>0, pixel, x)"""
+        indices are (x, components 2*d+1)"""
         raise NotImplementedError
 
-    def potential(self, x, derivative=0):
+    def potential(self, x, derivative=0, potential=1., out=None):
         """potential and derivative value with cover plane"""
         x = np.atleast_2d(x).astype(np.double)
-        r = self.bare_potential(x, derivative)
+        out = self.bare_potential(x, derivative, potential, out)
         for n in range(-self.cover_nmax, 0) + range(1, self.cover_nmax+1):
             xx = x + [[0, 0, 2*n*self.cover_height]]
-            r += self.bare_potential(xx, derivative)
-        return r
+            self.bare_potential(xx, derivative, potential, out)
+        return out
 
 
 class PointPixelElectrode(SurfaceElectrode):
-    points = Array(dtype=np.float64, shape=(None, 3))
-    areas = Array(dtype=np.float64, shape=(None,))
+    points = Array(dtype=np.double, shape=(None, 2))
+    areas = Array(dtype=np.double, shape=(None,))
 
     def _areas_default(self):
         return np.ones((len(self.points)))
@@ -136,12 +138,13 @@ class PointPixelElectrode(SurfaceElectrode):
         if label:
             ax.text(p[:,0].mean(), p[:,1].mean(), label)
 
-    def bare_potential(self, x, derivative=0):
-        return point_potential(x, self.points, self.areas, None, derivative)
+    def bare_potential(self, x, derivative, potential, out):
+        return point_potential(x, self.points, self.areas, potential,
+                derivative, out)
 
 
 class PolygonPixelElectrode(SurfaceElectrode):
-    paths = List(Array(dtype=np.float64, shape=(None, 3)))
+    paths = List(Array(dtype=np.double, shape=(None, 2)))
 
     def orientations(self):
         return np.sign([area_centroid(pi)[0] for pi in self.paths])
@@ -157,10 +160,26 @@ class PolygonPixelElectrode(SurfaceElectrode):
                 ax.text(p[:,0].mean(), p[:,1].mean(), label)
 
     def to_points(self):
-        a, c = zip(*(area_centroid(p) for p in self.paths))
-        return PointPixelElectrode(name=self.name,
+        a, c = [], []
+        for p in self.paths:
+            ai, ci = area_centroid(p)
+            a.append(ai)
+            c.append(ci)
+        e = PointPixelElectrode(name=self.name, dc=self.dc, rf=self.rf,
                 cover_nmax=self.cover_nmax, cover_height=self.cover_height,
                 areas=a, points=c)
+        return e
 
-    def bare_potential(self, x, derivative=0):
-        return polygon_potential(x, self.paths, None, derivative)
+    def bare_potential(self, x, derivative, potential, out):
+        return polygon_potential(x, self.paths, potential, derivative, out)
+
+
+class MeshPixelElectrode(SurfaceElectrode):
+    points = Array(dtype=np.double, shape=(None, 2))
+    edges = Array(dtype=np.intc, shape=(None, 2))
+    polygons = Array(dtype=np.intc, shape=(None,))
+    potentials = Array(dtype=np.double, shape=(None,))
+
+    def bare_potential(self, x, derivative, potential, out):
+        return mesh_potential(x, self.points, self.edges, self.polygons,
+                self.potentials*potential, derivative, out)

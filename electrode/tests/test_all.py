@@ -20,6 +20,7 @@
 
 import unittest
 from numpy import testing as nptest
+from itertools import product
 
 import numpy as np
 from numpy import (cos, sin, pi, tan, array, matrix, mgrid, dot, arange,
@@ -135,16 +136,16 @@ class BasicFunctionsCase(unittest.TestCase):
         #nptest.assert_almost_equal(b, )
 
     def test_polygon_value(self):
-        p = np.array([[1., 0, 0], [2, 3, 0], [2, 7, 0], [3, 8, 0],
-            [-2, 8, 0], [-5, 2, 0]])
+        p = np.array([[1., 0], [2, 3], [2, 7], [3, 8],
+            [-2, 8], [-5, 2]])
         x = np.array([[1,2,3.]])
         nptest.assert_almost_equal(
                 electrode.polygon_potential(x, [p], np.ones(1), 0),
                 [[.24907]])
     
     def test_polygon_value_grad(self):
-        p = np.array([[1., 0, 0], [2, 3, 0], [2, 7, 0], [3, 8, 0],
-            [-2, 8, 0], [-5, 2, 0]])
+        p = np.array([[1., 0], [2, 3], [2, 7], [3, 8],
+            [-2, 8], [-5, 2]])
         x = np.array([[1,2,3.]])
         nptest.assert_almost_equal(
                 electrode.polygon_potential(x, [p], np.ones(1), 1),
@@ -175,7 +176,7 @@ class LargeElectrodeCase(unittest.TestCase):
     def setUp(self):
         r = 1e9
         self.e = electrode.PolygonPixelElectrode(paths=[[
-            [r, r, 0], [-r, r, 0], [-r, -r, 0], [r, -r, 0]]])
+            [r, r], [-r, r], [-r, -r], [r, -r]]])
     
     def test_pot(self):
         nptest.assert_almost_equal(self.e.potential(
@@ -197,12 +198,12 @@ class LargeElectrodeCase(unittest.TestCase):
             nptest.assert_almost_equal(s*a, b)
       
     def test_grad(self):
-        nptest.assert_almost_equal(self.e.potential(
-            [1, 2, 3], 1)[0], [0, 0, 0.])
+        nptest.assert_allclose(self.e.potential(
+            [1, 2, 3], 1), 0, atol=1e-9)
 
     def test_curve(self):
-        nptest.assert_almost_equal(self.e.potential(
-            [1, 2, 3], 2)[0], 0.)
+        nptest.assert_allclose(self.e.potential(
+            [1, 2, 3], 2)[0], 0., atol=1e-9)
 
     def test_orientation(self):
         nptest.assert_almost_equal(self.e.orientations(), [1.])
@@ -212,10 +213,9 @@ class PixelElectrodeCase(unittest.TestCase):
     def setUp(self):
         self.r = r = 4e-5
         self.p = electrode.PolygonPixelElectrode(paths=[[
-            [1+r, 2+r, 0], [1-r, 2+r, 0], [1-r, 2-r, 0], [1+r, 2-r, 0]]])
+            [1+r, 2+r], [1-r, 2+r], [1-r, 2-r], [1+r, 2-r]]])
         a = (2*r)**2
-        self.e = electrode.PointPixelElectrode(areas=[a], points=[[1, 2,
-            0]])
+        self.e = electrode.PointPixelElectrode(areas=[a], points=[[1, 2]])
 
     def test_convert(self):
         c = self.p.to_points()
@@ -223,10 +223,11 @@ class PixelElectrodeCase(unittest.TestCase):
         nptest.assert_almost_equal(c.points, self.e.points)
 
     def test_pots(self):
-        for di in range(5):
-            a = self.p.potential([1,2,3], di)
-            b = self.e.potential([1,2,3], di)
-            nptest.assert_almost_equal(a, b, decimal=5)
+        x0 = [4,5,6]
+        for di in range(6):
+            a = self.p.potential(x0, di)
+            b = self.e.potential(x0, di)
+            nptest.assert_allclose(a, b, rtol=1e-4)
 
     def test_z_symmetry(self):
         for i, s in enumerate([-1, (-1, -1, 1), (-1, -1, 1, -1, 1),
@@ -239,38 +240,36 @@ class PixelElectrodeCase(unittest.TestCase):
         nptest.assert_almost_equal(self.e.orientations(), [1.])
         nptest.assert_almost_equal(self.p.orientations(), [1.])
 
-    def test_pixel_derivatives(self):
-        x0 = np.array([1,2,5.])
+    def test_numerical_derivatives(self):
+        x0 = np.array([3,6,5.])
         ns = range(6)
-        pp = lambda x: self.e.potential(x, 0)[0]
-        d = 5e-3
-        for n in ns:
-            p = utils.expand_tensor(self.e.potential(x0, n))[0]
-            for idx in combinations(range(3), n):
-                pn = nderiv(pp, x0, d, idx[:])
-                pa = p[tuple([i] for i in idx)]
-                nptest.assert_allclose(pn, pa, rtol=d,
-                    err_msg="n=%i, idx=%s" % (n, idx))
+        for ee, d in (self.e, 1e-3), (self.p, 1e-3):
+            pp = lambda x: ee.potential(x, 0)[0]
+            for n in ns:
+                p = utils.expand_tensor(ee.potential(x0, n))[0]
+                for idx in product(range(3), repeat=n):
+                    pn = nderiv(pp, x0, d, idx[:])
+                    pa = p[tuple([i] for i in idx)]
+                    nptest.assert_allclose(pn, pa, rtol=d, atol=1e-3,
+                        err_msg="ee=%s, n=%i, idx=%s" % (ee, n, idx))
 
-    def test_polygon_derivatives(self):
-        x0 = np.array([1,2,5.])
-        ns = range(6)
-        pp = lambda x: self.p.potential(x, 0)[0]
-        d = 1e-2
-        p0 = self.p.potential(x0, 0)[0]
-        for n in ns:
-            p = utils.expand_tensor(self.p.potential(x0, n))[0]
-            for idx in combinations(range(3), n):
-                pn = nderiv(pp, x0, d, idx[:])
-                pa = p[tuple([i] for i in idx)]
-                nptest.assert_allclose(pn, pa, rtol=d, atol=d*p0,
-                    err_msg="n=%i, idx=%s" % (n, idx))
+    def test_derivs(self):
+        x0 = np.array([2,-1,3.])
+        ns = range(1, 6)
+        for ee, d in (self.e, 1e-6), (self.p, 1e-6):
+            xd = x0[None, :] + [[0, 0, 0], [d, 0, 0], [0, d, 0], [0, 0, d]]
+            for n in ns:
+                p = utils.expand_tensor(ee.potential(x0, n))[0]
+                pd = utils.expand_tensor(ee.potential(xd, n-1))
+                pd = (pd[1:] - pd[0])/d
+                nptest.assert_allclose(p, pd, rtol=d, atol=1e-15,
+                      err_msg="ee=%s, n=%i" % (ee, n))
 
 
 class PolygonTestCase(unittest.TestCase):
     def setUp(self):
-        p = np.array([[1, 0, 0], [2, 3, 0], [2, 7, 0], [3, 8, 0],
-            [-2, 8, 0], [-5, 2, 0]])
+        p = np.array([[1, 0], [2, 3], [2, 7], [3, 8],
+            [-2, 8], [-5, 2]])
         self.e = electrode.PolygonPixelElectrode(paths=[p])
 
     def test_orientation(self):
@@ -299,11 +298,24 @@ class PolygonTestCase(unittest.TestCase):
         p0 = self.e.potential(x0, 0)[0]
         for n in ns:
             p = utils.expand_tensor(self.e.potential(x0, n))[0]
-            for idx in combinations(range(3), n):
+            for idx in product(range(3), repeat=n):
                 pn = nderiv(pp, x0, d, idx[:])
                 pa = p[tuple([i] for i in idx)]
                 nptest.assert_allclose(pn, pa, rtol=d, atol=d*p0,
                     err_msg="n=%i, idx=%s" % (n, idx))
+
+    def test_derivs(self):
+        x0 = np.array([1,2,3.])
+        ns = range(1, 6)
+        d = 1e-8
+        xd = x0[None, :] + [[0, 0, 0], [d, 0, 0], [0, d, 0], [0, 0, d]]
+        for n in ns:
+            p = utils.expand_tensor(self.e.potential(x0, n))[0]
+            pd = utils.expand_tensor(self.e.potential(xd, n-1))
+            pd = (pd[1:] - pd[0])/d
+            for k, (i, j) in enumerate(zip(p.ravel(), pd.ravel())):
+                nptest.assert_allclose(i, j, rtol=d, atol=d,
+                      err_msg="n=%i, k=%i" % (n,k))
 
     def test_spherical_harmonics(self):
         x = np.array([1, 2, 3.])
@@ -325,31 +337,22 @@ def nderiv(f, x, d, p):
     return (fa-fb)/(2*d)
 
 
-def combinations(choices, n):
-    if n == 0:
-        yield []
-    else:
-        for cc in combinations(choices, n-1):
-            for c in choices:
-                yield cc + [c]
-
-
 class ThreefoldOptimizeCase(unittest.TestCase):
     def hextess(self, n, points=False):
-        x = array(sum(([array([i+j*.5, j*3**.5*.5, 0])/(n+.5)
+        x = array(sum(([array([i+j*.5, j*3**.5*.5])/(n+.5)
             for j in range(-n-min(0, i), n-max(0, i)+1)]
             for i in range(-n, n+1)), []))
         if points:
-            a = ones((len(x),))*3**.5/(n+.5)**2/2
+            a = ones(len(x))*3**.5/(n+.5)**2/2
             return [electrode.PointPixelElectrode(points=[xi],
                 areas=[ai]) for xi, ai in zip(x, a)]
         else:
             a = 1/(3**.5*(n+.5)) # edge length
-            p = x[:, None, :] + [[[a*cos(phi), a*sin(phi), 0] for phi in
+            p = x[:, None, :] + [[[a*cos(phi), a*sin(phi)] for phi in
                 arange(pi/6, 2*pi, pi/3)]]
             return [electrode.PolygonPixelElectrode(paths=[i]) for i in p]
 
-    def setUp(self, n=12, h=1/8., d=1/4., H=25/8., nmax=1, points=True):
+    def get(self, n=12, h=1/8., d=1/4., H=25/8., nmax=1, points=True):
         s = system.System(electrodes=self.hextess(n, points))
         for ei in s.electrodes:
             ei.cover_height = H
@@ -361,41 +364,45 @@ class ThreefoldOptimizeCase(unittest.TestCase):
         for p in 0, 4*pi/3, 2*pi/3:
             x = array([d/3**.5*cos(p), d/3**.5*sin(p), h])
             r = transformations.euler_matrix(p, pi/2, pi/4, "rzyz")[:3, :3]
-            ct.append(pattern_constraints.PatternValueConstraint(d=1, x=x, r=r,
-                v=[0, 0, 0]))
-            ct.append(pattern_constraints.PatternValueConstraint(d=2, x=x, r=r,
-                v=2**(-1/3.)*np.eye(3)*[1, 1, -2]))
+            for i in "x y z xy xz yz".split():
+                ct.append(pattern_constraints.PotentialObjective(derivative=i,
+                    x=x, rotation=r, value=0))
+            for i in "xx yy".split():
+                ct.append(pattern_constraints.PotentialObjective(derivative=i,
+                        x=x, rotation=r, value=2**(-1/3.)))
         s.rfs, self.c = s.optimize(ct, verbose=False)
         self.h = h
         
         self.x0 = array([d/3**.5, 0, h])
         self.r = transformations.euler_matrix(0, pi/2, pi/4, "rzyz")[:3, :3]
 
-    def test_factor(self):
-        nptest.assert_almost_equal(self.c*self.h**2, .159853, decimal=2)
+    def test_points(self):
+        self.get(points=True)
+        nptest.assert_allclose(self.c*self.h**2, .16381, rtol=1e-4)
+        nptest.assert_allclose(
+                self.s.electrical_potential(self.x0, "rf", 1), 0, atol=1e-9)
 
-    def test_potential(self):
-        nptest.assert_almost_equal(
-                self.s.potential(self.x0, 1)[0], [0, 0, 0])
+    def test_poly(self):
+        self.get(points=False)
+        nptest.assert_allclose(self.c*self.h**2, .13943, rtol=1e-4)
+        nptest.assert_allclose(
+                self.s.electrical_potential(self.x0, "rf", 1), 0, atol=1e-9)
 
     def test_curve(self):
+        self.get()
         c = self.s.electrical_potential(self.x0, "rf", 2, expand=True)
         c = utils.rotate_tensor(c, self.r)
         nptest.assert_almost_equal(c[0]/self.c,
             2**(-1/3.)*np.eye(3)*[1, 1, -2])
 
-    def test_poly_potential(self):
-        self.setUp(points=False)
-        nptest.assert_almost_equal(
-                self.s.potential(self.x0, 1)[0], [0, 0, 0])
-        nptest.assert_almost_equal(self.c*self.h**2, .13943, decimal=4)
-
     def test_main_saddle(self):
+        self.get()
         xs, xsp = self.s.saddle((0, 0, .5), axis=(0, 1, 2,))
         nptest.assert_almost_equal(xs, [0, 0, .5501], decimal=4)
         nptest.assert_almost_equal(xsp, .1662, decimal=4)
 
     def test_single_saddle(self):
+        self.get()
         xs, xsp = self.s.saddle(self.x0+[.02, 0, .02], axis=(0, 2), dx_max=.02)
         nptest.assert_almost_equal(xs, [.145, 0, .156], decimal=3)
         nptest.assert_almost_equal(xsp, .0109, decimal=3)
@@ -413,8 +420,8 @@ class FiveWireCase(unittest.TestCase):
             for i in range(n):
                 a = t0 + 2*np.pi/n*i
                 ya, yb = np.tan((a-tw/2)/2), np.tan((a+tw/2)/2)
-                yield np.array([[rmax, ya, 0], [rmax, yb, 0],
-                     [-rmax, yb, 0], [-rmax, ya, 0]])
+                yield np.array([[rmax, ya], [rmax, yb],
+                     [-rmax, yb], [-rmax, ya]])
         s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
             rf=1, paths=list(patches(n=2, tw=tw, t0=t0))))
         return s
@@ -506,10 +513,10 @@ class MagtrapCase(unittest.TestCase):
         rmax = 1e3
         a, b, c, d, e = -1.3, 1.3, .78, 2.5, 3.
         s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
-               rf=1., paths=[
-               [[rmax,0,0], [-rmax,0,0], [-rmax,a,0], [rmax,a,0]],
-               [[rmax,b,0], [rmax,b+c,0], [-rmax,b+c,0], [-rmax,b,0]],
-            ]))
+                rf=1., paths=[
+                    [[rmax,0], [-rmax,0], [-rmax,a], [rmax,a]],
+                    [[rmax,b+c], [-rmax,b+c], [-rmax,b], [rmax,b]],
+                ]))
         for cx, cy, w, n in [
             (d/2+e/2, b+2*c, d, "c1"),
             (0, b+2*c, e, "c2"),
@@ -519,14 +526,11 @@ class MagtrapCase(unittest.TestCase):
             (-d/2-e/2, a, d, "c4")]:
                 s.electrodes.append(electrode.PolygonPixelElectrode(
                     name=n, paths=[[
-                        [cx+w/2,cy,0], [cx-w/2,cy,0],
-                        [cx-w/2,rmax*np.sign(cy),0],
-                        [cx+w/2,rmax*np.sign(cy),0]
+                        [cx-w/2,cy], [cx-w/2,rmax*np.sign(cy)],
+                        [cx+w/2,rmax*np.sign(cy)], [cx+w/2,cy],
                     ]]))
         for e in s.electrodes:
-            for p in e.paths:
-                if e.orientations()[0] == -1:
-                    e.paths[0] = e.paths[0][::-1]
+            e.paths = [p[::o] for p, o in zip(e.paths, e.orientations())]
         return s
 
     def setUp(self):
@@ -682,8 +686,8 @@ class RingtrapCase(unittest.TestCase):
         p = np.exp(1j*np.linspace(0, 2*np.pi, 100))
         s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
             rf=1, paths=[np.r_[
-                3.38*np.array([p.real, p.imag, 0*p.real]).T,
-                .68*np.array([p.real, p.imag, 0*p.real]).T[::-1]]]
+                3.38*np.array([p.real, p.imag]).T,
+                .68*np.array([p.real, p.imag]).T[::-1]]]
             ))
         return s
 
@@ -719,7 +723,7 @@ class RingtrapCase(unittest.TestCase):
         o0, e0 = self.s.modes([0, 0, 1])
         nptest.assert_almost_equal(o0, [.1114, .1114, .4491], decimal=3)
         abc = np.array(transformations.euler_from_matrix(e0))/2/pi
-        nptest.assert_allclose(abc, [0, 0, 0], atol=1, rtol=1e-3)
+        nptest.assert_allclose(abc, 0, atol=1, rtol=1e-3)
 
 
 if __name__ == "__main__":

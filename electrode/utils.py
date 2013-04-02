@@ -48,11 +48,12 @@ def norm(a, axis=-1):
 def rotate_tensor(c, r, order=None):
     """rotate a tensor c into the coordinate system r
     assumes that its order is len(c.shape)-1
-    the first dimension is used for parallelizing"""
+    the first dimension(s) are used for parallelizing"""
     c = np.atleast_1d(c)
     r = np.atleast_2d(r)
+    n = len(c.shape)-1
     if order is None:
-        order = len(c.shape)-1
+        order = n
     #slower: O(n**order)
     #ops = [c, range(order) + [Ellipsis]]
     #for i in range(order):
@@ -61,7 +62,7 @@ def rotate_tensor(c, r, order=None):
     #c = np.einsum(*ops)
     for i in range(order):
         #O(n*order):
-        c = np.dot(c.swapaxes(i+1, -1), r).swapaxes(i+1, -1)
+        c = np.dot(c.swapaxes(n-i, -1), r).swapaxes(n-i, -1)
         #incorrect and probably not faster:
         #c = np.tensordot(c, r, axes=[i, 0])
     return c
@@ -85,7 +86,7 @@ def name_to_idx(name):
     return tuple("xyz".index(n) for n in name)
 
 def idx_to_name(idx):
-    return "".join(sorted("xyz"[i] for i in idx))
+    return "".join("xyz"[i] for i in sorted(idx))
 
 def idx_to_nidx(idx):
     return sum(j*3**(len(idx)-i-1) for i, j in enumerate(idx))
@@ -93,36 +94,38 @@ def idx_to_nidx(idx):
 def find_laplace(c):
     """given derivative name c returns the two derivatives a and b
     such that a+b+c=0 for a harmonic tensor"""
-    name = sorted(list(c))
-    letters = list("xyz")
+    name = sorted(c)
+    letters = range(3)
     for i in letters:
         if name.count(i) >= 2:
             break
     k = name.index(i)
     del name[k:k+2], letters[letters.index(i)]
-    a, b = ("".join(sorted(name+[j]*2)) for j in letters)
+    a, b = (tuple(sorted(name+[j]*2)) for j in letters)
     return a, b
 
-# populate the maps
-for deriv, names in enumerate(derivative_names):
-    for idx, name in enumerate(names):
-        derivatives_map[name] = (deriv, idx)
-        name_map[(deriv, idx)] = name
-    idx = tuple(idx_to_nidx(name_to_idx(name)) for name in names)
-    select_map[deriv] =  idx
-    expand_map[deriv] = [None] * 3**deriv
-    for idx in product(range(3), repeat=deriv):
-        nidx = idx_to_nidx(idx)
-        name = idx_to_name(idx)
-        if name in names:
-            expand_map[deriv][nidx] = (names.index(name),)
-            laplace_map[name] = name,
-        else:
-            a, b = find_laplace(name)
-            laplace_map[name] = a, b
-            expand_map[deriv][nidx] = (names.index(a), names.index(b))
+def populate_maps():
+    for deriv, names in enumerate(derivative_names):
+        for idx, name in enumerate(names):
+            derivatives_map[name] = (deriv, idx)
+            name_map[(deriv, idx)] = name
+        idx = tuple(idx_to_nidx(name_to_idx(name)) for name in names)
+        select_map[deriv] = idx
+        expand_map[deriv] = [None] * 3**deriv
+        for idx in product(range(3), repeat=deriv):
+            nidx = idx_to_nidx(idx)
+            name = idx_to_name(idx)
+            if name in names:
+                expand_map[deriv][nidx] = names.index(name)
+                laplace_map[idx] = idx
+            else:
+                a, b = find_laplace(idx)
+                laplace_map[idx] = a, b
+                ia, ib = (names.index(idx_to_name(i)) for i in (a, b))
+                expand_map[deriv][nidx] = ia, ib
+    expand_map[0] = None
 
-expand_map[0] = None
+populate_maps()
 
 def name_to_deriv(name):
     return derivatives_map[name]
@@ -141,16 +144,18 @@ def expand_tensor(c, order=None):
     if order is None:
         order = (c.shape[-1]-1)/2
     if order == 0:
-        c = c[..., 0]
+        return c[..., 0]
     elif order == 1:
-        c = c
+        return c
     else:
-        d = np.array([
-            c[..., i[0]] if len(i) == 1 else -c[..., i[0]]-c[..., i[1]]
-            for i in expand_map[order]
-            ])
-        c = d.swapaxes(0, -1).reshape(c.shape[:-1] + (3,)*order)
-    return c
+        shape = c.shape[:-1]
+        d = np.empty(shape + (3**order,), c.dtype)
+        for i, j in enumerate(expand_map[order]):
+            if type(j) is int:
+                d[..., i] = c[..., j]
+            else:
+                d[..., i] = -c[..., j].sum(-1)
+        return d.reshape(shape + (3,)*order)
 
 
 def select_tensor(c, order=None):
@@ -159,13 +164,14 @@ def select_tensor(c, order=None):
 
     inverse of expand_tensor()"""
     c = np.atleast_2d(c)
+    n = len(c.shape)
     if order is None:
-        order = len(c.shape) - 1 # nx, 3, ..., 3
-    c = c.reshape(c.shape[:len(c.shape)-order]+(-1,))
+        order = n - 1 # nx, 3, ..., 3
+    c = c.reshape(c.shape[:n-order]+(-1,))
     if order < 2:
         return c # fastpath
     else:
-        return c[:, select_map[order]]
+        return c[..., select_map[order]]
 
 
 def cartesian_to_spherical_harmonics(c):

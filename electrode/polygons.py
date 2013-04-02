@@ -60,12 +60,10 @@ class Polygons(list):
                 p = [p]
             for pi in p:
                 pi = geometry.polygon.orient(pi, 1)
-                ext = np.zeros((len(pi.exterior.coords)-1, 3))
-                ext[:, :2] = np.array(pi.exterior.coords)[:-1, :2]
+                ext = np.array(pi.exterior.coords)[:-1, :2]
                 e.paths.append(ext)
                 for ii in pi.interiors:
-                    int = np.zeros((len(ii.coords)-1, 3))
-                    int[:, :2] = np.array(ii.coords)[-2::-1, :2]
+                    int = np.array(ii.coords)[-2::-1, :2]
                     e.paths.append(int)
         return s
 
