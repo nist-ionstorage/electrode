@@ -180,6 +180,23 @@ class MeshPixelElectrode(SurfaceElectrode):
     polygons = Array(dtype=np.intc, shape=(None,))
     potentials = Array(dtype=np.double, shape=(None,))
 
+    @classmethod
+    def from_polygon_system(cls, s):
+        points = []
+        edges = []
+        polygons = []
+        potentials = []
+        for p in s.electrodes:
+            assert isinstance(p, PolygonPixelElectrode), p
+            for i in p.paths:
+                ei = len(points)+np.arange(len(i))
+                points.extend(i)
+                edges.extend(np.c_[np.roll(ei, 1, 0), ei])
+                polygons.extend(len(potentials)*np.ones(len(ei)))
+            potentials.append(p.dc)
+        return cls(dc=1, points=points, edges=edges, polygons=polygons,
+                potentials=potentials)
+
     def bare_potential(self, x, derivative, potential, out):
         return mesh_potential(x, self.points, self.edges, self.polygons,
                 self.potentials*potential, derivative, out)

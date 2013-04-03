@@ -154,7 +154,7 @@ def expand_tensor(c, order=None):
             if type(j) is int:
                 d[..., i] = c[..., j]
             else:
-                d[..., i] = -c[..., j].sum(-1)
+                d[..., i] = -c[..., j].sum(-1) # laplace
         return d.reshape(shape + (3,)*order)
 
 

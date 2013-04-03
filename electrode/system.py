@@ -148,28 +148,28 @@ class System(HasTraits):
         if derivative == 0:
             return np.einsum("ij,ij->i", p[0], p[0])
         elif derivative == 1:
-            return 2*np.einsum("ik,ijk->ij", p[0], p[1])
+            return 2*np.einsum("ij,ijk->ik", p[0], p[1])
         elif derivative == 2:
-            return 2*(np.einsum("ijl,ikl->ijk", p[1], p[1])
-                     +np.einsum("il,ijkl->ijk", p[0], p[2]))
+            return 2*(np.einsum("ijk,ijl->ikl", p[1], p[1])
+                     +np.einsum("ij,ijkl->ikl", p[0], p[2]))
         elif derivative == 3:
-            a = np.einsum("im,ijklm->ijkl", p[0], p[3])
-            b = np.einsum("ijm,iklm->ijkl", p[1], p[2])
+            a = np.einsum("ij,ijklm->iklm", p[0], p[3])
+            b = np.einsum("ijk,ijlm->iklm", p[1], p[2])
             a += b
             a += b.transpose(0, 2, 3, 1)
             a += b.transpose(0, 3, 1, 2)
             return 2*a
         elif derivative == 4:
-            a = np.einsum("in,ijklmn->ijklm", p[0], p[4])
-            b = np.einsum("ijn,iklmn->ijklm", p[1], p[3])
+            a = np.einsum("ij,ijklmn->iklmn", p[0], p[4])
+            b = np.einsum("ijk,ijlmn->iklmn", p[1], p[3])
             a += b
             a += b.transpose(0, 2, 3, 4, 1)
             a += b.transpose(0, 3, 4, 1, 2)
             a += b.transpose(0, 4, 1, 2, 3)
-            c = np.einsum("ijkn,ilmn->ijklm", p[2], p[2])
+            c = np.einsum("ijkl,ijmn->iklmn", p[2], p[2])
             a += c
-            a += c.transpose(0, 1, 3, 2, 4)
             a += c.transpose(0, 4, 1, 2, 3)
+            a += c.transpose(0, 1, 4, 2, 3)
             return 2*a
 
     def potential(self, x, derivative=0):
