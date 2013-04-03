@@ -76,19 +76,25 @@ derivative_names = [[""]] + [s.split() for s in [
     "xxxyy xxxyz xxxzz xxyyy xxyyz xxyzz xxzzz xyyyz xyyzz yyyzz yyzzz",
     ]]
 
-laplace_map = {}
-derivatives_map = {}
-name_map = {}
-expand_map = {}
-select_map = {}
+derivatives_map = {} # sorted name: (derivative order, derivative index)
+name_map = {} # reverse derivatives_map
+expand_map = {} # derivative order: 3**order list of selected index
+# or laplace pair
+select_map = {} # derivative order: 2*order+1 list of indices into
+# 3**order expanded
+derive_map = {} # (derivative order, derivative index): ((lower
+# derivative order, lower derivative index), axis to derive)
 
 def name_to_idx(name):
+    """return a tuple of axis indices for given derivative"""
     return tuple("xyz".index(n) for n in name)
 
 def idx_to_name(idx):
+    """return sorted derivative name for axis tuple"""
     return "".join("xyz"[i] for i in sorted(idx))
 
 def idx_to_nidx(idx):
+    """return index into flattened 3**order array for given order-tuple"""
     return sum(j*3**(len(idx)-i-1) for i, j in enumerate(idx))
 
 def find_laplace(c):
@@ -109,6 +115,11 @@ def populate_maps():
         for idx, name in enumerate(names):
             derivatives_map[name] = (deriv, idx)
             name_map[(deriv, idx)] = name
+            if deriv > 0:
+                for i, n in enumerate(derivative_names[deriv-1]):
+                    for j, m in enumerate("xyz"):
+                        if name == "".join(sorted(n+m)):
+                            derive_map[(deriv, idx)] = (deriv-1, i), j
         idx = tuple(idx_to_nidx(name_to_idx(name)) for name in names)
         select_map[deriv] = idx
         expand_map[deriv] = [None] * 3**deriv
@@ -117,21 +128,24 @@ def populate_maps():
             name = idx_to_name(idx)
             if name in names:
                 expand_map[deriv][nidx] = names.index(name)
-                laplace_map[idx] = idx
             else:
                 a, b = find_laplace(idx)
-                laplace_map[idx] = a, b
                 ia, ib = (names.index(idx_to_name(i)) for i in (a, b))
                 expand_map[deriv][nidx] = ia, ib
     expand_map[0] = None
 
 populate_maps()
 
+
 def name_to_deriv(name):
     return derivatives_map[name]
 
 def deriv_to_name(deriv, idx):
     return name_map[(deriv, idx)]
+
+def construct_derivative(deriv, idx):
+    """return lower deriv and axis to derive"""
+    return derive_map[(deriv, idx)]
 
 
 def expand_tensor(c, order=None):
