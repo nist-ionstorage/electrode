@@ -42,7 +42,7 @@ class Electrode(HasTraits):
     dc = Float(0.)
     rf = Float(0.)
 
-    def potential(self, x, derivative):
+    def potential(self, x, derivative=0, potential=1., out=None):
         """return the specified derivative of the eletrical potential,
         units are volts"""
         raise NotImplementedError
@@ -63,16 +63,17 @@ class CoverElectrode(Electrode):
     # the other electrodes to include the cover's effect on their
     # potentials
 
-    def potential(self, x, derivative=0):
+    def potential(self, x, derivative=0, potential=1., out=None):
         x = np.atleast_2d(x)
+        if out is None:
+            out = np.zeros((x.shape[0], 2*derivative+1), np.double)
         if derivative == 0:
-            return x[:, 2]/self.height
+            out += potential*x[:, 2]/self.height
         elif derivative == 1:
-            ri = np.zeros((x.shape[0], 3))
-            ri[:, 2] = 1/self.height
-            return ri
+            out[:, 2] += potential*1/self.height
         else:
-            return np.zeros((x.shape[0], 2*derivative+1))
+            pass
+        return out
 
 
 class SurfaceElectrode(Electrode):
