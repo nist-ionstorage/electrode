@@ -151,21 +151,26 @@ class System(HasTraits):
             return 2*np.einsum("ik,ijk->ij", p[0], p[1])
         elif derivative == 2:
             return 2*(np.einsum("ijl,ikl->ijk", p[1], p[1])
-                    + np.einsum("il,ijkl->ijk", p[0], p[2]))
+                     +np.einsum("il,ijkl->ijk", p[0], p[2]))
         elif derivative == 3:
-            return 2*(np.einsum("im,ijklm->ijkl", p[0], p[3])
-                    + np.einsum("ijm,iklm->ijkl", p[1], p[2])
-                    + np.einsum("ikm,ijlm->ijkl", p[1], p[2])
-                    + np.einsum("ilm,ijkm->ijkl", p[1], p[2]))
+            a = np.einsum("im,ijklm->ijkl", p[0], p[3])
+            b = np.einsum("ijm,iklm->ijkl", p[1], p[2])
+            a += b
+            a += b.transpose(0, 2, 1, 3)
+            a += b.transpose(0, 3, 1, 2)
+            return 2*a
         elif derivative == 4:
-            return 2*(np.einsum("in,ijklmn->ijklm", p[0], p[5])
-                    + np.einsum("ijn,iklmn->ijklm", p[1], p[3])
-                    + np.einsum("ikn,ijlmn->ijklm", p[1], p[3])
-                    + np.einsum("iln,ijkmn->ijklm", p[1], p[3])
-                    + np.einsum("imn,ijkln->ijklm", p[1], p[3])
-                    + np.einsum("ijmn,ikln->ijklm", p[2], p[4])
-                    + np.einsum("ikmn,ijln->ijklm", p[2], p[4])
-                    + np.einsum("ilmn,ijkn->ijklm", p[2], p[4]))
+            a = np.einsum("in,ijklmn->ijklm", p[0], p[4])
+            b = np.einsum("ijn,iklmn->ijklm", p[1], p[3])
+            a += b
+            a += b.transpose(0, 2, 1, 3, 4)
+            a += b.transpose(0, 3, 1, 2, 4)
+            a += b.transpose(0, 4, 1, 2, 3)
+            c = np.einsum("ijmn,ikln->ijklm", p[2], p[2])
+            a += c
+            a += c.transpose(0, 1, 3, 2, 4)
+            a += c.transpose(0, 1, 4, 2, 3)
+            return 2*a
 
     def potential(self, x, derivative=0):
         """combined electrical and ponderomotive potential"""
