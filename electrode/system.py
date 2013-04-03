@@ -129,7 +129,7 @@ class System(HasTraits):
         eff = np.zeros((len(self.electrodes), x.shape[0], 2*derivative+1),
                 np.double)
         for i, ei in enumerate(self.electrodes):
-            ei.potential(x, derivative, out=eff[i])
+            ei.potential(x, derivative, potential=1, out=eff[i])
         return eff
 
     def time_potential(self, x, derivative=0, t=0., alpha_rf=1., expand=False):
@@ -280,20 +280,21 @@ class System(HasTraits):
                 break
         return map(np.array, (t, q, p))
 
-    def shims(self, x_coord_deriv, constraints=None):
+    def shims(self, x_coord_deriv, objectives=[], constraints=None):
         """
         solve the shim equations simultaneously at all points 
         [(x, rotation, derivative), ...]
         """
-        objectives = [PotentialObjective(x=x, derivative=deriv, value=0,
-                rotation=coord) for x, coord, deriv in x_coord_deriv]
+        obj = [PotentialObjective(x=x, derivative=deriv, value=0,
+            rotation=coord) for x, coord, deriv in x_coord_deriv]
+        obj += objectives
         if constraints is None:
             constraints = [PatternRangeConstraint(min=-1, max=1)]
-        vectors = np.empty((len(x_coord_deriv), len(self.electrodes)),
+        vectors = np.empty((len(obj), len(self.electrodes)),
                 np.double)
-        for i, objective in enumerate(objectives):
+        for i, objective in enumerate(obj):
             objective.value = 1
-            p, c = self.optimize(constraints+objectives, verbose=False)
+            p, c = self.optimize(constraints+obj, verbose=False)
             objective.value = 0
             vectors[i] = p/c
         return vectors
