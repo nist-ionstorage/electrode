@@ -158,7 +158,7 @@ class CoverCase(unittest.TestCase):
 
     def test_pot(self):
         nptest.assert_almost_equal(self.c.potential(
-            [1, 2, 3], 0), [3/20.])
+            [1, 2, 3], 0), [[3/20.]])
 
     def test_grad(self):
         nptest.assert_almost_equal(self.c.potential(
