@@ -56,10 +56,9 @@ def from_gds(fil, scale=1., layer=None):
             else:
                 ele = PolygonPixelElectrode(name=name)
                 s.electrodes.append(ele)
-            ele.voltage_dc = float(props.get(attr_vdc, 0.))
-            ele.voltage_rf = float(props.get(attr_vrf, 0.))
+            ele.dc = float(props.get(attr_vdc, 0.))
+            ele.rf = float(props.get(attr_vrf, 0.))
             path = np.array(e.xy)*lib.physical_unit/scale
-            path = np.c_[path, np.zeros((path.shape[0],))]
             path = path[:-1] # a gds boundary is a full loop
             ele.paths.append(path)
     # there are only outer loops
@@ -82,20 +81,20 @@ def to_gds(sys, scale=1., layer=0, phys_unit=1e-9, gap_layer=1):
             continue
         for p in e.paths:
             xy = p[:, :2]*scale/phys_unit
-            xyb = np.r_[xy, xy[0:1]]
+            xyb = np.r_[xy, xy[:1]]
             b = elements.Boundary(layer=layer, data_type=0, xy=xy)
             p = elements.Path(layer=gap_layer, data_type=0, xy=xyb)
             for i in p, b:
                 i.properties = []
                 if e.name:
                     i.properties.append((attr_name, e.name))
-                i.properties.append((attr_vdc, str(e.voltage_dc)))
-                i.properties.append((attr_vrf, str(e.voltage_rf)))
+                i.properties.append((attr_vdc, str(e.dc)))
+                i.properties.append((attr_vrf, str(e.rf)))
             eles.append(b)
             gaps.append(p)
             for l in eles, gaps:
                 l.append(elements.Text(layer=layer, text_type=0,
-                    xy=xy[0:1], string=bytes(e.name)))
+                    xy=xy[:1], string=bytes(e.name)))
     return lib
 
 

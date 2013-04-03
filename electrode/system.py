@@ -22,6 +22,7 @@ from contextlib import contextmanager
 
 import numpy as np
 from scipy import optimize, constants as ct
+import matplotlib.pyplot as plt
 
 from traits.api import HasTraits, List, Instance, Property
 
@@ -178,17 +179,19 @@ class System(HasTraits):
         for e, c in zip(self.electrodes, itertools.cycle(colors.set3)):
             e.plot(ax, color=tuple(c/255.), alpha=alpha, **kwargs)
 
-    def plot_voltages(self, ax, u=None, um=None, **kwargs):
+    def plot_voltages(self, ax, u=None, um=None, cmap=plt.cm.RdBu_r,
+            **kwargs):
         """plot electrodes with color proportional to voltage 
         red for positive, blue for negative"""
         if u is None:
             u = np.array(self.dcs)
         if um is None:
             um = np.fabs(u).max() or 1.
-        u = u / um / 2
-        colors = np.clip((u+.5, .5-np.fabs(u), -u+.5), 0, 1).T
+        u = (u / um + 1)/2
+        #colors = np.clip((u+.5, .5-np.fabs(u), -u+.5), 0, 1).T
+        colors = [cmap(ui) for ui in u]
         for el, ci in zip(self.electrodes, colors):
-            el.plot(ax, color=tuple(ci), **kwargs)
+            el.plot(ax, color=ci, **kwargs)
 
     def minimum(self, x0, axis=(0, 1, 2), coord=np.identity(3)):
         """find a potential minimum near x0 searching along the
