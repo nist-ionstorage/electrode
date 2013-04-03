@@ -156,20 +156,20 @@ class System(HasTraits):
             a = np.einsum("ij,ijklm->iklm", p[0], p[3])
             b = np.einsum("ijk,ijlm->iklm", p[1], p[2])
             a += b
-            a += b.transpose(0, 2, 3, 1)
-            a += b.transpose(0, 3, 1, 2)
+            a += b.transpose(0, 2, 1, 3)
+            a += b.transpose(0, 3, 2, 1)
             return 2*a
         elif derivative == 4:
             a = np.einsum("ij,ijklmn->iklmn", p[0], p[4])
             b = np.einsum("ijk,ijlmn->iklmn", p[1], p[3])
             a += b
-            a += b.transpose(0, 2, 3, 4, 1)
-            a += b.transpose(0, 3, 4, 1, 2)
-            a += b.transpose(0, 4, 1, 2, 3)
+            a += b.transpose(0, 4, 2, 3, 1)
+            a += b.transpose(0, 3, 2, 1, 4)
+            a += b.transpose(0, 2, 1, 3, 4)
             c = np.einsum("ijkl,ijmn->iklmn", p[2], p[2])
             a += c
-            a += c.transpose(0, 4, 1, 2, 3)
-            a += c.transpose(0, 1, 4, 2, 3)
+            a += c.transpose(0, 1, 4, 3, 2)
+            a += c.transpose(0, 1, 3, 2, 4)
             return 2*a
 
     def potential(self, x, derivative=0):
