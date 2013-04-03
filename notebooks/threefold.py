@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# <nbformat>3</nbformat>
+# <nbformat>3.0</nbformat>
 
 # <markdowncell>
 
@@ -32,10 +32,8 @@ from numpy import *
 from matplotlib import pyplot as plt
 from scipy import constants
 from electrode.transformations import euler_matrix
-from electrode.system import System
-from electrode.electrode import PointPixelElectrode, PolygonPixelElectrode
-from electrode.pattern_constraints import (PatternValueConstraint,
-    PatternRangeConstraint)
+from electrode import (System, PointPixelElectrode, PolygonPixelElectrode,
+    PotentialObjective, PatternRangeConstraint)
     
 set_printoptions(precision=2)
 
@@ -51,17 +49,18 @@ def hextess(n, points=False):
 
     if points is True, each pixel is approximated as a point
     else each pixel is a hexagon"""
-    x = vstack(array([[i+j*.5, j*3**.5*.5, 0]
+    x = vstack(array([[i+j*.5, j*3**.5*.5]
         for j in range(-n-min(0, i), n-max(0, i)+1)])
         for i in range(-n, n+1))/(n+.5)
     if points:
         a = ones((len(x),))*3**.5/(n+.5)**2/2
-        return PointPixelElectrode(points=x, areas=a)
+        return [PointPixelElectrode(points=[xi], areas=[ai]) for
+                xi, ai in zip(x, a)]
     else:
         a = 1/(3**.5*(n+.5)) # edge length
-        p = x[:, None, :] + [[[a*cos(phi), a*sin(phi), 0] for phi in
+        p = x[:, None, :] + [[[a*cos(phi), a*sin(phi)] for phi in
             arange(pi/6, 2*pi, pi/3)]]
-        return PolygonPixelElectrode(paths=list(p))
+        return [PolygonPixelElectrode(paths=[i]) for i in p]
 
 # <codecell>
 
@@ -79,24 +78,23 @@ def threefold(n, h, d, H, nmax=1, points=True):
     The effect of a grounded shielding cover at height H is accounted for
     up to nmax components in the expansion in h/H.
     """
-    s = System()
-    rf = hextess(n, points)
-    rf.voltage_rf = 1.
-    rf.name = "rf"
-    rf.cover_height = H
-    rf.nmax = nmax
-    s.electrodes.append(rf)
+    s = System(electrodes=hextess(n, points))
+    for ele in s.electrodes:
+        ele.cover_height = H
+        ele.nmax = nmax
 
     ct = []
     ct.append(PatternRangeConstraint(min=0, max=1.))
     for p in 0, 4*pi/3, 2*pi/3:
         x = array([d/3**.5*cos(p), d/3**.5*sin(p), h])
         r = euler_matrix(p, pi/2, pi/4, "rzyz")[:3, :3]
-        ct.append(PatternValueConstraint(d=1, x=x, r=r,
-            v=[0, 0, 0]))
-        ct.append(PatternValueConstraint(d=2, x=x, r=r,
-            v=2**(-1/3.)*eye(3)*[1, 1, -2]))
-    rf.pixel_factors, c = rf.optimize(ct)
+        for i in "x y z xy xz yz".split():
+            ct.append(PotentialObjective(derivative=i, x=x,
+                rotation=r, value=0))
+        for i, v in ("xx", 1), ("yy", 1):
+            ct.append(PotentialObjective(derivative=i, x=x,
+                rotation=r, value=2**(-1/3.)*v))
+    s.rfs, c = s.optimize(ct)
     return s, c
 
 # <markdowncell>
@@ -128,9 +126,9 @@ x0 = array([d/3**.5, 0, h])
 # optimal strength of the constraints
 print "c*h**2*c:", h**2
 # rf field should vanish
-print "rf'/c:", s.electrode("rf").potential(x0, 1)[0][:, 0]/c
+print "rf'/c:", s.electrical_potential(x0, "rf", 1)[0]/c
 # rf curvature should be (2, 1, 1)/2**(1/3)
-print "rf''/c:", s.electrode("rf").potential(x0, 2)[0][(0, 1, 2), (0, 1, 2), 0]/c
+print "rf''/c:", s.electrical_potential(x0, "rf", 2)[0]/c
 
 # <markdowncell>
 
@@ -142,7 +140,7 @@ fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, aspect="equal")
 ax.set_xlim((-1,1))
 ax.set_ylim((-1,1))
-s.plot_voltages(ax, u=array([1.]))
+s.plot_voltages(ax, u=s.rfs)
 
 # <markdowncell>
 
@@ -167,7 +165,7 @@ for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
 
 n = 30
 xyz = mgrid[-d:d:1j*n, -d:d:1j*n, h:h+1]
-xyzt = xyz.transpose((1, 2, 3, 0)).reshape((-1, 3))
+xyzt = xyz.reshape(3, -1).T
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, aspect="equal")
 ax.contour(xyz[0].reshape((n,n)), xyz[1].reshape((n,n)),
@@ -186,7 +184,7 @@ print "main saddle:", xs0, ps0
 
 n = 30
 xyz = mgrid[-d:d:1j*n, 0:1, .7*h:3*h:1j*n]
-xyzt = xyz.transpose((1, 2, 3, 0)).reshape((-1, 3))
+xyzt = xyz.reshape(3, -1).T
 p = s.potential(xyzt)
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, aspect="equal")
