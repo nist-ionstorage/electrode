@@ -307,14 +307,29 @@ class PolygonTestCase(unittest.TestCase):
     def test_derivs(self):
         x0 = np.array([1,2,3.])
         ns = range(1, 6)
-        d = 1e-8
+        d = 1e-7
         xd = x0[None, :] + [[0, 0, 0], [d, 0, 0], [0, d, 0], [0, 0, d]]
         for n in ns:
             p = utils.expand_tensor(self.e.potential(x0, n))[0]
             pd = utils.expand_tensor(self.e.potential(xd, n-1))
             pd = (pd[1:] - pd[0])/d
             for k, (i, j) in enumerate(zip(p.ravel(), pd.ravel())):
-                nptest.assert_allclose(i, j, rtol=d, atol=d,
+                nptest.assert_allclose(i, j, rtol=d, atol=d/100,
+                      err_msg="n=%i, k=%i" % (n,k))
+                
+    def test_pseudopotential_derivs(self):
+        x0 = np.array([1,2,3.])
+        ns = range(1, 5)
+        d = 1e-7
+        xd = x0[None, :] + [[0, 0, 0], [d, 0, 0], [0, d, 0], [0, 0, d]]
+        s = system.System(self.e)
+        self.e.rf = 1.
+        for n in ns:
+            p = s.potential(x0, n)[0]
+            pd = s.potential(xd, n-1)
+            pd = (pd[1:] - pd[0])/d
+            for k, (i, j) in enumerate(zip(p.ravel(), pd.ravel())):
+                nptest.assert_allclose(i, j, rtol=d, atol=d/100,
                       err_msg="n=%i, k=%i" % (n,k))
 
     def test_spherical_harmonics(self):
