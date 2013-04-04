@@ -207,13 +207,24 @@ class GridElectrode(Electrode):
     origin = Array(dtype=np.float64, shape=(3, ), value=(0, 0, 0))
     spacing = Array(dtype=np.float64, shape=(3, ), value=(1, 1, 1))
 
+    @classmethod
+    def from_result(cls, result, maxderiv=3):
+        obj = cls()
+        obj.origin = result.grid.get_origin()
+        obj.spacing = result.grid.step
+        obj.data.append(result.potential[:, :, :, None])
+        if result.field is not None:
+            obj.data.append(result.field.transpose(1, 2, 3, 0))
+        obj.generate(maxderiv)
+        return obj
+
     def generate(self, maxderiv=3):
         for deriv in range(maxderiv+1):
             if len(self.data) < deriv+1:
                 self.data.append(self.derive(deriv))
             ddata = self.data[deriv]
-            assert ddata.ndim == 4
-            assert ddata.shape[-1] == 2*deriv+1
+            assert ddata.ndim == 4, ddata.ndim
+            assert ddata.shape[-1] == 2*deriv+1, ddata.shape
             if deriv > 0:
                 assert ddata.shape[:-1] == self.data[deriv-1].shape[:-1]
 

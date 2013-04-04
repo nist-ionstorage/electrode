@@ -767,7 +767,7 @@ class GridElectrodeCase(unittest.TestCase):
     def test_pot(self):
         self.e.generate(4)
         x = [1.4567, 1.67858, 1.49533]
-        for d, r in (0, 1e-3), (1, 5e-3), (2, 5e-3), (3, .1), (4, .5):
+        for d, r in (0, 1e-3), (1, 2e-3), (2, 5e-3), (3, .1), (4, .5):
             pe = self.e.potential(x, d)
             pp = self.p.potential(x, d)
             nptest.assert_allclose(pe, pp, rtol=r, atol=1e-4)
