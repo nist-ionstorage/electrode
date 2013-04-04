@@ -23,6 +23,7 @@ import numpy as np
 
 from traits.api import (HasTraits, Array, Float, Int, List, Instance,
     Str, Trait)
+import cvxopt, cvxopt.modeling
 
 from .utils import (select_tensor, expand_tensor, rotate_tensor,
         name_to_deriv)
@@ -60,8 +61,8 @@ class PatternValueConstraint(Constraint):
 
 
 class PatternRangeConstraint(Constraint):
-    min = Float
-    max = Float
+    min = Trait(None, None, Float)
+    max = Trait(None, None, Float)
     index = Trait(None, None, Int)
 
     def constraints(self, system, variables):
@@ -89,10 +90,12 @@ class SingleValueConstraint(Constraint):
     def constraints(self, system, variables):
         if self.min is not None or self.max is not None:
             c = self.get(system, variables)
+            d = cvxopt.matrix(np.ascontiguousarray(c))
+            v = cvxopt.modeling.dot(d, variables)
             if self.min is not None:
-                yield c*variables >= self.min
+                yield v >= self.min
             if self.max is not None:
-                yield c*variables <= self.max
+                yield v <= self.max
 
 
 class PotentialObjective(SingleValueConstraint):
@@ -118,5 +121,5 @@ class MultiPotentialObjective(SingleValueConstraint):
         c = 0.
         for oi in self.components:
             for ci, vi in oi.objective(system, variables):
-                c += vi*ci
+                c = c+vi*ci
         return c

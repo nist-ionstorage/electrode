@@ -395,6 +395,7 @@ class System(HasTraits):
         if not verbose:
             cvxopt.solvers.options["show_progress"] = False
         else:
+            cvxopt.solvers.options["show_progress"] = True
             print "variables:", sum(v._size
                     for v in solver.variables())
             print "inequalities", sum(v.multiplier._size
