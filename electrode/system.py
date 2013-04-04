@@ -363,7 +363,7 @@ class System(HasTraits):
                 u, c.transpose(-1, 0, 1, -2))])
         return u, p, f, c
 
-    def optimize(self, constraints, verbose=True):
+    def optimize(self, constraints, rcond=1e-9, verbose=True):
         """optimize this electrode voltages with respect to
         constraints"""
         p = cvxopt.modeling.variable(len(self.electrodes))
@@ -372,23 +372,25 @@ class System(HasTraits):
         for ci in constraints:
             obj.extend(ci.objective(self, p))
             ctrs.extend(ci.constraints(self, p))
-        B = np.matrix([i[0] for i in obj])
-        b = np.matrix([i[1] for i in obj])
+        B = np.array([i[0] for i in obj])
+        b = np.array([i[1] for i in obj])
         # the inhomogeneous solution
-        g = b*np.linalg.pinv(B).T
-        # maximize this
-        obj = cvxopt.matrix(g)*p
-        # B*g_perp
-        B1 = B - b.T*g/(g*g.T)
+        Bp = np.linalg.pinv(B, rcond=rcond)
+        g = np.dot(Bp, b)
+        g2 = np.inner(g, g)
+        B1 = B - np.outer(b, g)/g2 # B*g_perp
+        obj = cvxopt.modeling.dot(cvxopt.matrix(g), p) # maximize this
         if False:
+            print "rankB", np.linalg.matrix_rank(B, 1e-9), B.shape
+            print "rankB1", np.linalg.matrix_rank(B1, 1e-9), B1.shape
             u, l, v = np.linalg.svd(B1)
             li = np.argmin(l)
             print li, l[li], v[li], B1*v[li].T
-            return np.array(v)[li], 0
+            #return np.array(v)[li], 0
         #FIXME: there is one singular value, drop one line
         B1 = B1[:-1]
         # B*g_perp*p == 0
-        ctrs.append(cvxopt.matrix(B1)*p == 0.)
+        ctrs.append(cvxopt.modeling.dot(cvxopt.matrix(B1.T), p) == 0.)
         solver = cvxopt.modeling.op(-obj, ctrs)
         if not verbose:
             cvxopt.solvers.options["show_progress"] = False
@@ -400,8 +402,10 @@ class System(HasTraits):
             print "equalities", sum(v.multiplier._size
                     for v in solver.equalities())
         solver.solve("sparse")
-        c = float(np.matrix(p.value).T*g.T/(g*g.T))
+        if not solver.status == "optimal":
+            raise ValueError("solve failed: %s" % solver.status)
         p = np.array(p.value, np.double).ravel()
+        c = np.inner(p, g)/g2
         return p, c
 
     def group(self, thresholds=[0], voltages=None):
