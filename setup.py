@@ -64,7 +64,7 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
 """,
         license = "GPLv3+",
         install_requires = [
-            "numpy", "scipy", "traits>=4", "matplotlib"],
+            "numpy", "scipy", "traits>=4", "matplotlib", "nose"],
         extras_require = {
             "notebooks": ["ipython>=0.12"],
             "integrate": ["qc"],
@@ -77,7 +77,8 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
         dependency_links = [],
         packages = find_packages(),
         namespace_packages = [],
-        test_suite = "electrode.tests.test_all",
+        #test_suite = "electrode.tests.test_all",
+        test_suite = "nose.collector",
         scripts = glob("notebooks/*.py"),
         include_package_data = True,
         #package_data = {"": ["notebooks/*.ipynb"]},

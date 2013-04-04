@@ -219,40 +219,31 @@ class GridElectrode(Electrode):
         return obj
 
     @classmethod
-    def from_vtk(cls, geom, data, scale=1e-6): # FIXME not checked
-        """load grid potential data from vti file "data" and geometry
-        from "geom" and return a GridSystem instance, scale length
-        units to scale"""
-        from enthought.tvtk.api import tvtk
-        o = cls()
-        sgr = tvtk.XMLImageDataReader(file_name=data)
+    def from_vtk(cls, fil):
+        """load grid potential data from vtk StructuredPoints file "fil"
+        and return a GridElectrode instance"""
+        from tvtk.api import tvtk
+        #sgr = tvtk.XMLImageDataReader(file_name=fil)
+        sgr = tvtk.StructuredPointsReader(file_name=fil)
         sgr.update()
         sg = sgr.output
+        pot = [None, None]
         for i in range(sg.point_data.number_of_arrays):
             name = sg.point_data.get_array_name(i)
+            if "_pondpot" in name:
+                continue # not harmonic, do not use it
+            elif name not in ("potential", "field"):
+                continue
             sp = sg.point_data.get_array(i)
             data = sp.to_array()
             spacing = sg.spacing
             origin = sg.origin
-            dimensions = sg.dimensions
-            # print name, spacing, origin, dimensions
-            if sp.number_of_components == 1:
-                data = data.reshape(dimensions[::-1]).transpose(2, 1, 0)
-            else:
-                continue # ignore fields for now
-                data = data.reshape(tuple(dimensions) +
-                    (sp.number_of_components, ))
-            if "_pondpot_1V1MHz1amu" in name:
-                # convert to DC electrode equivalent potential
-                data /= ct.elementary_charge**2/(4*ct.atomic_mass*(1e6*2*np.pi)**2
-                        )/scale**2/ct.elementary_charge
-                name = name[:-len("_pondpot_1V1MHz1amu")]
-            else:
-                data /= 1.
-            el = GridElectrode(name=name, origin=origin/scale,
-                    spacing=spacing/scale, data=data)
-            o.electrodes.append(el)
-        return o
+            dimensions = tuple(sg.dimensions)
+            dim = sp.number_of_components
+            data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
+            pot[(dim-1)/2] = data
+        obj = cls(origin=origin, spacing=spacing, data=pot)
+        return obj
 
     def generate(self, maxderiv=3):
         for deriv in range(maxderiv+1):

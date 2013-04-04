@@ -258,5 +258,13 @@ class GridElectrodeCase(unittest.TestCase):
             nptest.assert_allclose(pe, pp, rtol=r, atol=1e-4)
 
 
+class GridElectrodeVtkCase(unittest.TestCase):
+    @unittest.skip("no dataset")
+    def test_load_vtk(self):
+        fil = "~/work/nist/qc-tools/trunk/bin/threefold_2_sim_dense_rf.vtk"
+        import os
+        e = electrode.GridElectrode.from_vtk(os.path.expanduser(fil))
+
+
 if __name__ == "__main__":
     unittest.main()
