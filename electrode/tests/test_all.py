@@ -741,5 +741,37 @@ class RingtrapCase(unittest.TestCase):
         nptest.assert_allclose(abc, 0, atol=1, rtol=1e-3)
 
 
+class GridElectrodeCase(unittest.TestCase):
+    def setUp(self):
+        p = np.array([[1, 0], [2, 3], [2, 7], [3, 8],
+            [-2, 8], [-5, 2]])
+        self.p = electrode.PolygonPixelElectrode(paths=[p])
+        spacing = .11, .13, .11
+        origin = -1.5, -1.7, .9
+        shape = 31, 32, 33
+        x = np.mgrid[[slice(o, o+(s-.5)*d, d) for o, s, d in zip(origin,
+            shape, spacing)]]
+        xt = x.reshape(3, -1).T
+        assert x.shape == (3,) + shape, x.shape
+        pot0 = self.p.potential(x.reshape(3, -1).T,
+                0).reshape(x[0].shape+(1,))
+        pot1 = self.p.potential(x.reshape(3, -1).T,
+                1).reshape(x[0].shape+(3,))
+        self.e = electrode.GridElectrode(data=[pot0, pot1],
+            origin=origin, spacing=spacing)
+
+    def test_gen(self):
+        for i in 0, 5:
+            self.e.generate(maxderiv=i)
+
+    def test_pot(self):
+        self.e.generate(4)
+        x = [1.4567, 1.67858, 1.49533]
+        for d, r in (0, 1e-3), (1, 5e-3), (2, 5e-3), (3, .1), (4, .5):
+            pe = self.e.potential(x, d)
+            pp = self.p.potential(x, d)
+            nptest.assert_allclose(pe, pp, rtol=r, atol=1e-4)
+
+
 if __name__ == "__main__":
     unittest.main()

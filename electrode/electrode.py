@@ -20,12 +20,11 @@
 import warnings
 
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib as mpl
-
+from scipy.ndimage.interpolation import map_coordinates
 from traits.api import HasTraits, Array, Float, Int, Str, List
 
-from .utils import norm, expand_tensor, area_centroid
+from .utils import norm, expand_tensor, area_centroid, derive_map
 
 try:
     if False: # test slow python only expressions
@@ -201,3 +200,40 @@ class MeshPixelElectrode(SurfaceElectrode):
     def bare_potential(self, x, derivative, potential, out):
         return mesh_potential(x, self.points, self.edges, self.polygons,
                 self.potentials*potential, derivative, out)
+
+
+class GridElectrode(Electrode):
+    data = List(Array(dtype=np.double))
+    origin = Array(dtype=np.float64, shape=(3, ), value=(0, 0, 0))
+    spacing = Array(dtype=np.float64, shape=(3, ), value=(1, 1, 1))
+
+    def generate(self, maxderiv=3):
+        for deriv in range(maxderiv+1):
+            if len(self.data) < deriv+1:
+                self.data.append(self.derive(deriv))
+            ddata = self.data[deriv]
+            assert ddata.ndim == 4
+            assert ddata.shape[-1] == 2*deriv+1
+            if deriv > 0:
+                assert ddata.shape[:-1] == self.data[deriv-1].shape[:-1]
+
+    def derive(self, deriv):
+        odata = self.data[deriv-1]
+        ddata = np.empty(odata.shape[:-1] + (2*deriv+1,), np.double)
+        for i in range(2*deriv+1):
+            (e, j), k = derive_map[(deriv, i)]
+            # TODO triple work
+            grad = np.gradient(odata[..., j], *self.spacing)[k]
+            ddata[..., i] = grad
+        return ddata
+
+    def potential(self, x, derivative=0, potential=1., out=None):
+        x = np.atleast_2d(x).astype(np.double)
+        x = (x - self.origin[None, :])/self.spacing[None, :]
+        if out is None:
+            out = np.zeros((x.shape[0], 2*derivative+1), np.double)
+        dat = self.data[derivative]
+        for i in range(2*derivative+1):
+            map_coordinates(dat[..., i], x.T, order=1, mode="nearest",
+                    output=out[:, i])
+        return out
