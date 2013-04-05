@@ -263,5 +263,24 @@ class GridElectrodeVtkCase(unittest.TestCase):
         e = electrode.GridElectrode.from_vtk(os.path.expanduser(fil))
 
 
+class MeshElectrodeCase(unittest.TestCase):
+    def setUp(self):
+        p = np.array([[0, 0], [1, 0], [1, 2], [2, 2.]])
+        a = electrode.PolygonPixelElectrode(paths=[p, p+[[3, 3.]]],
+                dc=1.)
+        b = electrode.PolygonPixelElectrode(paths=[p-[[3, 3]]],
+                dc=2.)
+        self.s = system.System(a, b)
+        self.m = electrode.MeshPixelElectrode.from_polygon_system(
+            self.s)
+        self.x = np.array([[1,2,3.]])
+
+    def test_create(self):
+        for di in range(6):
+            a = self.s.electrical_potential(self.x, "dc", di)
+            b = self.m.potential(self.x, di)
+            nptest.assert_allclose(a, b)
+
+
 if __name__ == "__main__":
     unittest.main()

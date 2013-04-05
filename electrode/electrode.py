@@ -185,7 +185,7 @@ class MeshPixelElectrode(SurfaceElectrode):
 
     def potential(self, x, derivative=0, potential=1., out=None):
         return mesh_potential(x, self.points, self.edges, self.polygons,
-                self.potentials*potential,
+                self.potentials*potential, derivative,
                 self.cover_nmax, self.cover_height, out)
 
 
