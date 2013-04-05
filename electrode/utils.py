@@ -25,9 +25,9 @@ import numpy as np
 
 
 def shaper(func, x, *args, **kwargs):
-    y = x.reshape(-1, 3)
+    y = x.reshape(x.shape[0], -1).T
     v = func(y, *args, **kwargs)
-    w = v.reshape(x.shape[:-1]+(v.shape[-1],))
+    w = v.reshape(x.shape[1:]+v.shape[1:])
     return w
 
 

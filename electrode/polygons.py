@@ -145,7 +145,11 @@ class Polygons(list):
             for poly in multipoly:
                 gaps.append(poly.exterior)
                 gaps.extend(poly.interiors)
-        return ops.cascaded_union(gaps)
+        #return ops.cascaded_union(gaps) # segfaults
+        g = geometry.LineString()
+        for i in gaps:
+            g = g.union(i)
+        return g
 
 
 def square_pads(step=10., edge=200., odd=False, start_corner=0):

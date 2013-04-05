@@ -196,6 +196,14 @@ class FiveWireCase(unittest.TestCase):
         nptest.assert_almost_equal(xs, [0, 0, (2+5**.5)**.5], decimal=4)
         nptest.assert_almost_equal(xsp, (5*5**.5-11)/(2*np.pi**2), decimal=4)
 
+    def test_shaper(self):
+        x = np.mgrid[:3, :4, :5]
+        s = self.trap()
+        a = utils.shaper(s.potential, x, 2)
+        b = s.potential(x.reshape(3, -1).T, 2)
+        nptest.assert_allclose(a, b.reshape(x.shape[1:] + b.shape[1:]))
+
+
 
 class MagtrapCase(unittest.TestCase):
     def magtrap(self):
