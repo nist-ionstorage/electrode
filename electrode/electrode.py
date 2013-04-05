@@ -104,10 +104,14 @@ class SurfaceElectrode(Electrode):
     def potential(self, x, derivative=0, potential=1., out=None):
         """potential and derivative value with cover plane"""
         x = np.atleast_2d(x).astype(np.double)
-        out = self.bare_potential(x, derivative, potential, out)
-        for n in range(-self.cover_nmax, 0) + range(1, self.cover_nmax+1):
-            xx = x + [[0, 0, 2*n*self.cover_height]]
-            self.bare_potential(xx, derivative, potential, out)
+        if self.cover_nmax == 0:
+            out = self.bare_potential(x, derivative, potential, out)
+        else:
+            xx = x.copy()
+            xx[:, 2] -= 2*(self.cover_nmax+1)*self.cover_height
+            for n in range(-self.cover_nmax, self.cover_nmax+1):
+                xx[:, 2] += 2*self.cover_height
+                out = self.bare_potential(xx, derivative, potential, out)
         return out
 
 
@@ -266,7 +270,7 @@ class GridElectrode(Electrode):
         return ddata
 
     def potential(self, x, derivative=0, potential=1., out=None):
-        x = np.atleast_2d(x).astype(np.double)
+        x = np.atleast_2d(x)
         x = (x - self.origin[None, :])/self.spacing[None, :]
         if out is None:
             out = np.zeros((x.shape[0], 2*derivative+1), np.double)
