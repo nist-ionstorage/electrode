@@ -138,15 +138,14 @@ class Polygons(list):
         only the gap paths.
 
         polys is a list of multipolygons or polygons"""
-        gaps = geometry.MultiLineString()
+        gaps = []
         for name, multipoly in self:
             if type(multipoly) is geometry.Polygon:
                 multipoly = [multipoly]
             for poly in multipoly:
-                for i in [poly.exterior] + list(poly.interiors):
-                    xy = np.array(i.coords)[:, :2].copy()
-                    gaps = gaps.union(geometry.LineString(xy))
-        return gaps
+                gaps.append(poly.exterior)
+                gaps.extend(poly.interiors)
+        return ops.cascaded_union(gaps)
 
 
 def square_pads(step=10., edge=200., odd=False, start_corner=0):
