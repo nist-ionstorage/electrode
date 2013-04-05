@@ -107,11 +107,13 @@ class SurfaceElectrode(Electrode):
         if self.cover_nmax == 0:
             out = self.bare_potential(x, derivative, potential, out)
         else:
-            xx = x.copy()
-            xx[:, 2] -= 2*(self.cover_nmax+1)*self.cover_height
-            for n in range(-self.cover_nmax, self.cover_nmax+1):
-                xx[:, 2] += 2*self.cover_height
-                out = self.bare_potential(xx, derivative, potential, out)
+            n, h = self.cover_nmax, self.cover_height
+            xx = np.repeat(x[None, :, :], 2*n+1, 0)
+            dz = np.arange(-n, n+1)*(2*self.cover_height)
+            xx[:, :, 2] += dz[:, None]
+            outx = self.bare_potential(xx.reshape(-1, 3),
+                    derivative, potential, out=None)
+            out += outx.reshape(xx.shape[:-1]+outx.shape[-1:]).sum(0)
         return out
 
 
