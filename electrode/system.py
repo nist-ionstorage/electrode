@@ -110,7 +110,7 @@ class System(HasTraits):
         electrode voltage given in typ names attribute, expand the
         tensor to full form if expand==True
         """
-        x = np.atleast_2d(x).astype(np.double)
+        x = np.asanyarray(x, dtype=np.double).reshape(-1, 3)
         pot = np.zeros((x.shape[0], 2*derivative+1), np.double)
         for ei in self.electrodes:
             vi = getattr(ei, typ, None)
@@ -126,7 +126,7 @@ class System(HasTraits):
         contribution of each of the specified electrodes per volt
         O(len(electrodes)*len(x))
         """
-        x = np.atleast_2d(x).astype(np.double)
+        x = np.asanyarray(x, dtype=np.double).reshape(-1, 3)
         eff = np.zeros((len(self.electrodes), x.shape[0], 2*derivative+1),
                 np.double)
         for i, ei in enumerate(self.electrodes):
@@ -484,8 +484,7 @@ class System(HasTraits):
                 yield "  %.4g MHz, %s" % (fi/1e6, mi)
             yield "  euler angles: %s" % (
                     np.rad2deg(np.array(euler_from_matrix(mj, "rxyz"))))
-        se = sum(list(el.potential(x, 1))[0]**2
-                for el in self.electrodes)/l**2
+        se = (self.individual_potential(x, 1)[:, 0]**2).sum(0)/l**2
         yield " heating for 1 nV²/Hz white on each electrode:"
         yield "  field-noise psd: %s V²/(m² Hz)" % (se*1e-9**2)
         for fi, mi in zip(freqs_pp, modes_pp.T):
@@ -508,7 +507,7 @@ class System(HasTraits):
 
     def analyze_shims(self, x, forces=None, curvatures=None,
             use_modes=True, **kwargs):
-        x = np.atleast_2d(x)
+        x = np.asanyarray(x, dtype=np.double).reshape(-1, 3)
         els = self.electrodes
         if use_modes:
             coords = [self.modes(xi)[1] for xi in x]

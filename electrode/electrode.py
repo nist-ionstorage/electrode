@@ -63,7 +63,6 @@ class CoverElectrode(Electrode):
     # potentials
 
     def potential(self, x, derivative=0, potential=1., out=None):
-        x = np.atleast_2d(x)
         if out is None:
             out = np.zeros((x.shape[0], 2*derivative+1), np.double)
         if derivative == 0:
@@ -125,7 +124,6 @@ class PointPixelElectrode(SurfaceElectrode):
             ax.text(p[:,0].mean(), p[:,1].mean(), label)
 
     def potential(self, x, derivative=0, potential=1., out=None):
-        x = np.atleast_2d(x).astype(np.double)
         return point_potential(x, self.points, self.areas, potential,
                 derivative, self.cover_nmax, self.cover_height, out)
 
@@ -158,7 +156,6 @@ class PolygonPixelElectrode(SurfaceElectrode):
         return e
 
     def potential(self, x, derivative=0, potential=1., out=None):
-        x = np.atleast_2d(x).astype(np.double)
         return polygon_potential(x, self.paths, potential, derivative,
                 self.cover_nmax, self.cover_height, out)
 
@@ -187,7 +184,6 @@ class MeshPixelElectrode(SurfaceElectrode):
                 potentials=potentials)
 
     def potential(self, x, derivative=0, potential=1., out=None):
-        x = np.atleast_2d(x).astype(np.double)
         return mesh_potential(x, self.points, self.edges, self.polygons,
                 self.potentials*potential,
                 self.cover_nmax, self.cover_height, out)
@@ -257,7 +253,6 @@ class GridElectrode(Electrode):
         return ddata
 
     def potential(self, x, derivative=0, potential=1., out=None):
-        x = np.atleast_2d(x)
         x = (x - self.origin[None, :])/self.spacing[None, :]
         if out is None:
             out = np.zeros((x.shape[0], 2*derivative+1), np.double)
