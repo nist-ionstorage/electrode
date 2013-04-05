@@ -102,17 +102,22 @@ def find_laplace(c):
     such that a+b+c=0 for a harmonic tensor"""
     name = sorted(c)
     letters = range(3)
+    found = None
     for i in letters:
         if name.count(i) >= 2:
-            break
-    k = name.index(i)
-    del name[k:k+2], letters[letters.index(i)]
-    a, b = (tuple(sorted(name+[j]*2)) for j in letters)
-    return a, b
+            keep = name[:]
+            k = keep.index(i)
+            del keep[k:k+2]
+            take = letters[:]
+            take.remove(i)
+            a, b = (tuple(sorted(keep+[j]*2)) for j in take)
+            yield a, b
 
 def populate_maps():
     for deriv, names in enumerate(derivative_names):
+        #assert len(names) == 2*deriv+1, names
         for idx, name in enumerate(names):
+            assert len(name) == deriv, name
             derivatives_map[name] = (deriv, idx)
             name_map[(deriv, idx)] = name
             if deriv > 0:
@@ -120,6 +125,11 @@ def populate_maps():
                     for j, m in enumerate("xyz"):
                         if name == "".join(sorted(n+m)):
                             derive_map[(deriv, idx)] = (deriv-1, i), j
+                            break
+                assert (deriv, idx) in derive_map, name
+            for lap in find_laplace(name_to_idx(name)):
+                a, b = map(idx_to_name, lap)
+                assert (a not in names) or (b not in names), (name, a, b)
         idx = tuple(idx_to_nidx(name_to_idx(name)) for name in names)
         select_map[deriv] = idx
         expand_map[deriv] = [None] * 3**deriv
@@ -129,9 +139,12 @@ def populate_maps():
             if name in names:
                 expand_map[deriv][nidx] = names.index(name)
             else:
-                a, b = find_laplace(idx)
-                ia, ib = (names.index(idx_to_name(i)) for i in (a, b))
-                expand_map[deriv][nidx] = ia, ib
+                for a, b in find_laplace(idx):
+                    a, b = map(idx_to_name, (a, b))
+                    if a in names and b in names:
+                        ia, ib = (names.index(i) for i in (a, b))
+                        expand_map[deriv][nidx] = ia, ib
+                assert expand_map[deriv][nidx] is not None, name
     expand_map[0] = None
 
 populate_maps()
