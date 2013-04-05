@@ -36,9 +36,10 @@ def point_potential(np.ndarray[dtype_t, ndim=2] x not None,
                 np.ndarray[dtype_t, ndim=2] points not None,
                 np.ndarray[dtype_t, ndim=1] areas not None,
                 double potential, int derivative,
+                int cover_nmax, double cover_height,
                 np.ndarray[dtype_t, ndim=2, mode="c"] out):
     cdef int nx = x.shape[0], nv = points.shape[0]
-    cdef int i, j
+    cdef int i, j, k
     cdef double x0, y0, z0, a0, r0
 
     assert x.shape[1] == 3
@@ -52,17 +53,19 @@ def point_potential(np.ndarray[dtype_t, ndim=2] x not None,
         for j in range(nx):
             x0 = x[j, 0] - points[i, 0]
             y0 = x[j, 1] - points[i, 1]
-            z0 = x[j, 2]
-            r0 = sqrt(x0**2+y0**2+z0**2)
-            point_potential_expr(x0, y0, z0, r0, a0, derivative, &out[j, 0])
+            for k in range(-cover_nmax, cover_nmax+1):
+                z0 = x[j, 2] + 2*k*cover_height
+                r0 = sqrt(x0**2 + y0**2 + z0**2)
+                point_potential_expr(x0, y0, z0, r0, a0, derivative, &out[j, 0])
     return out
 
 
 def polygon_potential(np.ndarray[dtype_t, ndim=2] x not None,
                   polygons not None, double potential, int derivative,
+                  int cover_nmax, double cover_height,
                   np.ndarray[dtype_t, ndim=2, mode="c"] out):
     cdef int nx = x.shape[0]
-    cdef int i, j, k, no
+    cdef int i, j, k, no, m
     cdef double x1, y1, z1, r1, x2, y2, r2, z, l2
     cdef np.ndarray[dtype_t, ndim=2] polygon
 
@@ -75,18 +78,19 @@ def polygon_potential(np.ndarray[dtype_t, ndim=2] x not None,
         no = polygon.shape[0]
         assert polygon.shape[1] == 2
         for j in range(nx):
-            x2 = x[j, 0] - polygon[no-1, 0]
-            y2 = x[j, 1] - polygon[no-1, 1]
-            z = x[j, 2]
-            r2 = sqrt(x2**2+y2**2+z**2)
-            for k in range(no):
-                x1, y1, r1 = x2, y2, r2
-                x2 = x[j, 0] - polygon[k, 0]
-                y2 = x[j, 1] - polygon[k, 1]
-                r2 = sqrt(x2**2+y2**2+z**2)
-                l2 = (x1-x2)**2+(y1-y2)**2
-                edge_potential_expr(x1, x2, y1, y2, r1, r2, l2, z,
-                        potential, derivative, &out[j, 0])
+            for m in range(-cover_nmax, cover_nmax+1):
+                x2 = x[j, 0] - polygon[no-1, 0]
+                y2 = x[j, 1] - polygon[no-1, 1]
+                z = x[j, 2] + 2*m*cover_height
+                r2 = sqrt(x2**2 + y2**2 + z**2)
+                for k in range(no):
+                    x1, y1, r1 = x2, y2, r2
+                    x2 = x[j, 0] - polygon[k, 0]
+                    y2 = x[j, 1] - polygon[k, 1]
+                    r2 = sqrt(x2**2 + y2**2 + z**2)
+                    l2 = (x1 - x2)**2 + (y1 - y2)**2
+                    edge_potential_expr(x1, x2, y1, y2, r1, r2, l2, z,
+                            potential, derivative, &out[j, 0])
     return out
 
 
@@ -96,6 +100,7 @@ def mesh_potential(np.ndarray[dtype_t, ndim=2] x not None,
                    np.ndarray[intc_t, ndim=1] polygons not None,
                    np.ndarray[dtype_t, ndim=1] potentials not None,
                    int derivative,
+                   int cover_nmax, double cover_height,
                    np.ndarray[dtype_t, ndim=2, mode="c"] out):
     cdef int nx = x.shape[0], ne = edges.shape[0]
     cdef int i, j, k
@@ -109,19 +114,20 @@ def mesh_potential(np.ndarray[dtype_t, ndim=2] x not None,
     if out is None:
         out = np.zeros([nx, derivative*2+1], dtype=dtype)
 
-    for j in range(nx):
-        z = x[j, 2]
-        for i in range(ne):
-            x1 = x[j, 0] - points[edges[i, 0], 0]
-            y1 = x[j, 1] - points[edges[i, 0], 1]
-            r1 = sqrt(x1**2+y1**2+z**2)
-            x2 = x[j, 0] - points[edges[i, 1], 0]
-            y2 = x[j, 1] - points[edges[i, 1], 1]
-            r2 = sqrt(x2**2+y2**2+z**2)
-            l2 = (x1-x2)**2+(y1-y2)**2
-            potential = potentials[polygons[i]]
-            edge_potential_expr(x1, x2, y1, y2, r1, r2, l2, z,
-                    potential, derivative, &out[j, 0])
+    for i in range(ne):
+        for j in range(nx):
+            for k in range(-cover_nmax, cover_nmax+1):
+                z = x[j, 2] + 2*k*cover_height
+                x1 = x[j, 0] - points[edges[i, 0], 0]
+                y1 = x[j, 1] - points[edges[i, 0], 1]
+                r1 = sqrt(x1**2 + y1**2 + z**2)
+                x2 = x[j, 0] - points[edges[i, 1], 0]
+                y2 = x[j, 1] - points[edges[i, 1], 1]
+                r2 = sqrt(x2**2 + y2**2 + z**2)
+                l2 = (x1 - x2)**2 + (y1 - y2)**2
+                potential = potentials[polygons[i]]
+                edge_potential_expr(x1, x2, y1, y2, r1, r2, l2, z,
+                        potential, derivative, &out[j, 0])
     return out
 
 

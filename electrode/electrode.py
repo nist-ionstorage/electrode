@@ -96,26 +96,6 @@ class SurfaceElectrode(Electrode):
     cover_height = Float(50) # cover plane height
     cover_nmax = Int(0) # max components in cover plane potential expansion
 
-    def bare_potential(self, x, derivative, potential, out):
-        """bare pixel potential and derivative (d) value at x.
-        indices are (x, components 2*d+1)"""
-        raise NotImplementedError
-
-    def potential(self, x, derivative=0, potential=1., out=None):
-        """potential and derivative value with cover plane"""
-        x = np.atleast_2d(x).astype(np.double)
-        if self.cover_nmax == 0:
-            out = self.bare_potential(x, derivative, potential, out)
-        else:
-            n, h = self.cover_nmax, self.cover_height
-            xx = np.repeat(x[None, :, :], 2*n+1, 0)
-            dz = np.arange(-n, n+1)*(2*self.cover_height)
-            xx[:, :, 2] += dz[:, None]
-            outx = self.bare_potential(xx.reshape(-1, 3),
-                    derivative, potential, out=None)
-            out += outx.reshape(xx.shape[:-1]+outx.shape[-1:]).sum(0)
-        return out
-
 
 class PointPixelElectrode(SurfaceElectrode):
     points = Array(dtype=np.double, shape=(None, 2))
@@ -144,9 +124,10 @@ class PointPixelElectrode(SurfaceElectrode):
         if label:
             ax.text(p[:,0].mean(), p[:,1].mean(), label)
 
-    def bare_potential(self, x, derivative, potential, out):
+    def potential(self, x, derivative=0, potential=1., out=None):
+        x = np.atleast_2d(x).astype(np.double)
         return point_potential(x, self.points, self.areas, potential,
-                derivative, out)
+                derivative, self.cover_nmax, self.cover_height, out)
 
 
 class PolygonPixelElectrode(SurfaceElectrode):
@@ -176,8 +157,10 @@ class PolygonPixelElectrode(SurfaceElectrode):
                 areas=a, points=c)
         return e
 
-    def bare_potential(self, x, derivative, potential, out):
-        return polygon_potential(x, self.paths, potential, derivative, out)
+    def potential(self, x, derivative=0, potential=1., out=None):
+        x = np.atleast_2d(x).astype(np.double)
+        return polygon_potential(x, self.paths, potential, derivative,
+                self.cover_nmax, self.cover_height, out)
 
 
 class MeshPixelElectrode(SurfaceElectrode):
@@ -203,9 +186,11 @@ class MeshPixelElectrode(SurfaceElectrode):
         return cls(dc=1, points=points, edges=edges, polygons=polygons,
                 potentials=potentials)
 
-    def bare_potential(self, x, derivative, potential, out):
+    def potential(self, x, derivative=0, potential=1., out=None):
+        x = np.atleast_2d(x).astype(np.double)
         return mesh_potential(x, self.points, self.edges, self.polygons,
-                self.potentials*potential, derivative, out)
+                self.potentials*potential,
+                self.cover_nmax, self.cover_height, out)
 
 
 class GridElectrode(Electrode):
