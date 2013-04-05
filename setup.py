@@ -86,7 +86,7 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
             sources=["electrode/cexpressions.pyx",
                      #"electrode/speedups.c",
                      ],
-            extra_compile_args=['-ffast-math'],
+            extra_compile_args=['-ffast-math'], # improves expressions
             include_dirs=[numpy.get_include(),]),
             ],
         cmdclass = {"build_ext": build_ext},
