@@ -22,6 +22,7 @@ from numpy import testing as nptest
 
 import numpy as np
 from scipy import constants as ct
+import matplotlib.pyplot as plt
 
 from electrode import (transformations, utils, electrode, system,
     pattern_constraints)
@@ -422,6 +423,15 @@ class RingtrapCase(unittest.TestCase):
         nptest.assert_almost_equal(o0, [.1114, .1114, .4491], decimal=3)
         abc = np.array(transformations.euler_from_matrix(e0))/2/np.pi
         nptest.assert_allclose(abc, 0, atol=1, rtol=1e-3)
+
+    def test_plot(self):
+        fig, ax = plt.subplots()
+        self.s.plot(ax)
+
+    def test_plot_voltages(self):
+        fig, ax = plt.subplots()
+        self.s.plot_voltages(ax)
+
 
 
 if __name__ == "__main__":
