@@ -24,11 +24,19 @@ from itertools import product
 import numpy as np
 
 
-def shaper(func, x, *args, **kwargs):
-    y = x.reshape(x.shape[0], -1).T
-    v = func(y, *args, **kwargs)
-    w = v.reshape(x.shape[1:]+v.shape[1:])
-    return w
+def shaped(func):
+    def shape_wrapper(xyz, *args, **kwargs):
+        xyz = np.atleast_2d(xyz)
+        s = xyz.shape
+        xyz = xyz.reshape(s[0], -1).T
+        v = func(xyz, *args, **kwargs)
+        v = v.reshape(s[1:]+v.shape[1:])
+        return v
+    return shape_wrapper
+
+
+def shaper(func, xyz, *args, **kwargs):
+    return shaped(func)(xyz, *args, **kwargs)
 
 
 def apply_method(s, name, *args, **kwargs):

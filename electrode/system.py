@@ -39,8 +39,8 @@ except ImportError:
 from .transformations import euler_from_matrix
 from .saddle import rfo
 from .electrode import Electrode, PolygonPixelElectrode
-from .utils import (select_tensor, expand_tensor, norm, rotate_tensor,
-    mathieu, name_to_deriv)
+from .utils import (expand_tensor, norm, rotate_tensor,
+    mathieu, name_to_deriv, shaped)
 from .pattern_constraints import (PatternRangeConstraint,
         PotentialObjective)
 from . import colors
@@ -119,6 +119,8 @@ class System(HasTraits):
         if expand:
             pot = expand_tensor(pot)
         return pot
+    
+    electrical_potential_shaped = shaped(electrical_potential)
 
     def individual_potential(self, x, derivative=0):
         """
@@ -178,6 +180,8 @@ class System(HasTraits):
                 expand=True)
         rf = self.pseudo_potential(x, derivative)
         return dc + rf
+
+    potential_shaped = shaped(potential)
 
     def plot(self, ax, alpha=.3, **kwargs):
         """plot electrodes with sequential colors"""

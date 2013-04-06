@@ -24,7 +24,7 @@ import matplotlib as mpl
 from scipy.ndimage.interpolation import map_coordinates
 from traits.api import HasTraits, Array, Float, Int, Str, List
 
-from .utils import norm, expand_tensor, area_centroid, derive_map
+from .utils import area_centroid, derive_map
 
 try:
     if False: # test slow python only expressions

@@ -116,18 +116,6 @@ class PixelElectrodeCase(unittest.TestCase):
         nptest.assert_almost_equal(self.e.orientations(), [1.])
         nptest.assert_almost_equal(self.p.orientations(), [1.])
 
-    def test_numerical_derivatives(self):
-        ns = range(6)
-        for ee, d in (self.e, 1e-3), (self.p, 1e-3):
-            pp = lambda x: ee.potential(x, 0)[0]
-            for n in ns:
-                p = utils.expand_tensor(ee.potential(self.x, n))[0]
-                for idx in product(range(3), repeat=n):
-                    pn = nderiv(pp, self.x, d, idx[:])
-                    pa = p[tuple([i] for i in idx)]
-                    nptest.assert_allclose(pn, pa, rtol=d, atol=1e-3,
-                        err_msg="ee=%s, n=%i, idx=%s" % (ee, n, idx))
-
     def test_derivs(self):
         ns = range(1, 6)
         for ee, d in (self.e, 1e-6), (self.p, 1e-6):
@@ -164,20 +152,6 @@ class PolygonTestCase(unittest.TestCase):
                 self.e.potential(self.x, 2)[0],
                 [-0.0196946, -0.00747322, 0.0287624, -0.014943, -0.0182706])
 
-    def test_derivatives(self):
-        x0 = np.array([[1, 2, 5.]])
-        ns = range(6)
-        pp = lambda x: self.e.potential(x, 0)[0]
-        d = 2e-3
-        p0 = self.e.potential(x0, 0)[0]
-        for n in ns:
-            p = utils.expand_tensor(self.e.potential(x0, n))[0]
-            for idx in product(range(3), repeat=n):
-                pn = nderiv(pp, x0, d, idx[:])
-                pa = p[tuple([i] for i in idx)]
-                nptest.assert_allclose(pn, pa, rtol=d, atol=d*p0,
-                    err_msg="n=%i, idx=%s" % (n, idx))
-
     def test_derivs(self):
         ns = range(1, 6)
         d = 1e-7
@@ -212,15 +186,6 @@ class PolygonTestCase(unittest.TestCase):
             s = utils.cartesian_to_spherical_harmonics(vi)
             self.assertEqual(s.shape, vi.shape)
 
-
-def nderiv(f, x, d, p):
-    if not p:
-        return f(x)
-    dx = np.zeros_like(x)
-    dx[:, p[0]] = d
-    fa = nderiv(f, x+dx, d, p[1:])
-    fb = nderiv(f, x-dx, d, p[1:])
-    return (fa-fb)/(2*d)
 
 
 class GridElectrodeCase(unittest.TestCase):
