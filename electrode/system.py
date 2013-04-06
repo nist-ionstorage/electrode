@@ -24,8 +24,6 @@ import numpy as np
 from scipy import optimize, constants as ct
 import matplotlib.pyplot as plt
 
-from traits.api import HasTraits, List, Instance, Property
-
 try:
     import cvxopt, cvxopt.modeling
 except ImportError:
@@ -46,34 +44,35 @@ from .pattern_constraints import (PatternRangeConstraint,
 from . import colors
 
 
-class System(HasTraits):
-    electrodes = List(Instance(Electrode))
-    names = Property()
-    dcs = Property()
-    rfs = Property()
-
-    def __init__(self, *electrodes, **kwargs):
+class System(object):
+    def __init__(self, electrodes=[], **kwargs):
         super(System, self).__init__(**kwargs)
-        self.electrodes.extend(electrodes)
-    
-    def _get_names(self):
+        self.electrodes = list(electrodes)
+   
+    @property
+    def names(self):
         return [el.name for el in self.electrodes]
-
-    def _set_names(self, names):
+   
+    @names.setter
+    def names(self, names):
         for ei, ni in zip(self.electrodes, names):
             ei.name = ni
-
-    def _get_dcs(self):
+    
+    @property
+    def dcs(self):
         return [el.dc for el in self.electrodes]
 
-    def _set_dcs(self, voltages):
+    @dcs.setter
+    def dcs(self, voltages):
         for ei, vi in zip(self.electrodes, voltages):
             ei.dc = vi
 
-    def _get_rfs(self):
+    @property
+    def rfs(self):
         return [el.rf for el in self.electrodes]
 
-    def _set_rfs(self, voltages):
+    @rfs.setter
+    def rfs(self, voltages):
         for ei, vi in zip(self.electrodes, voltages):
             ei.rf = vi
 
@@ -132,7 +131,7 @@ class System(HasTraits):
         eff = np.zeros((len(self.electrodes), x.shape[0], 2*derivative+1),
                 np.double)
         for i, ei in enumerate(self.electrodes):
-            ei.potential(x, derivative, potential=1, out=eff[i])
+            ei.potential(x, derivative, potential=1., out=eff[i])
         return eff
 
     def time_potential(self, x, derivative=0, t=0., alpha_rf=1., expand=False):

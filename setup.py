@@ -64,14 +64,14 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
 """,
         license = "GPLv3+",
         install_requires = [
-            "numpy", "scipy", "traits>=4", "matplotlib", "nose"],
+            "numpy", "scipy", "matplotlib", "nose"],
         extras_require = {
             "notebooks": ["ipython>=0.12"],
             "integrate": ["qc"],
             "optimization": ["cvxopt>=1"],
             "visualization": ["mayavi>4"],
             "polygons": ["shapely>=1.2"],
-            "gds": ["python-gdsii"],
+            "gds": ["gdsii"],
             "speedups": ["cython"],
             },
         dependency_links = [],
@@ -84,11 +84,11 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
         #package_data = {"": ["notebooks/*.ipynb"]},
         ext_modules=[Extension("electrode.cexpressions",
             sources=["electrode/cexpressions.pyx",
-                     #"electrode/speedups.c",
+                     #"electrode/cexpressions.c",
                      ],
             extra_compile_args=[
                     "-ffast-math", # improves expressions
-                    #"-Wa,-adhlns=cexprssions.lst",
+                    #"-Wa,-adhlns=cexprssions.lst", # for amusement
                     ],
             include_dirs=[numpy.get_include(),]),
             ],

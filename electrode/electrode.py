@@ -22,7 +22,6 @@ import warnings
 import numpy as np
 import matplotlib as mpl
 from scipy.ndimage.interpolation import map_coordinates
-from traits.api import HasTraits, Array, Float, Int, Str, List
 
 from .utils import area_centroid, derive_map
 
@@ -36,10 +35,11 @@ except ImportError:
             mesh_potential)
 
 
-class Electrode(HasTraits):
-    name = Str()
-    dc = Float(0.)
-    rf = Float(0.)
+class Electrode(object):
+    def __init__(self, name="", dc=0., rf=0.):
+        self.name = name
+        self.dc = dc
+        self.rf = rf
 
     def potential(self, x, derivative=0, potential=1., out=None):
         """return the specified derivative of the eletrical potential,
@@ -57,10 +57,14 @@ class Electrode(HasTraits):
 
 
 class CoverElectrode(Electrode):
-    height = Float(50)
+    height = 50.
     # also adjust cover_height in
     # the other electrodes to include the cover's effect on their
     # potentials
+
+    def __init__(self, height=50., **kwargs):
+        super(CoverElectrode, self).__init__(**kwargs)
+        self.height = height
 
     def potential(self, x, derivative=0, potential=1., out=None):
         if out is None:
@@ -92,16 +96,20 @@ class SurfaceElectrode(Electrode):
     Ions", PRL 102:233002 (2009),
     http://dx.doi.org/10.1103/PhysRevLett.102.233002
     """
-    cover_height = Float(50) # cover plane height
-    cover_nmax = Int(0) # max components in cover plane potential expansion
+
+    def __init__(self, cover_height=50., cover_nmax=0, **kwargs):
+        super(SurfaceElectrode, self).__init__(**kwargs)
+        # cover plane height
+        self.cover_height = cover_height
+        # max components in cover plane potential expansion
+        self.cover_nmax = cover_nmax
 
 
 class PointPixelElectrode(SurfaceElectrode):
-    points = Array(dtype=np.double, shape=(None, 2))
-    areas = Array(dtype=np.double, shape=(None,))
-
-    def _areas_default(self):
-        return np.ones((len(self.points)))
+    def __init__(self, points=[], areas=[], **kwargs):
+        super(PointPixelElectrode, self).__init__(**kwargs)
+        self.points = np.asanyarray(points, np.double)
+        self.areas = np.asanyarray(areas, np.double)
 
     def orientations(self):
         return np.ones_like(self.areas)
@@ -129,7 +137,9 @@ class PointPixelElectrode(SurfaceElectrode):
 
 
 class PolygonPixelElectrode(SurfaceElectrode):
-    paths = List(Array(dtype=np.double, shape=(None, 2)))
+    def __init__(self, paths=[], **kwargs):
+        super(PolygonPixelElectrode, self).__init__(**kwargs)
+        self.paths = [np.asanyarray(i, np.double) for i in paths]
 
     def orientations(self):
         return np.sign([area_centroid(pi)[0] for pi in self.paths])
@@ -161,10 +171,13 @@ class PolygonPixelElectrode(SurfaceElectrode):
 
 
 class MeshPixelElectrode(SurfaceElectrode):
-    points = Array(dtype=np.double, shape=(None, 2))
-    edges = Array(dtype=np.intc, shape=(None, 2))
-    polygons = Array(dtype=np.intc, shape=(None,))
-    potentials = Array(dtype=np.double, shape=(None,))
+    def __init__(self, points=[], edges=[], polygons=[], potentials=[],
+            **kwargs):
+        super(MeshPixelElectrode, self).__init__(**kwargs)
+        self.points = np.asanyarray(points, np.double)
+        self.edges = np.asanyarray(edges, np.intc)
+        self.polygons = np.asanyarray(polygons, np.intc)
+        self.potentials = np.asanyarray(potentials, np.double)
 
     @classmethod
     def from_polygon_system(cls, s):
@@ -190,9 +203,12 @@ class MeshPixelElectrode(SurfaceElectrode):
 
 
 class GridElectrode(Electrode):
-    data = List(Array(dtype=np.double))
-    origin = Array(dtype=np.float64, shape=(3, ), value=(0, 0, 0))
-    spacing = Array(dtype=np.float64, shape=(3, ), value=(1, 1, 1))
+    def __init__(self, data=[], origin=(0, 0, 0), spacing=(1, 1, 1),
+            **kwargs):
+        super(GridElectrode, self).__init__(**kwargs)
+        self.data = [np.asanyarray(i, np.double) for i in data]
+        self.origin = np.asanyarray(origin, np.double)
+        self.spacing = np.asanyarray(spacing, np.double)
 
     @classmethod
     def from_result(cls, result, maxderiv=3):

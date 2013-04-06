@@ -272,7 +272,7 @@ class MagtrapCase(unittest.TestCase):
     def test_shims_shift(self):
         x = self.x0
         eln = "c1 c2 c3 c4 c5 c6".split()
-        s = system.System(*[self.s[n] for n in eln])
+        s = system.System([self.s[n] for n in eln])
         derivs = "x y z xx yy yz".split()
         vectors = s.shims([(x, None, d) for d in derivs])
         self.assertEqual(vectors.shape, (len(derivs), len(eln)))

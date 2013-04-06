@@ -17,9 +17,9 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
 import unittest
 from numpy import testing as nptest
-from itertools import product
 
 import numpy as np
 
@@ -168,7 +168,7 @@ class PolygonTestCase(unittest.TestCase):
         ns = range(1, 5)
         d = 1e-7
         xd = self.x + [[0, 0, 0], [d, 0, 0], [0, d, 0], [0, 0, d]]
-        s = system.System(self.e)
+        s = system.System([self.e])
         self.e.rf = 1.
         for n in ns:
             p = s.potential(self.x, n)[0]
@@ -221,10 +221,10 @@ class GridElectrodeCase(unittest.TestCase):
 
 
 class GridElectrodeVtkCase(unittest.TestCase):
-    @unittest.skip("no dataset")
+    fil = "~/work/nist/qc-tools/trunk/bin/threefold_2_sim_dense_rf.vtk"
+    fil = os.path.expanduser(fil)
+    @unittest.skipIf(not os.path.exists(fil), "no dataset")
     def test_load_vtk(self):
-        fil = "~/work/nist/qc-tools/trunk/bin/threefold_2_sim_dense_rf.vtk"
-        import os
         e = electrode.GridElectrode.from_vtk(os.path.expanduser(fil))
 
 
@@ -235,7 +235,7 @@ class MeshElectrodeCase(unittest.TestCase):
                 dc=1.)
         b = electrode.PolygonPixelElectrode(paths=[p-[[3, 3]]],
                 dc=2.)
-        self.s = system.System(a, b)
+        self.s = system.System([a, b])
         self.m = electrode.MeshPixelElectrode.from_polygon_system(
             self.s)
         self.x = np.array([[1,2,3.]])

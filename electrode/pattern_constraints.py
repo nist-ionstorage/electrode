@@ -21,15 +21,13 @@ import warnings
 
 import numpy as np
 
-from traits.api import (HasTraits, Array, Float, Int, List, Instance,
-    Str, Trait)
 import cvxopt, cvxopt.modeling
 
 from .utils import (select_tensor, expand_tensor, rotate_tensor,
         name_to_deriv)
 
 
-class Constraint(HasTraits):
+class Constraint(object):
     def objective(self, system, variables):
         return
         yield
@@ -40,16 +38,13 @@ class Constraint(HasTraits):
 
 
 class PatternValueConstraint(Constraint):
-    x = Array(dtype=np.float64, shape=(3,))
-    d = Int
-    v = Array(dtype=np.float64)
-    r = Trait(None, None,
-            Array(dtype=np.float64, shape=(3, 3), value=np.identity(3)))
-
-    def __init__(self, **kwargs):
+    def __init__(self, x, d, v, r=None):
         warnings.warn("use PotentialObjective and MultiPotentialObjective",
                 DeprecationWarning)
-        super(PatternValueConstraint, self).__init__(**kwargs)
+        self.x = np.asanyarray(x, np.double)
+        self.d = d
+        self.v = np.asanyarray(v, np.double)
+        self.r = np.asanyarray(r, np.double) if r is not None else None
 
     def objective(self, system, variables):
         v = select_tensor(self.v[None, ...]) # TODO: no select
@@ -61,9 +56,10 @@ class PatternValueConstraint(Constraint):
 
 
 class PatternRangeConstraint(Constraint):
-    min = Trait(None, None, Float)
-    max = Trait(None, None, Float)
-    index = Trait(None, None, Int)
+    def __init__(self, min=None, max=None, index=None):
+        self.min = min
+        self.max = max
+        self.index = index
 
     def constraints(self, system, variables):
         if self.index is not None:
@@ -75,9 +71,10 @@ class PatternRangeConstraint(Constraint):
 
 
 class SingleValueConstraint(Constraint):
-    value = Trait(None, None, Float) # value
-    min = Trait(None, None, Float) # value
-    max = Trait(None, None, Float) # value
+    def __init__(self, value=None, min=None, max=None):
+        self.value = value
+        self.min = min
+        self.max = max
 
     def get(self, system, variables):
         raise NotImplementedError
@@ -99,10 +96,12 @@ class SingleValueConstraint(Constraint):
 
 
 class PotentialObjective(SingleValueConstraint):
-    x = Array(dtype=np.float64, shape=(3,))
-    derivative = Str # derivative name
-    rotation = Trait(None, None,
-            Array(dtype=np.float64, shape=(3, 3), value=np.identity(3)))
+    def __init__(self, x, derivative, rotation=None, **kwargs):
+        super(PotentialObjective, self).__init__(**kwargs)
+        self.x = np.asanyarray(x, np.double)
+        self.derivative = derivative
+        self.rotation = (np.asanyarray(rotation, np.double)
+                if rotation is not None else None)
 
     def get(self, system, variables):
         d, e = name_to_deriv(self.derivative)
@@ -114,8 +113,10 @@ class PotentialObjective(SingleValueConstraint):
     
 
 class MultiPotentialObjective(SingleValueConstraint):
-    components = List(Instance(PotentialObjective))
-    # component values are weights
+    def __init__(self, components=[], **kwargs):
+        super(MultiPotentialObjective, self).__init__(**kwargs)
+        self.components = components
+        # component values are weights
 
     def get(self, system, variables):
         c = 0.
