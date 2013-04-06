@@ -66,7 +66,7 @@ class CoverElectrode(Electrode):
         if out is None:
             out = np.zeros((x.shape[0], 2*derivative+1), np.double)
         if derivative == 0:
-            out += potential*x[:, 2]/self.height
+            out[:, 0] += potential*x[:, 2]/self.height
         elif derivative == 1:
             out[:, 2] += potential*1/self.height
         else:
