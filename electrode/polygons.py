@@ -17,7 +17,8 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import (absolute_import, print_function,
+        unicode_literals, division)
 
 import numpy as np
 
@@ -75,7 +76,7 @@ class Polygons(list):
         """
         for ni, pi in self:
             if not pi.is_valid:
-                raise ValueError, (ni, pi)
+                raise ValueError("%s %s" % (ni, pi))
 
     def remove_overlaps(self):
         """
@@ -165,7 +166,7 @@ def square_pads(step=10., edge=200., odd=False, start_corner=0):
     p = np.arange(-n/2.+.5, n/2.+.5)*step
     assert len(p) == n, (p, n)
     # top left as origin is common for packages
-    q = (edge/2-step/2)*np.ones_like(p)
+    q = (edge/2.-step/2.)*np.ones_like(p)
     edges = [(-q, -p), (p, -q), (q, p), (-p, q)]
     xy = np.concatenate(edges[start_corner:] + edges[:start_corner], axis=1)
     assert xy.shape == (2, 4*n), xy.shape

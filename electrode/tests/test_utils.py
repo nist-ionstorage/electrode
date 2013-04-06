@@ -110,10 +110,10 @@ class BasicFunctionsCase(unittest.TestCase):
 
     def test_centroid_area(self):
         p = np.array([[1, 0, 0], [2, 3, 0], [2, 7, 0], [3, 8, 0],
-            [-2, 8, 0], [-5, 2, 0]])
+            [-2, 8, 0], [-5, 2, 0.]])
         a, c = utils.area_centroid(p)
         nptest.assert_almost_equal(a, 40)
-        nptest.assert_almost_equal(c, [-1, 4, 0])
+        nptest.assert_almost_equal(c, [-0.7833333, 4.2083333, 0])
 
     def test_mathieu(self):
         a = np.array([.005])

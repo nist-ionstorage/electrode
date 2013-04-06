@@ -17,7 +17,8 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import (absolute_import, print_function,
+        unicode_literals, division)
 
 from math import factorial
 from itertools import product
@@ -178,7 +179,7 @@ def expand_tensor(c, order=None):
     inverse of select_tensor()"""
     c = np.atleast_2d(c)
     if order is None:
-        order = (c.shape[-1]-1)/2
+        order = (c.shape[-1]-1)//2
     if order == 0:
         return c[..., 0]
     elif order == 1:
@@ -220,7 +221,7 @@ def cartesian_to_spherical_harmonics(c):
     http://theoretical-physics.net/dev/src/math/operators.html#real-spherical-harmonics
     """
     c = np.atleast_1d(c)
-    l = (c.shape[0] - 1)/2
+    l = (c.shape[0] - 1)//2
     #n = 1/(factorial(l)*2**l*np.sqrt(np.pi/(2*l+1)))
     #n *= 4*np.pi*2**(l+1)/(l+1)*factorial(l+1)**2/factorial(2*l+2)
     n = 8*np.sqrt(np.pi*(2*l+1))*factorial(l+1)/factorial(2*l+2)
@@ -310,7 +311,7 @@ def area_centroid(p1):
     (list of points)"""
     p2 = np.roll(p1, -1, axis=0)
     r = p1[:, 0]*p2[:, 1]-p2[:, 0]*p1[:, 1]
-    a = r.sum(0)/2
+    a = r.sum(0)/2.
     c = ((p1+p2)*r[:, None]).sum(0)/(6*a)
     return a, c
 

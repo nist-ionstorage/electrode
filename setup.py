@@ -18,7 +18,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import absolute_import, print_function, unicode_literals
+#from __future__ import absolute_import, print_function, unicode_literals
 
 from setuptools import setup, find_packages, Extension
 from Cython.Distutils import build_ext
@@ -84,10 +84,10 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
         include_package_data = True,
         #package_data = {"": ["notebooks/*.ipynb"]},
         ext_modules=[
-                Extension(b"electrode._transformations",
-                    sources=[b"electrode/transformations.c"],),
-                Extension(b"electrode.cexpressions",
-                    sources=[b"electrode/cexpressions.pyx",
+                Extension("electrode._transformations",
+                    sources=["electrode/transformations.c"],),
+                Extension("electrode.cexpressions",
+                    sources=["electrode/cexpressions.pyx",
                          #"electrode/cexpressions.c",
                          ],
                 extra_compile_args=[
