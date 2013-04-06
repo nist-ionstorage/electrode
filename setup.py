@@ -82,15 +82,18 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
         scripts = glob("notebooks/*.py"),
         include_package_data = True,
         #package_data = {"": ["notebooks/*.ipynb"]},
-        ext_modules=[Extension("electrode.cexpressions",
-            sources=["electrode/cexpressions.pyx",
-                     #"electrode/cexpressions.c",
-                     ],
-            extra_compile_args=[
-                    "-ffast-math", # improves expressions
-                    #"-Wa,-adhlns=cexprssions.lst", # for amusement
-                    ],
-            include_dirs=[numpy.get_include(),]),
+        ext_modules=[
+                Extension("electrode._transformations",
+                    sources=["electrode/transformations.c"],),
+                Extension("electrode.cexpressions",
+                    sources=["electrode/cexpressions.pyx",
+                         #"electrode/cexpressions.c",
+                         ],
+                extra_compile_args=[
+                        "-ffast-math", # improves expressions
+                        #"-Wa,-adhlns=cexprssions.lst", # for amusement
+                        ],
+                include_dirs=[numpy.get_include(),]),
             ],
         cmdclass = {"build_ext": build_ext},
         )
