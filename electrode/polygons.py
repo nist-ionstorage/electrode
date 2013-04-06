@@ -17,6 +17,8 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import, print_function, unicode_literals
+
 import numpy as np
 
 from shapely import geometry, ops
@@ -182,6 +184,6 @@ if __name__ == "__main__":
             if not hasattr(ei, "paths"):
                 continue
             for pi, oi in zip(ei.paths, ei.orientations()):
-                print ei.name, pi, oi
-        print
+                print(ei.name, pi, oi)
+        print()
     pickle.dump(s1, open("rfjunction1.pickle", "wb"))

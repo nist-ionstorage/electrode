@@ -17,6 +17,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import, print_function, unicode_literals
 
 from math import factorial
 from itertools import product
@@ -109,7 +110,7 @@ def find_laplace(c):
     """given derivative name c returns the two derivatives a and b
     such that a+b+c=0 for a harmonic tensor"""
     name = sorted(c)
-    letters = range(3)
+    letters = list(range(3))
     found = None
     for i in letters:
         if name.count(i) >= 2:

@@ -17,11 +17,15 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import warnings
+from __future__ import absolute_import, print_function, unicode_literals
 
+import warnings
 import numpy as np
 
-import cvxopt, cvxopt.modeling
+try:
+    import cvxopt, cvxopt.modeling
+except ImportError:
+    warnings.warn("cvxopt not found, optimizations will fail", ImportWarning)
 
 from .utils import (select_tensor, expand_tensor, rotate_tensor,
         name_to_deriv)

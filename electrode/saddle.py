@@ -18,7 +18,10 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import, print_function, unicode_literals
+
 import numpy as np
+
 
 def rfo(fun, grad, x0, args=(), 
         xtol=1e-4, ftol=1e-4, maxiter=200, dx_max=1., h=None, cb=None):

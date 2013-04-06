@@ -17,6 +17,8 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import, print_function, unicode_literals
+
 import numpy as np
 
 from gdsii import library, structure, elements
@@ -37,14 +39,14 @@ def from_gds(fil, scale=1., layer=None):
     s = System()
     for stru in lib:
         if not type(stru) is structure.Structure:
-            print "%s skipped" % stru
+            print("%s skipped" % stru)
             continue
         for e in stru:
             if not type(e) is elements.Boundary:
-                print "%s skipped" % e
+                print("%s skipped" % e)
                 continue
             if layer is not None and not e.layer == layer:
-                print "%s skipped" % e
+                print("%s skipped" % e)
                 continue
             props = dict(e.properties)
             name = props.get(attr_name, None)
@@ -77,7 +79,7 @@ def to_gds(sys, scale=1., layer=0, phys_unit=1e-9, gap_layer=1):
     #stru.append(elements.Node(layer=layer, node_type=0, xy=[(0, 0)]))
     for e in sys.electrodes:
         if not type(e) is PolygonPixelElectrode:
-            print "%s skipped" % e
+            print("%s skipped" % e)
             continue
         for p in e.paths:
             xy = p[:, :2]*scale/phys_unit

@@ -17,6 +17,8 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import, print_function, unicode_literals
+
 import warnings, itertools
 from contextlib import contextmanager
 
@@ -242,7 +244,7 @@ class System(object):
         # rational function optimization
         xs, p, ret = rfo(f, g, np.array(x0)[:, axis], h=h, **kwargs)
         if not ret in ("ftol", "xtol"):
-            raise ValueError, (x0, axis, x, xs, p, ret)
+            raise ValueError("%s", ((x0, axis, x, xs, p, ret),))
         # f(xs) # update x
         return x, p
 
@@ -345,12 +347,12 @@ class System(object):
         if not verbose:
             cvxopt.solvers.options["show_progress"] = False
         else:
-            print "variables:", sum(v._size
-                    for v in solver.variables())
-            print "inequalities", sum(v.multiplier._size
-                    for v in solver.inequalities())
-            print "equalities", sum(v.multiplier._size
-                    for v in solver.equalities())
+            print("variables:", sum(v._size
+                    for v in solver.variables()))
+            print("inequalities", sum(v.multiplier._size
+                    for v in solver.inequalities()))
+            print("equalities", sum(v.multiplier._size
+                    for v in solver.equalities()))
 
         solver.solve("sparse")
 
@@ -384,11 +386,11 @@ class System(object):
         B1 = B - np.outer(b, g)/g2 # B*g_perp
         obj = cvxopt.modeling.dot(cvxopt.matrix(g), p) # maximize this
         if False:
-            print "rankB", np.linalg.matrix_rank(B, 1e-9), B.shape
-            print "rankB1", np.linalg.matrix_rank(B1, 1e-9), B1.shape
+            print("rankB", np.linalg.matrix_rank(B, 1e-9), B.shape)
+            print("rankB1", np.linalg.matrix_rank(B1, 1e-9), B1.shape)
             u, l, v = np.linalg.svd(B1)
             li = np.argmin(l)
-            print li, l[li], v[li], B1*v[li].T
+            print(li, l[li], v[li], B1*v[li].T)
             #return np.array(v)[li], 0
         #FIXME: there is one singular value, drop one line
         B1 = B1[:-1]
@@ -399,12 +401,12 @@ class System(object):
             cvxopt.solvers.options["show_progress"] = False
         else:
             cvxopt.solvers.options["show_progress"] = True
-            print "variables:", sum(v._size
-                    for v in solver.variables())
-            print "inequalities", sum(v.multiplier._size
-                    for v in solver.inequalities())
-            print "equalities", sum(v.multiplier._size
-                    for v in solver.equalities())
+            print("variables:", sum(v._size
+                    for v in solver.variables()))
+            print("inequalities", sum(v.multiplier._size
+                    for v in solver.inequalities()))
+            print("equalities", sum(v.multiplier._size
+                    for v in solver.equalities()))
         solver.solve("sparse")
         if not solver.status == "optimal":
             raise ValueError("solve failed: %s" % solver.status)

@@ -17,11 +17,17 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import, print_function, unicode_literals
 
 import numpy as np
+import warnings
 
 from traits.api import HasTraits, Array, Float, Int, List, Bool, Trait, Enum
-import cvxopt, cvxopt.modeling
+
+try:
+    import cvxopt, cvxopt.modeling
+except ImportError:
+    warnings.warn("cvxopt not found, optimizations will fail", ImportWarning)
 
 from .utils import rotate_tensor
 
