@@ -20,12 +20,16 @@
 from __future__ import (absolute_import, print_function,
         unicode_literals, division)
 
+import logging
+
 import numpy as np
 
 from gdsii import library, structure, elements
 
 from .system import System
 from .electrode import PolygonPixelElectrode
+
+logger = logging.getLogger()
 
 
 # attribute namespaces anyone?
@@ -40,14 +44,14 @@ def from_gds(fil, scale=1., layer=None):
     s = System()
     for stru in lib:
         if not type(stru) is structure.Structure:
-            print("%s skipped" % stru)
+            logger.debug("%s skipped", stru)
             continue
         for e in stru:
             if not type(e) is elements.Boundary:
-                print("%s skipped" % e)
+                logger.debug("%s skipped", e)
                 continue
             if layer is not None and not e.layer == layer:
-                print("%s skipped" % e)
+                logger.debug("%s skipped", e)
                 continue
             props = dict(e.properties)
             name = props.get(attr_name, None)
@@ -69,6 +73,30 @@ def from_gds(fil, scale=1., layer=None):
         e.paths = [p[::o] for p, o in zip(e.paths, e.orientations())]
     return s
 
+
+def from_gds_gaps(fil, scale=1.):
+    lib = library.Library.load(fil)
+    boundaries = {}
+    routes = []
+    for stru in lib:
+        if not type(stru) is structure.Structure:
+            logger.debug("%s skipped", stru)
+            continue
+        for e in stru:
+            if type(e) is elements.Boundary:
+                path = np.array(e.xy)*lib.physical_unit/scale
+                path = path[:-1] # a gds boundary is a full loop
+                polys = boundaries.setdefault((e.layer, e.data_type), [])
+                polys.append(path)
+            if type(e) is elements.Path:
+                path = np.array(e.xy)*lib.physical_unit/scale
+                routes.append(path)
+            else:
+                logger.debug("%s skipped", e)
+                continue
+    return boundaries, routes
+
+
 def to_gds(sys, scale=1., layer=0, phys_unit=1e-9, gap_layer=1):
     lib = library.Library(version=5, name=b"trap", physical_unit=phys_unit,
             logical_unit=.001)
@@ -80,7 +108,7 @@ def to_gds(sys, scale=1., layer=0, phys_unit=1e-9, gap_layer=1):
     #stru.append(elements.Node(layer=layer, node_type=0, xy=[(0, 0)]))
     for e in sys.electrodes:
         if not type(e) is PolygonPixelElectrode:
-            print("%s skipped" % e)
+            logger.debug("%s skipped" % e)
             continue
         for p in e.paths:
             xy = p[:, :2]*scale/phys_unit

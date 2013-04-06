@@ -54,6 +54,36 @@ class Polygons(list):
             obj.append((e.name, mp))
         return obj
 
+    @classmethod
+    def from_boundaries_routes(cls, boundaries={}, routes=[], edge=40.,
+            buffer=1e-12):
+        """
+        start with a edge by edge square,
+        subtract boundaries and put them in polygon
+        electrodes named by their layer/datatype then pattern
+        the rest using the routes (taken to be near-zero-width) and
+        add one polygon electrode for each resulting fragment
+        """
+        field = geometry.Polygon([[edge/2, edge/2], [-edge/2, edge/2],
+                                  [-edge/2, -edge/2], [edge/2, -edge/2]])
+        p = cls()
+        for i, polys in boundaries.iteritems():
+            mp = map(geometry.Polygon, polys)
+            mp = geometry.MultiPolygon(mp)
+            mp = mp.intersection(field)
+            field = field.difference(mp)
+            p.append(("%i/%i" % i, mp))
+        gaps = map(geometry.LineString, routes)
+        gaps = reduce(lambda a, b: a.union(b), gaps)
+        #gaps = ops.cascaded_union(gaps).intersection(field) # segfaults       
+        fields = field.difference(gaps.buffer(buffer, 0))
+        if type(fields) is geometry.Polygon:
+            fields = geometry.MultiPolygon([fields])
+        for fragment in fields:
+            #fragment = np.around(fragment, int(-np.log10(buffer)-3))
+            p.append(("", geometry.MultiPolygon([fragment])))
+        return p
+
     def to_system(self):
         s = System()
         for n, p in self:

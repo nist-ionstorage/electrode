@@ -348,11 +348,11 @@ class System(object):
         if not verbose:
             cvxopt.solvers.options["show_progress"] = False
         else:
-            print("variables:", sum(v._size
+            logger.info("variables: %i", sum(v._size
                     for v in solver.variables()))
-            print("inequalities", sum(v.multiplier._size
+            logger.info("inequalities: %i", sum(v.multiplier._size
                     for v in solver.inequalities()))
-            print("equalities", sum(v.multiplier._size
+            logger.info("equalities: %i", sum(v.multiplier._size
                     for v in solver.equalities()))
 
         solver.solve("sparse")
@@ -386,13 +386,6 @@ class System(object):
         g2 = np.inner(g, g)
         B1 = B - np.outer(b, g)/g2 # B*g_perp
         obj = cvxopt.modeling.dot(cvxopt.matrix(g), p) # maximize this
-        if False:
-            print("rankB", np.linalg.matrix_rank(B, 1e-9), B.shape)
-            print("rankB1", np.linalg.matrix_rank(B1, 1e-9), B1.shape)
-            u, l, v = np.linalg.svd(B1)
-            li = np.argmin(l)
-            print(li, l[li], v[li], B1*v[li].T)
-            #return np.array(v)[li], 0
         #FIXME: there is one singular value, drop one line
         B1 = B1[:-1]
         # B*g_perp*p == 0
@@ -402,11 +395,11 @@ class System(object):
             cvxopt.solvers.options["show_progress"] = False
         else:
             cvxopt.solvers.options["show_progress"] = True
-            print("variables:", sum(v._size
+            logger.info("variables: %i", sum(v._size
                     for v in solver.variables()))
-            print("inequalities", sum(v.multiplier._size
+            logger.info("inequalities: %i", sum(v.multiplier._size
                     for v in solver.inequalities()))
-            print("equalities", sum(v.multiplier._size
+            logger.info("equalities: %i", sum(v.multiplier._size
                     for v in solver.equalities()))
         solver.solve("sparse")
         if not solver.status == "optimal":
