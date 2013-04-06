@@ -47,49 +47,47 @@ from .pattern_constraints import (PatternRangeConstraint,
 from . import colors
 
 
-class System(object):
+class System(list):
     def __init__(self, electrodes=[], **kwargs):
         super(System, self).__init__(**kwargs)
-        self.electrodes = list(electrodes)
+        self.extend(electrodes)
    
     @property
     def names(self):
-        return [el.name for el in self.electrodes]
+        return [el.name for el in self]
    
     @names.setter
     def names(self, names):
-        for ei, ni in zip(self.electrodes, names):
+        for ei, ni in zip(self, names):
             ei.name = ni
     
     @property
     def dcs(self):
-        return [el.dc for el in self.electrodes]
+        return np.array([el.dc for el in self])
 
     @dcs.setter
     def dcs(self, voltages):
-        for ei, vi in zip(self.electrodes, voltages):
+        for ei, vi in zip(self, voltages):
             ei.dc = vi
 
     @property
     def rfs(self):
-        return [el.rf for el in self.electrodes]
+        return np.array([el.rf for el in self])
 
     @rfs.setter
     def rfs(self, voltages):
-        for ei, vi in zip(self.electrodes, voltages):
+        for ei, vi in zip(self, voltages):
             ei.rf = vi
 
-    def electrode(self, name_or_index):
+    def __getitem__(self, name_or_index):
         """return the first electrode named name or None if not found"""
         if type(name_or_index) == type(0):
-            return self.electrodes[name_or_index]
-        for ei in self.electrodes:
+            return list.__getitem__(self, name_or_index)
+        for ei in self:
             if ei.name == name_or_index:
                 return ei
 
-    __getitem__ = electrode
-    by_name = electrode
-    by_index = electrode
+    electrode = __getitem__
 
     @contextmanager
     def with_voltages(self, dcs=None, rfs=None):
@@ -114,7 +112,7 @@ class System(object):
         """
         x = np.asanyarray(x, dtype=np.double).reshape(-1, 3)
         pot = np.zeros((x.shape[0], 2*derivative+1), np.double)
-        for ei in self.electrodes:
+        for ei in self:
             vi = getattr(ei, typ, None)
             if vi:
                 ei.potential(x, derivative, potential=vi, out=pot)
@@ -122,8 +120,6 @@ class System(object):
             pot = expand_tensor(pot)
         return pot
     
-    electrical_potential_shaped = shaped(electrical_potential)
-
     def individual_potential(self, x, derivative=0):
         """
         return derivatives of the electrical potential at x and
@@ -131,9 +127,9 @@ class System(object):
         O(len(electrodes)*len(x))
         """
         x = np.asanyarray(x, dtype=np.double).reshape(-1, 3)
-        eff = np.zeros((len(self.electrodes), x.shape[0], 2*derivative+1),
+        eff = np.zeros((len(self), x.shape[0], 2*derivative+1),
                 np.double)
-        for i, ei in enumerate(self.electrodes):
+        for i, ei in enumerate(self):
             ei.potential(x, derivative, potential=1., out=eff[i])
         return eff
 
@@ -183,11 +179,9 @@ class System(object):
         rf = self.pseudo_potential(x, derivative)
         return dc + rf
 
-    potential_shaped = shaped(potential)
-
     def plot(self, ax, alpha=.3, **kwargs):
         """plot electrodes with sequential colors"""
-        for e, c in zip(self.electrodes, itertools.cycle(colors.set3)):
+        for e, c in zip(self, itertools.cycle(colors.set3)):
             e.plot(ax, color=tuple(c/255.), alpha=alpha, **kwargs)
 
     def plot_voltages(self, ax, u=None, um=None, cmap=plt.cm.RdBu_r,
@@ -201,7 +195,7 @@ class System(object):
         u = (u / um + 1)/2
         #colors = np.clip((u+.5, .5-np.fabs(u), -u+.5), 0, 1).T
         colors = [cmap(ui) for ui in u]
-        for el, ci in zip(self.electrodes, colors):
+        for el, ci in zip(self, colors):
             el.plot(ax, color=ci, **kwargs)
 
     def minimum(self, x0, axis=(0, 1, 2), coord=np.identity(3)):
@@ -304,7 +298,7 @@ class System(object):
         obj += objectives
         if constraints is None:
             constraints = [PatternRangeConstraint(min=-1, max=1)]
-        vectors = np.empty((len(obj), len(self.electrodes)),
+        vectors = np.empty((len(obj), len(self)),
                 np.double)
         for i, objective in enumerate(obj):
             objective.value = 1
@@ -319,20 +313,20 @@ class System(object):
 
         O(len(constraints)*len(x)*len(electrodes)) if sparse (most of the time)
         """
-        v0 = [el.voltage_dc for el in self.electrodes]
-        for el in self.electrodes:
+        v0 = [el.voltage_dc for el in self]
+        for el in self:
             el.voltage_dc = 0.
         p0, f0, c0 = self.potential(x), self.gradient(x), self.curvature(x)
-        for el, vi in zip(self.electrodes, v0):
+        for el, vi in zip(self, v0):
             el.voltage_dc = vi
         p, f, c = (self.individual_potential(x, i) for i in range(3))
 
         variables = []
         pots = []
         for i, xi in enumerate(x):
-            v = cvxopt.modeling.variable(len(self.electrodes), "u%i" % i)
+            v = cvxopt.modeling.variable(len(self), "u%i" % i)
             v.value = cvxopt.matrix(
-                    [float(el.voltage_dc) for el in self.electrodes])
+                    [float(el.voltage_dc) for el in self])
             variables.append(v)
             pots.append((p0[i], f0[:, i], c0[:, :, i],
                 p[:, i], f[:, :, i], c[:, :, :, i]))
@@ -341,8 +335,8 @@ class System(object):
         obj = 0.
         ctrs = []
         for ci in constraints:
-            obj += sum(ci.objective(self, self.electrodes, x, variables, pots))
-            ctrs.extend(ci.constraints(self, self.electrodes, x, variables, pots))
+            obj += sum(ci.objective(self, self, x, variables, pots))
+            ctrs.extend(ci.constraints(self, self, x, variables, pots))
         solver = cvxopt.modeling.op(obj, ctrs)
 
         if not verbose:
@@ -372,7 +366,7 @@ class System(object):
     def optimize(self, constraints, rcond=1e-9, verbose=True):
         """optimize this electrode voltages with respect to
         constraints"""
-        p = cvxopt.modeling.variable(len(self.electrodes))
+        p = cvxopt.modeling.variable(len(self))
         obj = []
         ctrs = []
         for ci in constraints:
@@ -423,7 +417,7 @@ class System(object):
             dcs = []
             rfs = []
             for j in np.argwhere(good):
-                el = self.electrodes[j]
+                el = self[j]
                 paths.extend(el.paths)
                 dcs.append(el.dc)
                 rfs.append(el.rf)
@@ -507,7 +501,6 @@ class System(object):
     def analyze_shims(self, x, forces=None, curvatures=None,
             use_modes=True, **kwargs):
         x = np.asanyarray(x, dtype=np.double).reshape(-1, 3)
-        els = self.electrodes
         if use_modes:
             coords = [self.modes(xi)[1] for xi in x]
         else:
@@ -520,7 +513,7 @@ class System(object):
             curvatures = [cn] * len(x)
         fx = [[fn.index(fi) for fi in fj] for fj in forces]
         cx = [[cn.index(ci) for ci in cj] for cj in curvatures]
-        us, (res, rank, sing) = self.shims(x, els, fx, cx, coords,
+        us, (res, rank, sing) = self.shims(x, self, fx, cx, coords,
                 **kwargs)
         yield "shim analysis for points: %s" % x
         yield " forces: %s" % forces

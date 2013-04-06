@@ -57,19 +57,19 @@ def from_gds(fil, scale=1., layer=None):
             name = props.get(attr_name, None)
             if name is None:
                 ele = PolygonPixelElectrode()
-                s.electrodes.append(ele)
+                s.append(ele)
             elif name in s.names:
                 ele = s.electrode(name)
             else:
                 ele = PolygonPixelElectrode(name=name)
-                s.electrodes.append(ele)
+                s.append(ele)
             ele.dc = float(props.get(attr_vdc, 0.))
             ele.rf = float(props.get(attr_vrf, 0.))
             path = np.array(e.xy)*lib.physical_unit/scale
             path = path[:-1] # a gds boundary is a full loop
             ele.paths.append(path)
     # there are only outer loops
-    for e in s.electrodes:
+    for e in s:
         e.paths = [p[::o] for p, o in zip(e.paths, e.orientations())]
     return s
 
@@ -86,7 +86,8 @@ def from_gds_gaps(fil, scale=1.):
             if type(e) is elements.Boundary:
                 path = np.array(e.xy)*lib.physical_unit/scale
                 path = path[:-1] # a gds boundary is a full loop
-                polys = boundaries.setdefault((e.layer, e.data_type), [])
+                name = "%i/%i" % (e.layer, e.data_type)
+                polys = boundaries.setdefault(name, [])
                 polys.append(path)
             if type(e) is elements.Path:
                 path = np.array(e.xy)*lib.physical_unit/scale
@@ -94,7 +95,7 @@ def from_gds_gaps(fil, scale=1.):
             else:
                 logger.debug("%s skipped", e)
                 continue
-    return boundaries, routes
+    return boundaries.items(), routes
 
 
 def to_gds(sys, scale=1., layer=0, phys_unit=1e-9, gap_layer=1):
@@ -106,7 +107,7 @@ def to_gds(sys, scale=1., layer=0, phys_unit=1e-9, gap_layer=1):
     lib.append(gaps)
 
     #stru.append(elements.Node(layer=layer, node_type=0, xy=[(0, 0)]))
-    for e in sys.electrodes:
+    for e in sys:
         if not type(e) is PolygonPixelElectrode:
             logger.debug("%s skipped" % e)
             continue

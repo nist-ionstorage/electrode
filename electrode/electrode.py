@@ -188,7 +188,7 @@ class MeshPixelElectrode(SurfaceElectrode):
         edges = []
         polygons = []
         potentials = []
-        for p in s.electrodes:
+        for p in s:
             assert isinstance(p, PolygonPixelElectrode), p
             for i in p.paths:
                 ei = len(points)+np.arange(len(i))

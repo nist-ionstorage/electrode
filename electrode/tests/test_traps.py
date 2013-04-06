@@ -48,7 +48,7 @@ class ThreefoldOptimizeCase(unittest.TestCase):
 
     def get(self, n=12, h=1/8., d=1/4., H=25/8., nmax=1, points=True):
         s = system.System(electrodes=self.hextess(n, points))
-        for ei in s.electrodes:
+        for ei in s:
             ei.cover_height = H
             ei.cover_nmax = nmax
         self.s = s
@@ -116,12 +116,17 @@ class FiveWireCase(unittest.TestCase):
                 ya, yb = np.tan((a-tw/2)/2), np.tan((a+tw/2)/2)
                 yield np.array([[rmax, ya], [rmax, yb],
                      [-rmax, yb], [-rmax, ya]])
-        s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
+        s.append(electrode.PolygonPixelElectrode(name="rf",
             rf=1, paths=list(patches(n=2, tw=tw, t0=t0))))
         return s
 
     def setUp(self):
         self.s = self.trap()
+
+    def test_shaped(self):
+        xyz = np.mgrid[-1:1:4j, -1:1:5j, .5:1.5:6j]
+        p = utils.shaped(self.s.potential)(xyz, 1)
+        self.assertEqual(p.shape, xyz[0].shape + (3,))
 
     def test_minimum(self):
         x0 = self.s.minimum((0,0,1.), axis=(1, 2))
@@ -214,7 +219,7 @@ class MagtrapCase(unittest.TestCase):
         s = system.System()
         rmax = 1e3
         a, b, c, d, e = -1.3, 1.3, .78, 2.5, 3.
-        s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
+        s.append(electrode.PolygonPixelElectrode(name="rf",
                 rf=1., paths=[
                     [[rmax,0], [-rmax,0], [-rmax,a], [rmax,a]],
                     [[rmax,b+c], [-rmax,b+c], [-rmax,b], [rmax,b]],
@@ -226,12 +231,12 @@ class MagtrapCase(unittest.TestCase):
             (d/2+e/2, a, d, "c6"),
             (0, a, e, "c5"),
             (-d/2-e/2, a, d, "c4")]:
-                s.electrodes.append(electrode.PolygonPixelElectrode(
+                s.append(electrode.PolygonPixelElectrode(
                     name=n, paths=[[
                         [cx-w/2,cy], [cx-w/2,rmax*np.sign(cy)],
                         [cx+w/2,rmax*np.sign(cy)], [cx+w/2,cy],
                     ]]))
-        for e in s.electrodes:
+        for e in s:
             e.paths = [p[::o] for p, o in zip(e.paths, e.orientations())]
         return s
 
@@ -263,7 +268,7 @@ class MagtrapCase(unittest.TestCase):
         nptest.assert_almost_equal(mu.real, 0., 9)
 
     def test_with(self):
-        n = len(self.s.electrodes)
+        n = len(self.s)
         dcs, rfs = np.arange(n), np.arange(n, 2*n)
         self.s.voltages = np.zeros((n, 2))
         nptest.assert_allclose(self.s.voltages, np.zeros((n, 2)))
@@ -386,7 +391,7 @@ class RingtrapCase(unittest.TestCase):
         s = system.System()
         n = 100
         p = np.exp(1j*np.linspace(0, 2*np.pi, 100))
-        s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
+        s.append(electrode.PolygonPixelElectrode(name="rf",
             rf=1, paths=[np.r_[
                 3.38*np.array([p.real, p.imag]).T,
                 .68*np.array([p.real, p.imag]).T[::-1]]]

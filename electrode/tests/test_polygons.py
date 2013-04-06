@@ -34,7 +34,7 @@ class PolygonsCase(unittest.TestCase):
         s = system.System()
         n = 100
         p = np.exp(1j*np.linspace(0, 2*np.pi, 100))
-        s.electrodes.append(electrode.PolygonPixelElectrode(name="rf",
+        s.append(electrode.PolygonPixelElectrode(name="rf",
             rf=1, paths=[np.r_[
                 3.38*np.array([p.real, p.imag]).T,
                 .68*np.array([p.real, p.imag]).T[::-1]]]
@@ -52,8 +52,8 @@ class PolygonsCase(unittest.TestCase):
         if p is None:
             p = self.p
         s1 = p.to_system()
-        self.assertEqual(len(s1.electrodes), len(self.s.electrodes))
-        for a, b in zip(s1.electrodes, self.s.electrodes):
+        self.assertEqual(len(s1), len(self.s))
+        for a, b in zip(s1, self.s):
             self.assertEqual(a.name, b.name)
             self.assertEqual(len(a.paths), len(b.paths))
             for c, d in zip(a.paths, b.paths):

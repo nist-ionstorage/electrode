@@ -36,7 +36,7 @@ class Polygons(list):
         MultiPolygon(...)), ...]
         """
         obj = cls()
-        for e in system.electrodes:
+        for e in system:
             if not hasattr(e, "paths"):
                 continue
             # assert type(e) is PolygonPixelElectrode, (e, e.name)
@@ -55,7 +55,7 @@ class Polygons(list):
         return obj
 
     @classmethod
-    def from_boundaries_routes(cls, boundaries={}, routes=[], edge=40.,
+    def from_boundaries_routes(cls, boundaries=[], routes=[], edge=40.,
             buffer=1e-12):
         """
         start with a edge by edge square,
@@ -67,20 +67,24 @@ class Polygons(list):
         field = geometry.Polygon([[edge/2, edge/2], [-edge/2, edge/2],
                                   [-edge/2, -edge/2], [edge/2, -edge/2]])
         p = cls()
-        for i, polys in boundaries.iteritems():
+        for name, polys in boundaries:
             mp = map(geometry.Polygon, polys)
             mp = geometry.MultiPolygon(mp)
             mp = mp.intersection(field)
             field = field.difference(mp)
-            p.append(("%i/%i" % i, mp))
+            p.append((name, mp))
         gaps = map(geometry.LineString, routes)
         gaps = reduce(lambda a, b: a.union(b), gaps)
         #gaps = ops.cascaded_union(gaps).intersection(field) # segfaults       
-        fields = field.difference(gaps.buffer(buffer, 0))
+        fields = field.difference(gaps.buffer(buffer, 1))
         if type(fields) is geometry.Polygon:
             fields = geometry.MultiPolygon([fields])
         for fragment in fields:
-            #fragment = np.around(fragment, int(-np.log10(buffer)-3))
+            # assume that buffer is much smaller than any relevant
+            # distance and round coordinates to 10*buffer, then simplify
+            fragment = np.array(fragment.exterior.coords)
+            fragment = np.around(fragment, int(-np.log10(buffer)-1))
+            fragment = geometry.Polygon(fragment).buffer(0, 1)
             p.append(("", geometry.MultiPolygon([fragment])))
         return p
 
@@ -88,7 +92,7 @@ class Polygons(list):
         s = System()
         for n, p in self:
             e = PolygonPixelElectrode(name=n, paths=[])
-            s.electrodes.append(e)
+            s.append(e)
             if type(p) is geometry.Polygon:
                 p = [p]
             for pi in p:
@@ -126,27 +130,22 @@ class Polygons(list):
             p.append((ni, pi))
         return p
 
-    def add_gaps(self, gapsize):
+    def add_gaps(self, gapsize=0):
         """
-        shrinks each electrode by adding a gapsize buffer around it
-        gaps between previously touching electrodes will be 2*gapsize wide
+        shrinks each electrode by adding a gapsize buffer around it.
+        gaps between previously touching electrodes will be gapsize wide
         electrodes must not be overlapping
         """
         p = Polygons()
         for ni, pi in self:
-            pb = pi.boundary.buffer(gapsize, 0)
+            pb = pi.buffer(-gapsize/2., 1)
             if pb.is_valid:
-                pc = pi.difference(pb)
-                if pc.is_valid:
-                    pi = pc
+                pi = pb
+            print(ni, pi)
             p.append((ni, pi))
         return p
 
-    def simplify(self, buffer=0.):
-        p = Polygons()
-        for ni, pi in self:
-            p.append((ni, pi.buffer(buffer, 0)))
-        return p
+    simplify = add_gaps
         
     def assign_to_pad(self, pads):
         """given a list of polygons or multipolygons and a list
@@ -211,7 +210,7 @@ if __name__ == "__main__":
     p = p.add_gaps(.05)
     s1 = p.to_system()
     for si in s, s1:
-        for ei in si.electrodes:
+        for ei in si:
             if not hasattr(ei, "paths"):
                 continue
             for pi, oi in zip(ei.paths, ei.orientations()):
