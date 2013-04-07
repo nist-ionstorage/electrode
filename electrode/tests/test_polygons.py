@@ -68,7 +68,7 @@ class PolygonsCase(unittest.TestCase):
         self.test_to_system(p1)
 
     def test_add_gaps(self):
-        p1 = self.p.add_gaps(0)
+        p1 = self.p.add_gaps(0.)
         self.test_to_system(p1)
 
     def test_simplify(self):

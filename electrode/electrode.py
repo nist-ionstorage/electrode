@@ -75,7 +75,7 @@ class CoverElectrode(Electrode):
         if derivative == 0:
             out[:, 0] += potential*x[:, 2]/self.height
         elif derivative == 1:
-            out[:, 2] += potential*1/self.height
+            out[:, 2] += potential/self.height
         else:
             pass
         return out

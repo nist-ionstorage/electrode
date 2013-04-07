@@ -85,11 +85,12 @@ class System(list):
 
     def __getitem__(self, name_or_index):
         """return the first electrode named name or None if not found"""
-        if type(name_or_index) == type(0):
+        try:
             return list.__getitem__(self, name_or_index)
-        for ei in self:
-            if ei.name == name_or_index:
-                return ei
+        except TypeError:
+            for ei in self:
+                if ei.name == name_or_index:
+                    return ei
 
     electrode = __getitem__
 
@@ -408,10 +409,10 @@ class System(list):
 
     def group(self, thresholds=[0], voltages=None):
         if voltages is None:
-            voltages = np.array(self.dcs)
+            voltages = self.dcs
         if thresholds is None:
             threshold = sorted(np.unique(voltages))
-        ts = [-np.inf] + thresholds + [np.inf]
+        ts = [-np.inf] + list(thresholds) + [np.inf]
         eles = []
         for i, (ta, tb) in enumerate(zip(ts[:-1], ts[1:])):
             good = (ta <= voltages) & (voltages < tb)
@@ -427,7 +428,7 @@ class System(list):
                 rfs.append(el.rf)
             eles.append(PolygonPixelElectrode(paths=paths,
                 dc=np.mean(dcs), rf=np.mean(rfs)))
-        return System(electrodes=eles)
+        return System(eles)
 
     def mathieu(self, x, u_dc, u_rf, r=2, sorted=True):
         """return characteristic exponents (mode frequencies) and
@@ -444,7 +445,8 @@ class System(list):
 
     # FIXME
     def analyze_static(self, x, axis=(0, 1, 2), do_ions=False,
-            m=1., q=1., u=1., l=1., o=1.):
+            m=ct.atomic_mass, q=ct.elementary_charge, u=1.,
+            l=100e-6, o=2*np.pi*1e6):
         scale = (u*q/l/o)**2/(4*m) # rf pseudopotential energy scale
         dc_scale = scale/q # dc energy scale
         yield "u = %.3g V, f = %.3g MHz, m = %.3g amu, "\
@@ -502,39 +504,10 @@ class System(list):
             for fi, mi in zip(freqs_ppi, mis.transpose(2, 0, 1)):
                 yield "  %.4g MHz, %s/%s" % (fi/1e6, mi[0], mi[1])
 
-    def analyze_shims(self, x, forces=None, curvatures=None,
-            use_modes=True, **kwargs):
-        x = np.asanyarray(x, dtype=np.double).reshape(-1, 3)
-        if use_modes:
-            coords = [self.modes(xi)[1] for xi in x]
-        else:
-            coords = None
-        fn = "x y z".split()
-        cn = "xx xy xz yy yz".split()
-        if forces is None:
-            forces = [fn] * len(x)
-        if curvatures is None:
-            curvatures = [cn] * len(x)
-        fx = [[fn.index(fi) for fi in fj] for fj in forces]
-        cx = [[cn.index(ci) for ci in cj] for cj in curvatures]
-        us, (res, rank, sing) = self.shims(x, self, fx, cx, coords,
-                **kwargs)
-        yield "shim analysis for points: %s" % x
-        yield " forces: %s" % forces
-        yield " curvatures: %s" % curvatures
-        yield " matrix shape: %s, rank: %i" % (us.shape, rank)
-        yield " electrodes: %s" % np.array(self.names)
-        n = 0
-        for i in range(len(x)):
-            for ni in forces[i]+curvatures[i]:
-                yield " sh_%i%-2s: %s" % (i, ni, us[:, n])
-                n += 1
-        yield us
-
     def ions(self, x0, q):
         """find the minimum energy configuration of several ions with
         normalized charges q and starting positions x0, return their
-        equilibrium positions and the mode frequencies and vectors"""
+        equilibrium positions, the mode frequencies and vectors"""
         n = len(x0)
         qs = q[:, None]*q[None, :]
 
@@ -548,7 +521,7 @@ class System(list):
 
         def g(x0):
             x0 = x0.reshape(-1, 3)
-            p0 = self.potential(x0, 1)
+            p0 = self.potential(x0, 1).T
             x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
             pi = qs*[x, y, z]/np.ma.array(
                     x**2+y**2+z**2)**(3/2.)
@@ -556,13 +529,12 @@ class System(list):
 
         def h(x0):
             x0 = x0.reshape(-1, 3)
+            p0 = self.potential(x0, 2).T
             x, y, z = (x0[None, :] - x0[:, None]).transpose(2, 0, 1)
-            i, j = np.indices(x.shape)
-            p0 = self.potential(x0, 2)
             p = expand_tensor(
-                -qs*[2*x**2-y**2-z**2, 3*x*y, 3*x*z,
+                (-qs*[2*x**2-y**2-z**2, 3*x*y, 3*x*z,
                     2*y**2-x**2-z**2, 3*y*z]/np.ma.array(
-                    x**2+y**2+z**2)**(5/2.))
+                    x**2+y**2+z**2)**(5/2.)).T)
             p = p.transpose(2, 0, 3, 1)
             for i, (p0i, pii) in enumerate(
                     zip(p0.transpose(2, 0, 1), p.sum(2))):

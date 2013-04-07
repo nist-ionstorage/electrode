@@ -96,12 +96,15 @@ class Polygons(list):
             if type(p) is geometry.Polygon:
                 p = [p]
             for pi in p:
-                pi = geometry.polygon.orient(pi, 1)
-                ext = np.array(pi.exterior.coords)[:-1, :2]
-                e.paths.append(ext)
+                ext = np.array(pi.exterior.coords)[:, :2]
+                if not pi.exterior.is_ccw:
+                    ext = ext[::-1]
+                e.paths.append(ext[:-1])
                 for ii in pi.interiors:
-                    int = np.array(ii.coords)[-2::-1, :2]
-                    e.paths.append(int)
+                    int = np.array(ii.coords)[:, :2]
+                    if ii.is_ccw:
+                        int = int[::-1]
+                    e.paths.append(int[:-1])
         return s
 
     def validate(self):
@@ -130,7 +133,7 @@ class Polygons(list):
             p.append((ni, pi))
         return p
 
-    def add_gaps(self, gapsize=0):
+    def add_gaps(self, gapsize):
         """
         shrinks each electrode by adding a gapsize buffer around it.
         gaps between previously touching electrodes will be gapsize wide
@@ -144,7 +147,8 @@ class Polygons(list):
             p.append((ni, pi))
         return p
 
-    simplify = add_gaps
+    def simplify(self, buffer=0):
+        return self.add_gaps(-2*buffer)
         
     def assign_to_pad(self, pads):
         """given a list of polygons or multipolygons and a list

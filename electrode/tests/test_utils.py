@@ -148,5 +148,13 @@ class BasicFunctionsCase(unittest.TestCase):
                 [[-0.0485227, 0.0404789, -0.076643]])
 
 
+class SphHarmCase(unittest.TestCase):
+    def setUp(self):
+        pass
+
+    def test_analysis(self):
+        utils.cartesian_to_spherical_harmonics(c)
+
+
 if __name__ == "__main__":
     unittest.main()

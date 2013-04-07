@@ -76,6 +76,25 @@ class ThreefoldOptimizeCase(unittest.TestCase):
         nptest.assert_allclose(
                 self.s.electrical_potential(self.x0, "rf", 1), 0, atol=1e-9)
 
+    def test_group(self):
+        self.get(points=False)
+        s1 = self.s.group(thresholds=[.5**.5], voltages=self.s.rfs)
+        self.assertEqual(len(s1), 2)
+
+    def test_plot(self):
+        fig, ax = plt.subplots()
+        self.get(points=True)
+        self.s.plot(ax)
+        self.get(points=False)
+        self.s.plot(ax)
+
+    def test_plot_voltages(self):
+        fig, ax = plt.subplots()
+        self.get(points=True)
+        self.s.plot_voltages(ax)
+        self.get(points=False)
+        self.s.plot(ax)
+
     def test_poly(self):
         self.get(points=False)
         nptest.assert_allclose(self.c*self.h**2, .13943, rtol=1e-4)
@@ -122,11 +141,6 @@ class FiveWireCase(unittest.TestCase):
 
     def setUp(self):
         self.s = self.trap()
-
-    def test_shaped(self):
-        xyz = np.mgrid[-1:1:4j, -1:1:5j, .5:1.5:6j]
-        p = utils.shaped(self.s.potential)(xyz, 1)
-        self.assertEqual(p.shape, xyz[0].shape + (3,))
 
     def test_minimum(self):
         x0 = self.s.minimum((0,0,1.), axis=(1, 2))
@@ -212,6 +226,10 @@ class FiveWireCase(unittest.TestCase):
         b = s.potential(x.reshape(3, -1).T, 2)
         nptest.assert_allclose(a, b.reshape(x.shape[1:] + b.shape[1:]))
 
+    def test_shaped(self):
+        xyz = np.mgrid[-1:1:4j, -1:1:5j, .5:1.5:6j]
+        p = utils.shaped(self.s.potential)(xyz, 1)
+        self.assertEqual(p.shape, xyz[0].shape + (3,))
 
 
 class MagtrapCase(unittest.TestCase):
@@ -245,6 +263,18 @@ class MagtrapCase(unittest.TestCase):
         self.s["c1"].dc = 1e-4 # lift degeneracy
         self.x0 = self.s.minimum((.01, .5, 1.), axis=(1,2))
 
+    def test_names(self):
+        n = self.s.names
+        self.s.names = n
+
+    def test_dcs(self):
+        d = self.s.dcs
+        self.s.dcs = 2*d
+
+    def test_rfs(self):
+        r = self.s.rfs
+        self.s.rfs = r
+
     def test_minimum(self):
         x0 = self.s.minimum(self.x0, axis=(1, 2))
         nptest.assert_allclose(self.s.potential(x0, 0)[0], 0., atol=1e-5)
@@ -277,90 +307,35 @@ class MagtrapCase(unittest.TestCase):
             nptest.assert_allclose(self.s.rfs, rfs)
         nptest.assert_allclose(self.s.voltages, np.zeros((n, 2)))
 
-    def test_shims_shift(self):
+    def test_shims(self):
         x = self.x0
         eln = "c1 c2 c3 c4 c5 c6".split()
         s = system.System([self.s[n] for n in eln])
         derivs = "x y z xx yy yz".split()
         vectors = s.shims([(x, None, d) for d in derivs])
         self.assertEqual(vectors.shape, (len(derivs), len(eln)))
+        return vectors, s, derivs
+
+    def test_shims_shift(self):
+        vectors, s, derivs = self.test_shims()
+        x = self.x0
         for v, n in zip(vectors, derivs):
             d, e = utils.name_to_deriv(n)
             s.dcs = v
-            p = s.electrical_potential(x, "dc", d)[0]
-            #v = np.identity(2*d+1)[e]
-            #nptest.assert_almost_equal(p, v)
-            nptest.assert_allclose(p[e], 1, rtol=1e-5)
-
-    def test_shims_shift_modes(self):
-        x = self.x0
-        eln = "c1 c2 c3 c4 c5 c6".split()
-        els = [self.s.electrode(n) for n in eln]
-        o0, e0 = self.s.modes(x)
-        us, (res, rank, sing) = self.s.shims([x], els, curvatures=[[]],
-                coords=[e0])
-        for i, usi in enumerate(us.T):
-            for ui, el in zip(usi, els):
-                el.voltage_dc = ui
-            g = self.s.gradient(x)[..., 0]
-            g = np.dot(e0.T, g)
-            nptest.assert_almost_equal(g[i], 1, decimal=3)
-
-    def test_shims_curve(self):
-        x = self.x0
-        eln = "c1 c2 c3 c4 c5 c6".split()
-        els = [self.s.electrode(n) for n in eln]
-        o0, e0 = self.s.modes(x)
-        us, (res, rank, sing) = self.s.shims([x], els,
-                forces=[[0, 1, 2]],
-                curvatures=[[0, 1, 4]],
-                coords=None)
-        self.assertEqual(us.shape, (len(eln), 6))
-        self.assertEqual(rank, 6)
-        c0 = utils.select_tensor(self.s.curvature(x))[:, 0]
-        for i, usi in enumerate(us.T):
-            for ui, el in zip(usi, els):
-                el.voltage_dc = ui
-            if i in (0, 1, 2): # force
-                nptest.assert_almost_equal(self.s.gradient(x)[i, 0], 1,
-                    decimal=2)
-            if i in (3, 4, 5): # curve
-                c1 = utils.select_tensor(self.s.curvature(x))[:, 0]
-                ax = {3:0, 4:1, 5:4}[i]
-                nptest.assert_almost_equal(c1[ax]-c0[ax], 1,
-                    decimal=2)
-                nptest.assert_almost_equal(self.s.gradient(x)[:, 0],
-                        [0., 0, 0], decimal=5)
-            if i == 0:
-                nptest.assert_almost_equal(usi[(0, 3), :], -usi[(2, 5), :])
-            elif i in (1, 2):
-                nptest.assert_almost_equal(usi[(0, 3), :], usi[(2, 5), :])
-            if i == 2:
-                self.assertEqual(np.alltrue(usi > 0), True)
-
-    def test_shims_build(self):
-        x = self.x0
-        eln = "c1 c2 c3 c4 c5 c6".split()
-        els = [self.s.electrode(n) for n in eln]
-        us, (res, rank, sing) = self.s.shims([x], els,
-                forces=[[0, 1, 2]],
-                curvatures=[[0, 1, 4]],
-                coords=None)
-        us = us.T
-        u = .01*us[3]
-        for ui, el in zip(u, els):
-            el.voltage_dc = ui
-        o0, e0 = self.s.modes(x)
-        nptest.assert_almost_equal(o0, [.01, .095, .128], decimal=3)
-        nptest.assert_almost_equal(self.s.potential_rf(x), 0.)
-        mu, b = self.s.mathieu(x, 4*.018, 30*.018)
-        nptest.assert_almost_equal(mu.real, 0., 9)
+            for n1 in derivs:
+                d1, e1 = utils.name_to_deriv(n1)
+                p = s.electrical_potential(x, "dc", d1)[0][e1]
+                if n1 == n:
+                    nptest.assert_allclose(p, 1, rtol=1e-4)
+                else:
+                    nptest.assert_allclose(p, 0, atol=1e-4)
 
     def test_ions_simple(self):
-        self.test_shims_build()
+        vectors, s, derivs = self.test_shims()
+        s.dcs = .1*vectors[3]
         x = self.x0
         n = 3
-        xi = x+np.random.randn(n)[:, None]*1e-3
+        xi = x[0]+np.random.randn(n)[:, None]*1e-3
         qi = np.ones((n))*1e-3
         xis, ois, vis = self.s.ions(xi, qi)
         nptest.assert_almost_equal(
@@ -368,7 +343,8 @@ class MagtrapCase(unittest.TestCase):
 
     def test_ions_modes(self):
         """fails sometimes due to near degeneracy"""
-        self.test_shims_build()
+        vectors, s, derivs = self.test_shims()
+        s.dcs = .1*vectors[3]
         x = self.x0
         n = 2
         xi = x+np.random.randn(n)[:, None]*1e-3
@@ -380,10 +356,6 @@ class MagtrapCase(unittest.TestCase):
     def test_analyze_static(self):
         s = list(self.s.analyze_static(self.x0))
         self.assertEqual(len(s), 23)
-
-    def test_analyze_shims(self):
-        s = list(self.s.analyze_shims([self.x0]))
-        self.assertEqual(len(s), 14)
 
 
 class RingtrapCase(unittest.TestCase):

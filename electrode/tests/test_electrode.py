@@ -62,20 +62,19 @@ class LargeElectrodeCase(unittest.TestCase):
             self.x, 0)[0], 1)
 
     def test_pot_cover(self):
-        self.e.cover_nmax = 3
-        self.e.cover_height = 100.
-        nptest.assert_almost_equal(self.e.potential(
-            self.x, 0)[0], 1)
-        nptest.assert_almost_equal(self.e.potential(
-            self.x*[[1, 1, -1]], 0)[0], -1)
+        #need large numbers due to large electrode
+        self.e.cover_nmax = 1e5
+        self.e.cover_height = 1e6
+        x = np.array([[0, 0, self.e.cover_height]])
+        nptest.assert_allclose(self.e.potential(x, 0), 0, atol=1e-4)
 
     def test_z_symmetry(self):
-        for i, s in enumerate([-1, (-1, -1, 1), (-1, -1, 1, -1, 1),
-                (-1, 1, 1, -1, -1, -1, 1)]):
-            a = self.e.potential(self.x*[[1, 1, -1]], i)[0]
-            b = self.e.potential(self.x, i)[0]
-            nptest.assert_almost_equal(s*a, b)
-      
+        x = self.x*[[1, 1, 1,], [1, 1, -1]]
+        for i, deriv in enumerate(utils.derivative_names):
+            s = -(-1)**np.array([_.count("z") for _ in deriv])
+            p = self.e.potential(x, i)
+            nptest.assert_allclose(s*p[0], p[1])
+
     def test_grad(self):
         nptest.assert_allclose(self.e.potential(
             self.x, 1), 0, atol=1e-9)
@@ -109,12 +108,14 @@ class PixelElectrodeCase(unittest.TestCase):
             nptest.assert_allclose(a, b, rtol=1e-4)
 
     def test_z_symmetry(self):
-        for i, s in enumerate([-1, (-1, -1, 1), (-1, -1, 1, -1, 1),
-                (-1, 1, 1, -1, -1, -1, 1)]):
-            a = self.e.potential(self.x*[[1, 1, -1]], i)[0]
-            b = self.e.potential(self.x, i)[0]
-            nptest.assert_almost_equal(s*a, b)
- 
+        x = self.x*[[1, 1, 1,], [1, 1, -1]]
+        for i, deriv in enumerate(utils.derivative_names):
+            s = -(-1)**np.array([_.count("z") for _ in deriv])
+            p = self.e.potential(x, i)
+            nptest.assert_allclose(s*p[0], p[1])
+            q = self.p.potential(x, i)
+            nptest.assert_allclose(s*q[0], q[1])
+
     def test_orientation(self):
         nptest.assert_almost_equal(self.e.orientations(), [1.])
         nptest.assert_almost_equal(self.p.orientations(), [1.])
@@ -140,6 +141,16 @@ class PolygonTestCase(unittest.TestCase):
 
     def test_orientation(self):
         nptest.assert_almost_equal(self.e.orientations(), [1.])
+
+    def test_pot_cover(self):
+        self.e.cover_nmax = 10
+        self.e.cover_height = 50.
+        x = np.array([[0, 0, self.e.cover_height]])
+        # phi = 0
+        nptest.assert_allclose(self.e.potential(x, 0), 0, atol=1e-5)
+        # E_perp == 0
+        nptest.assert_allclose(self.e.potential(x, 1)[:, :2], 0,
+                atol=1e-5)
 
     def test_known_pot(self):
         nptest.assert_almost_equal(
@@ -183,12 +194,17 @@ class PolygonTestCase(unittest.TestCase):
 
     def test_spherical_harmonics(self):
         ns = range(6)
-        v = [utils.expand_tensor(self.e.potential(self.x, i))[0] for i in ns]
+        v = [self.e.potential(self.x, i).T for i in ns]
         for i, vi in enumerate(v):
-            vi = np.atleast_3d(vi)
             s = utils.cartesian_to_spherical_harmonics(vi)
             self.assertEqual(s.shape, vi.shape)
 
+    def test_z_symmetry(self):
+        x = self.x*[[1, 1, 1,], [1, 1, -1]]
+        for i, deriv in enumerate(utils.derivative_names):
+            s = -(-1)**np.array([_.count("z") for _ in deriv])
+            p = self.e.potential(x, i)
+            nptest.assert_allclose(s*p[0], p[1])
 
 
 class GridElectrodeCase(unittest.TestCase):
