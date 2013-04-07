@@ -34,6 +34,7 @@ from scipy import constants
 from electrode.transformations import euler_matrix
 from electrode import (System, PointPixelElectrode, PolygonPixelElectrode,
     PotentialObjective, PatternRangeConstraint)
+from electrode.utils import shaped
     
 set_printoptions(precision=2)
 
@@ -78,8 +79,8 @@ def threefold(n, h, d, H, nmax=1, points=True):
     The effect of a grounded shielding cover at height H is accounted for
     up to nmax components in the expansion in h/H.
     """
-    s = System(electrodes=hextess(n, points))
-    for ele in s.electrodes:
+    s = System(hextess(n, points))
+    for ele in s:
         ele.cover_height = H
         ele.nmax = nmax
 
@@ -136,8 +137,8 @@ print "rf''/c:", s.electrical_potential(x0, "rf", 2)[0]/c
 
 # <codecell>
 
-fig = plt.figure()
-ax = fig.add_subplot(1, 1, 1, aspect="equal")
+fig, ax = plt.subplots()
+ax.set_aspect("equal")
 ax.set_xlim((-1,1))
 ax.set_ylim((-1,1))
 s.plot_voltages(ax, u=s.rfs)
@@ -165,11 +166,10 @@ for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
 
 n = 30
 xyz = mgrid[-d:d:1j*n, -d:d:1j*n, h:h+1]
-xyzt = xyz.reshape(3, -1).T
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, aspect="equal")
 ax.contour(xyz[0].reshape((n,n)), xyz[1].reshape((n,n)),
-           log(s.potential(xyzt)).reshape((n,n)),
+           log(shaped(s.potential)(xyz)).reshape((n,n)),
            20, cmap=plt.cm.hot)
 
 # <markdowncell>
@@ -184,8 +184,7 @@ print "main saddle:", xs0, ps0
 
 n = 30
 xyz = mgrid[-d:d:1j*n, 0:1, .7*h:3*h:1j*n]
-xyzt = xyz.reshape(3, -1).T
-p = s.potential(xyzt)
+p = shaped(s.potential)(xyz)
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, aspect="equal")
 ax.contour(xyz[0].reshape((n,n)), xyz[2].reshape((n,n)),

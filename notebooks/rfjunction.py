@@ -33,6 +33,7 @@ from matplotlib import pyplot as plt
 from scipy import constants
 from electrode.transformations import euler_matrix
 from electrode import System, CoverElectrode, PolygonPixelElectrode
+from electrode.utils import shaped
     
 set_printoptions(precision=2)
 
@@ -90,10 +91,10 @@ def rfjunction(l1, l2, a1, a2, a3):
     els = [(n, [array(p)[:,0,:] for p in el]) for n, el in els]
     s = System()
     for n, paths in els:
-        s.electrodes.append(PolygonPixelElectrode(name=n, paths=paths,
-                nmax=nmax, cover_height=cover_height))
-    s.electrodes.append(CoverElectrode(name="m",
-        cover_height=cover_height))
+        s.append(PolygonPixelElectrode(name=n, paths=paths,
+                cover_nmax=nmax, cover_height=cover_height))
+    s.append(CoverElectrode(name="m",
+        height=cover_height))
     return s
 
 # <codecell>
@@ -101,8 +102,8 @@ def rfjunction(l1, l2, a1, a2, a3):
 s = rfjunction(l1=3.7321851829486046, l2=3.0921935283018334,
                 a1=1.5968461727578884, a2=0.7563967699214798,
                 a3=0.2630201367283588)
-fig = plt.figure()
-ax = fig.add_subplot(1, 1, 1, aspect="equal")
+fig, ax = plt.subplots()
+ax.set_aspect("equal")
 ax.set_xlim((-10,10))
 ax.set_ylim((-11,6))
 s.plot(ax, label="")
@@ -110,9 +111,9 @@ s.plot(ax, label="")
 # <codecell>
 
 # connect b rf, c rf and main rf
-s.electrode("r").rf = 1
-s.electrode("br").rf = 1
-s.electrode("cr").rf = 1
+s["r"].rf = 1
+s["br"].rf = 1
+s["cr"].rf = 1
 
 def channel(x):
     """return channel minimum at x=x"""
@@ -139,8 +140,7 @@ _ = plt.plot(xc[:, 0], om[:, 0], "r-", xc[:, 0], om[:, 1], "g-", xc[:, 0], om[:,
 n = 100
 r = 7
 xyz = mgrid[-r:r:1j*n, -r:r:1j*n, 1:2]
-xyzt = xyz.reshape(3, -1).T
-p = s.potential(xyzt)
+p = shaped(s.potential)(xyz)
 fig = plt.figure()
 ax = fig.add_subplot(1, 1, 1, aspect="equal")
 _ = ax.contour(xyz[0].reshape((n,n)), xyz[1].reshape((n,n)),
@@ -149,17 +149,17 @@ _ = ax.contour(xyz[0].reshape((n,n)), xyz[1].reshape((n,n)),
 
 # <codecell>
 
-x0a10, x0b10, x0c10 = (channel(s.electrode(e).paths[0].mean(axis=0)[0]) for e in "a10 b10 c10".split())
+x0a10, x0b10, x0c10 = (channel(s[e].paths[0].mean(axis=0)[0]) for e in "a10 b10 c10".split())
 x0 = x0b10
 els = "b7 b8 b9 b10 b11".split()
-us = s.shims([(x0, None, i) for i in "x z xx xz".split()])
+s1 = System(s[i] for i in els)
+us = s1.shims([(x0, None, i) for i in "x z xx xz".split()])
 
 # add some yy curvature
-for eli, ui in zip(els, us[2]):
-    s.electrode(eli).dc = .02*ui
+s1.dcs = .02*us[2]
 
-fig = plt.figure()
-ax = fig.add_subplot(1, 1, 1, aspect="equal")
+fig, ax = plt.subplots()
+ax.set_aspect("equal")
 ax.set_xlim((-12,0))
 ax.set_ylim((0,8))
 s.plot_voltages(ax, label="")
@@ -177,21 +177,20 @@ for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
     print line
     
 # undo yy curvature at x0
-for eli in els:
-    s.electrode(eli).dc = .0
+s1 = 0*us[3]
 
 # <codecell>
 
 x0 = channel(0.) # center of b-c channel
 els = "a1 a2 a3 b1 b2 b3 b4 b5 c1 c2 c3 c4 c5".split()
-us = s.shims([(x0, None, i) for i in "x y z xx yy yz".split()])
+s1 = System(s[i] for i in els)
+us = s1.shims([(x0, None, i) for i in "x y z xx yy yz".split()])
 
 # add some xx curvature
-for eli, ui in zip(els, us[:, 3]):
-    s.electrode(eli).dc = .02*ui
+s1.dcs = .02*us[3]
 
-fig = plt.figure()
-ax = fig.add_subplot(1, 1, 1, aspect="equal")
+fig, ax = plt.subplots()
+ax.set_aspect("equal")
 ax.set_xlim((-6,6))
 ax.set_ylim((-3,5))
 s.plot_voltages(ax, label="")
@@ -209,8 +208,7 @@ for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
     print line
     
 # undo yy curvature at x0
-for eli in els:
-    s.electrode(eli).dc = .0
+s1.dcs = 0*us[3]
 
 # <codecell>
 
