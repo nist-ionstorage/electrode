@@ -83,16 +83,16 @@ class ThreefoldOptimizeCase(unittest.TestCase):
 
     def test_plot(self):
         fig, ax = plt.subplots()
-        self.get(points=True)
+        self.get(points=True, n=4)
         self.s.plot(ax)
-        self.get(points=False)
+        self.get(points=False, n=4)
         self.s.plot(ax)
 
     def test_plot_voltages(self):
         fig, ax = plt.subplots()
-        self.get(points=True)
+        self.get(points=True, n=4)
         self.s.plot_voltages(ax)
-        self.get(points=False)
+        self.get(points=False, n=4)
         self.s.plot(ax)
 
     def test_poly(self):

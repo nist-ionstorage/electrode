@@ -39,6 +39,8 @@ except ImportError:
 
 
 class Electrode(object):
+    __slots__ = "name dc rf".split()
+
     def __init__(self, name="", dc=0., rf=0.):
         self.name = name
         self.dc = dc
@@ -60,7 +62,8 @@ class Electrode(object):
 
 
 class CoverElectrode(Electrode):
-    height = 50.
+    __slots__ = "height".split()
+
     # also adjust cover_height in
     # the other electrodes to include the cover's effect on their
     # potentials
@@ -99,6 +102,7 @@ class SurfaceElectrode(Electrode):
     Ions", PRL 102:233002 (2009),
     http://dx.doi.org/10.1103/PhysRevLett.102.233002
     """
+    __slots__ = "cover_height cover_nmax".split()
 
     def __init__(self, cover_height=50., cover_nmax=0, **kwargs):
         super(SurfaceElectrode, self).__init__(**kwargs)
@@ -109,6 +113,8 @@ class SurfaceElectrode(Electrode):
 
 
 class PointPixelElectrode(SurfaceElectrode):
+    __slots__ = "points areas".split()
+
     def __init__(self, points=[], areas=[], **kwargs):
         super(PointPixelElectrode, self).__init__(**kwargs)
         self.points = np.asanyarray(points, np.double)
@@ -140,6 +146,8 @@ class PointPixelElectrode(SurfaceElectrode):
 
 
 class PolygonPixelElectrode(SurfaceElectrode):
+    __slots__ = "paths".split()
+
     def __init__(self, paths=[], **kwargs):
         super(PolygonPixelElectrode, self).__init__(**kwargs)
         self.paths = [np.asanyarray(i, np.double) for i in paths]
@@ -174,6 +182,8 @@ class PolygonPixelElectrode(SurfaceElectrode):
 
 
 class MeshPixelElectrode(SurfaceElectrode):
+    __slots__ = "points edges polygons potentials".split()
+
     def __init__(self, points=[], edges=[], polygons=[], potentials=[],
             **kwargs):
         super(MeshPixelElectrode, self).__init__(**kwargs)
@@ -206,6 +216,8 @@ class MeshPixelElectrode(SurfaceElectrode):
 
 
 class GridElectrode(Electrode):
+    __slots__ = "data origin spacing".split()
+
     def __init__(self, data=[], origin=(0, 0, 0), spacing=(1, 1, 1),
             **kwargs):
         super(GridElectrode, self).__init__(**kwargs)
