@@ -22,6 +22,7 @@ from __future__ import (absolute_import, print_function,
 
 import warnings, itertools
 from contextlib import contextmanager
+import logging
 
 import numpy as np
 from scipy import optimize, constants as ct
@@ -39,12 +40,15 @@ except ImportError:
 
 from .transformations import euler_from_matrix
 from .saddle import rfo
-from .electrode import Electrode, PolygonPixelElectrode
+from .electrode import PolygonPixelElectrode
 from .utils import (expand_tensor, norm, rotate_tensor,
-    mathieu, name_to_deriv, shaped)
+    mathieu, name_to_deriv)
 from .pattern_constraints import (PatternRangeConstraint,
         PotentialObjective)
 from . import colors
+
+
+logger = logging.getLogger()
 
 
 class System(list):
