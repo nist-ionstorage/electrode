@@ -141,7 +141,6 @@ class Polygons(list):
             pb = pi.buffer(-gapsize/2., 1)
             if pb.is_valid:
                 pi = pb
-            print(ni, pi)
             p.append((ni, pi))
         return p
 
@@ -151,14 +150,14 @@ class Polygons(list):
         """given a list of polygons or multipolygons and a list
         of pad xy coordinates, yield tuples of
         (pad number, polygon index, polygon)"""
-        polys = list(enumerate(self))
+        polys = range(len(self))
         for pad, (x, y) in enumerate(pads):
             p = geometry.Point(x, y)
-            for i in range(len(polys)):
-                j, (name, poly) = polys[i]
+            for i in polys:
+                name, poly = self[i]
                 if p.intersects(poly):
-                    yield pad, j, poly
-                    del polys[i]
+                    yield pad, i
+                    polys.remove(i)
                     break
             if not polys:
                 break

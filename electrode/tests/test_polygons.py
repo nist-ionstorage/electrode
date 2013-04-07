@@ -20,13 +20,14 @@
 from __future__ import (absolute_import, print_function,
         unicode_literals, division)
 
+import os
 import unittest
 from numpy import testing as nptest
 
 import numpy as np
 from scipy import constants as ct
 
-from electrode import (electrode, system, polygons)
+from electrode import (electrode, system, polygons, gds)
 
 
 class PolygonsCase(unittest.TestCase):
@@ -76,6 +77,21 @@ class PolygonsCase(unittest.TestCase):
     
     def test_gaps_union(self):
         g = self.p.gaps_union()
+
+
+class PolygonsReadGdsCase(unittest.TestCase):
+    fil = "test.gds"
+    @unittest.skipUnless(os.path.exists(fil), "no example gds")
+    def test_read_boundaries_gaps(self):
+        b, r = gds.from_gds_gaps(open(self.fil, "rb"), scale=100e-6)
+        p = polygons.Polygons.from_boundaries_routes(b, r, edge=30.)
+        names = "c0 m1 m2 m3 m4 m5 m6 rf a1 a2 p6 p5 p4 p3 p2 p1".split()
+        pads = polygons.square_pads(step=.5, edge=30)
+        for pad, poly in p.assign_to_pad(pads):
+            p[poly] = names.pop(0), p[poly][1]
+        assert not names
+        s = p.to_system()
+        assert len(s) == 16
 
 
 if __name__ == "__main__":

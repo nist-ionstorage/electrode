@@ -226,7 +226,7 @@ class GridElectrodeCase(unittest.TestCase):
 class GridElectrodeVtkCase(unittest.TestCase):
     fil = "~/work/nist/qc-tools/trunk/bin/threefold_2_sim_dense_rf.vtk"
     fil = os.path.expanduser(fil)
-    @unittest.skipIf(not os.path.exists(fil), "no dataset")
+    @unittest.skipUnless(os.path.exists(fil), "no dataset")
     def test_load_vtk(self):
         e = electrode.GridElectrode.from_vtk(os.path.expanduser(fil))
 
