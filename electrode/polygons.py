@@ -69,7 +69,11 @@ class Polygons(list):
         p = cls()
         for name, polys in boundaries:
             mp = map(geometry.Polygon, polys)
-            mp = geometry.MultiPolygon(mp)
+            mp = reduce(lambda a, b: a.union(b), mp)
+            if not type(mp) is geometry.MultiPolygon:
+                mp = geometry.MultiPolygon([mp])
+            assert mp.is_valid, polys
+            assert field.is_valid, field
             mp = mp.intersection(field)
             field = field.difference(mp)
             p.append((name, mp))
