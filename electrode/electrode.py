@@ -226,7 +226,7 @@ class GridElectrode(Electrode):
         self.spacing = np.asanyarray(spacing, np.double)
 
     @classmethod
-    def from_result(cls, result, maxderiv=3):
+    def from_result(cls, result, maxderiv=4):
         obj = cls()
         obj.origin = result.grid.get_origin()
         obj.spacing = result.grid.step
@@ -259,12 +259,12 @@ class GridElectrode(Electrode):
             dimensions = tuple(sg.dimensions)
             dim = sp.number_of_components
             data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
-            pot[(dim-1)/2] = data
+            pot[int((dim-1)/2)] = data
         obj = cls(origin=origin, spacing=spacing, data=pot)
         return obj
 
-    def generate(self, maxderiv=3):
-        for deriv in range(maxderiv+1):
+    def generate(self, maxderiv=4):
+        for deriv in range(maxderiv):
             if len(self.data) < deriv+1:
                 self.data.append(self.derive(deriv))
             ddata = self.data[deriv]
@@ -289,6 +289,6 @@ class GridElectrode(Electrode):
             out = np.zeros((x.shape[0], 2*derivative+1), np.double)
         dat = self.data[derivative]
         for i in range(2*derivative+1):
-            map_coordinates(dat[..., i], x.T, order=1, mode="nearest",
-                    output=out[:, i])
+            out[:, i] += potential*map_coordinates(dat[..., i], x.T,
+                    order=1, mode="nearest")
         return out

@@ -24,6 +24,7 @@ import unittest
 from numpy import testing as nptest
 
 import numpy as np
+from scipy.special import sph_harm
 
 from electrode import transformations, utils, electrode
 
@@ -150,10 +151,38 @@ class BasicFunctionsCase(unittest.TestCase):
 
 class SphHarmCase(unittest.TestCase):
     def setUp(self):
-        pass
+        c = np.ones(3)*0.
+        s = np.ones(3)*1.
+        self.nn = 3
+        n = np.ones(3)*(self.nn*2+1)
+        o = c-(n-1)/2*s
+        self.x = np.mgrid[[slice(oi, oi+ni*si, si) for oi, ni, si in
+                zip(o, n, s)]]
+        self.xt = self.x.reshape(3, -1).T
+        xy = np.square(self.x[:2]).sum(0)
+        self.r = np.sqrt(xy+np.square(self.x[2]))
+        self.theta = np.arctan2(np.sqrt(xy), self.x[2])
+        self.phi = np.arctan2(self.x[1], self.x[0])
+        self.e = electrode.GridElectrode(data=[], origin=o, spacing=s)
 
     def test_analysis(self):
-        utils.cartesian_to_spherical_harmonics(c)
+        n = 6
+        for l in range(n):
+            for m in range(-l, l+1):
+                y = sph_harm(abs(m), l, self.phi, self.theta)
+                y = {-1: 2**.5*y.real, 0: y.real, 1: 2**.5*y.imag}[np.sign(m)]
+                self.e.data = [(y*self.r**l)[:, :, :, None]]
+                self.e.generate(n)
+                for k in range(n):
+                    p = self.e.potential(self.xt, k).T
+                    a = utils.cartesian_to_spherical_harmonics(p)
+                    a = a.T.reshape(self.x[0].shape + (a.shape[0],))
+                    ac = a[self.nn, self.nn, self.nn]
+                    if k == l:
+                        nptest.assert_allclose(ac, np.identity(2*l+1)[l-m],
+                                rtol=1e-12, atol=1e-12)
+                    elif not (l > k and (l-k)%2 == 0): # FIXME
+                        nptest.assert_allclose(ac, 0, atol=1e-12)
 
 
 if __name__ == "__main__":

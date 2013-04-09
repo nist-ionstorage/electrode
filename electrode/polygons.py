@@ -100,15 +100,15 @@ class Polygons(list):
             if type(p) is geometry.Polygon:
                 p = [p]
             for pi in p:
-                ext = np.array(pi.exterior.coords)[:, :2]
+                ext = np.array(pi.exterior.coords)
                 if not pi.exterior.is_ccw:
                     ext = ext[::-1]
-                e.paths.append(ext[:-1])
+                e.paths.append(ext[:-1, :2])
                 for ii in pi.interiors:
-                    int = np.array(ii.coords)[:, :2]
+                    int = np.array(ii.coords)
                     if ii.is_ccw:
                         int = int[::-1]
-                    e.paths.append(int[:-1])
+                    e.paths.append(int[:-1, :2])
         return s
 
     def validate(self):

@@ -231,7 +231,7 @@ class GridElectrodeCase(unittest.TestCase):
             self.e.generate(maxderiv=i)
 
     def test_pot(self):
-        self.e.generate(4)
+        self.e.generate(5)
         x = np.array([[1.4567, 1.67858, 1.49533]])
         for d, r in (0, 1e-3), (1, 2e-3), (2, 5e-3), (3, .1), (4, .5):
             pe = self.e.potential(x, d)
@@ -244,7 +244,7 @@ class GridElectrodeVtkCase(unittest.TestCase):
     fil = os.path.expanduser(fil)
     @unittest.skipUnless(os.path.exists(fil), "no dataset")
     def test_load_vtk(self):
-        e = electrode.GridElectrode.from_vtk(os.path.expanduser(fil))
+        e = electrode.GridElectrode.from_vtk(os.path.expanduser(self.fil))
 
 
 class MeshElectrodeCase(unittest.TestCase):
