@@ -59,8 +59,8 @@ def rotate_tensor(c, r, order=None):
     """rotate a tensor c into the coordinate system r
     assumes that its order is len(c.shape)-1
     the first dimension(s) are used for parallelizing"""
-    c = np.atleast_1d(c)
-    r = np.atleast_2d(r)
+    #c = np.atleast_1d(c)
+    #r = np.atleast_2d(r)
     n = len(c.shape)-1
     if order is None:
         order = n
@@ -176,7 +176,7 @@ def expand_tensor(c, order=None):
     and laplace
 
     inverse of select_tensor()"""
-    c = np.atleast_2d(c)
+    #c = np.atleast_2d(c)
     if order is None:
         order = (c.shape[-1]-1)//2
     if order == 0:
@@ -199,7 +199,7 @@ def select_tensor(c, order=None):
     harmonic field
 
     inverse of expand_tensor()"""
-    c = np.atleast_1d(c)
+    #c = np.atleast_1d(c)
     n = len(c.shape)
     if order is None:
         order = n - 1 # nx, 3, ..., 3
@@ -219,7 +219,7 @@ def cartesian_to_spherical_harmonics(c):
     Convention and conversion to complex spherical harmonics as per
     http://theoretical-physics.net/dev/src/math/operators.html#real-spherical-harmonics
     """
-    c = np.atleast_1d(c)
+    #c = np.atleast_1d(c)
     l = (c.shape[0] - 1)//2
     #n = 1/(factorial(l)*2**l*np.sqrt(np.pi/(2*l+1)))
     #n *= 4*np.pi*2**(l+1)/(l+1)*factorial(l+1)**2/factorial(2*l+2)
