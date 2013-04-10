@@ -116,11 +116,11 @@ def find_laplace(c):
     for i in letters:
         if name.count(i) >= 2:
             keep = name[:]
-            k = keep.index(i)
-            del keep[k:k+2]
+            keep.remove(i)
+            keep.remove(i)
             take = letters[:]
             take.remove(i)
-            a, b = (tuple(sorted(keep+[j]*2)) for j in take)
+            a, b = (tuple(sorted(keep+[j,j])) for j in take)
             yield a, b
 
 def populate_maps():
@@ -154,7 +154,7 @@ def populate_maps():
                     if a in names and b in names:
                         ia, ib = (names.index(i) for i in (a, b))
                         expand_map[deriv][nidx] = ia, ib
-                assert expand_map[deriv][nidx] is not None, name
+            assert expand_map[deriv][nidx] is not None, name
 
 populate_maps()
 
@@ -190,7 +190,7 @@ def expand_tensor(c, order=None):
             if type(j) is int:
                 d[..., i] = c[..., j]
             else:
-                d[..., i] = -c[..., j].sum(-1) # laplace
+                d[..., i] = -c[..., j[0]]-c[..., j[1]] # laplace
         return d.reshape(shape + (3,)*order)
 
 
