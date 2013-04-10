@@ -88,9 +88,9 @@ derivative_names = [[""]] + [s.split() for s in [
 
 derivatives_map = {} # sorted name: (derivative order, derivative index)
 name_map = {} # reverse derivatives_map
-expand_map = {} # derivative order: 3**order list of selected index
+expand_map = [] # derivative order: 3**order list of selected index
 # or laplace pair
-select_map = {} # derivative order: 2*order+1 list of indices into
+select_map = [] # derivative order: 2*order+1 list of indices into
 # 3**order expanded
 derive_map = {} # (derivative order, derivative index): ((lower
 # derivative order, lower derivative index), axis to derive)
@@ -141,8 +141,8 @@ def populate_maps():
                 a, b = map(idx_to_name, lap)
                 assert (a not in names) or (b not in names), (name, a, b)
         idx = tuple(idx_to_nidx(name_to_idx(name)) for name in names)
-        select_map[deriv] = idx
-        expand_map[deriv] = [None] * 3**deriv
+        select_map.append(idx)
+        expand_map.append([None] * 3**deriv)
         for idx in product(range(3), repeat=deriv):
             nidx = idx_to_nidx(idx)
             name = idx_to_name(idx)
@@ -155,7 +155,6 @@ def populate_maps():
                         ia, ib = (names.index(i) for i in (a, b))
                         expand_map[deriv][nidx] = ia, ib
                 assert expand_map[deriv][nidx] is not None, name
-    expand_map[0] = None
 
 populate_maps()
 
