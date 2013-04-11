@@ -82,7 +82,7 @@ def threefold(n, h, d, H, nmax=1, points=True):
     s = System(hextess(n, points))
     for ele in s:
         ele.cover_height = H
-        ele.nmax = nmax
+        ele.cover_nmax = nmax
 
     ct = []
     ct.append(PatternRangeConstraint(min=0, max=1.))
