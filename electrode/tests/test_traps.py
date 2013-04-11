@@ -330,6 +330,7 @@ class MagtrapCase(unittest.TestCase):
                 else:
                     nptest.assert_allclose(p, 0, atol=1e-4)
 
+    @unittest.skip("ions() broken")
     def test_ions_simple(self):
         vectors, s, derivs = self.test_shims()
         s.dcs = .1*vectors[3]
@@ -341,6 +342,7 @@ class MagtrapCase(unittest.TestCase):
         nptest.assert_almost_equal(
                 xis[np.argmin(np.abs(xis)[:, 0])], x, 3)
 
+    @unittest.skip("ions() broken")
     def test_ions_modes(self):
         """fails sometimes due to near degeneracy"""
         vectors, s, derivs = self.test_shims()

@@ -20,12 +20,16 @@
 from __future__ import (absolute_import, print_function,
         unicode_literals, division)
 
-import numpy as np
+import logging
 
+import numpy as np
 from shapely import geometry, ops
+from gdsii import library, structure, elements
 
 from .system import System
 from .electrode import PolygonPixelElectrode
+
+logger = logging.getLogger()
 
 
 class Polygons(list):
@@ -73,6 +77,131 @@ class Polygons(list):
                     e.paths.append(int[:-1, :2])
         return s
 
+    # attribute namespaces anyone?
+    attr_base = sum(ord(i) for i in "electrode") # 951
+    attr_name = attr_base + 0
+
+    @classmethod
+    def from_gds(cls, fil, scale=1., name=None, poly_layers=None,
+            gap_layers=None, route_layers=[], bridge_layers=[], **kwargs):
+        lib = library.Library.load(fil)
+        polys = []
+        gaps = []
+        routes = []
+        bridges = []
+        for stru in lib:
+            assert type(stru) is structure.Structure
+            if name is None or name == stru.name:
+                break
+        for e in stru:
+            ij = e.layer, e.data_type
+            path = np.array(e.xy)*lib.physical_unit/scale
+            props = dict(e.properties)
+            name = props.get(cls.attr_name, "")
+            if type(e) is elements.Boundary:
+                if poly_layers is None or ij in poly_layers:
+                    polys.append((name, path))
+            elif type(e) is elements.Path:
+                if gap_layers is None or ij in gap_layers:
+                    gaps.append(path)
+                elif ij in route_layers:
+                    routes.append(path)
+                elif ij in bridge_layers:
+                    bridges.append(path)
+                else:
+                    logger.debug("%s skipped", e)
+            else:
+                logger.debug("%s skipped", e)
+        return cls.from_data(polys, gaps, routes, bridges, **kwargs)
+
+    @classmethod
+    def from_data(cls, polys=[], gaps=[], routes=[],
+            bridges=[], edge=40., buffer=1e-10):
+        """
+        start with a edge by edge square, and cut it according to
+        gaps. then undo the fragmentation that is fully encircled by
+        routes and bridges. then undo fragmentation within polys and
+        then fragment along the poly boundaries. finally fragment
+        along routes.
+
+        the result is a Polygons() that contains the fragmented area of
+        the original square, with polys as some of the fragments and the
+        rest fragmented along routes and those gaps that are
+        not encircled in routes and bridges.
+
+        buffer is a small size that is used to associate a finite width
+        to gaps and routes. there should be no features smaller than
+        10*buffer.
+        """
+        fragments = cls()
+        field = geometry.Polygon([[edge/2, edge/2], [-edge/2, edge/2],
+                                  [-edge/2, -edge/2], [edge/2, -edge/2]])
+        gaps = geometry.MultiLineString(gaps)
+        field = field.difference(gaps.buffer(buffer, 1))
+        if routes:
+            routes = geometry.MultiLineString(routes)
+        if routes and bridges:
+            bridges = geometry.MultiLineString(bridges)
+            for poly in ops.polygonize(routes.union(bridges)):
+                field = field.union(poly)
+        # field = field.buffer(0, 1)
+        for name, poly in polys:
+            poly = geometry.Polygon(poly)
+            assert poly.is_valid, poly
+            poly = geometry.polygon.orient(poly, 1)
+            poly = poly.intersection(field)
+            fragments.append((name, poly))
+            field = field.difference(poly)
+        if routes:
+            field = field.difference(routes.buffer(buffer, 1))
+        assert field.is_valid, field
+        if type(field) is geometry.Polygon:
+            field = [field]
+        for i in field:
+            # assume that buffer is much smaller than any relevant
+            # distance and round coordinates to 10*buffer, then simplify
+            i = np.array(i.exterior.coords)
+            i = np.around(i, int(-np.log10(buffer)-1))
+            i = geometry.Polygon(i)
+            fragments.append(("", i))
+        return fragments
+
+    def to_gds(self, scale=1., poly_layer=(0, 0), gap_layer=(1, 0),
+            text_layer=(0, 0), phys_unit=1e-9, name="trap_electrodes"):
+        lib = library.Library(version=5, name=bytes(name),
+                physical_unit=phys_unit, logical_unit=1e-3)
+        stru = structure.Structure(name=bytes(name))
+        lib.append(stru)
+        #stru.append(elements.Node(layer=layer, node_type=0, xy=[(0, 0)]))
+        for name, polys in self:
+            props = {self.attr_name: bytes(name)}
+            if type(polys) is geometry.Polygon:
+                polys = [polys]
+            for p in polys:
+                assert p.is_valid, p
+                if p.is_empty:
+                    continue
+                xy = np.array(p.exterior.coords.xy).copy()
+                xy = xy.T[:, :2]*scale/phys_unit
+                xyb = np.r_[xy, xy[:1]]
+                if poly_layer is not None:
+                    p = elements.Boundary(layer=poly_layer[0],
+                            data_type=poly_layer[1], xy=xy)
+                    p.properties = props.items()
+                    stru.append(p)
+                if gap_layer is not None:
+                    p = elements.Path(layer=gap_layer[0],
+                            data_type=gap_layer[1], xy=xyb)
+                    p.properties = props.items()
+                    stru.append(p)
+                if text_layer is not None:
+                    p = elements.Text(layer=text_layer[0],
+                            text_type=text_layer[1], xy=xy[:1],
+                            string=bytes(name))
+                    p.properties = props.items()
+                    stru.append(p)
+        return lib
+
     def validate(self):
         """
         asserts geometric validity of all electrodes
@@ -99,7 +228,7 @@ class Polygons(list):
             p.append((ni, pi))
         return p
 
-    def add_gaps(self, gapsize):
+    def add_gaps(self, gapsize=0):
         """
         shrinks each electrode by adding a gapsize buffer around it.
         gaps between previously touching electrodes will be gapsize wide
@@ -113,8 +242,14 @@ class Polygons(list):
             p.append((ni, pi))
         return p
 
-    def simplify(self, buffer=0):
-        return self.add_gaps(-2*buffer)
+    def simplify(self, buffer=0, preserve_topology=False):
+        if buffer == 0:
+            return self.add_gaps(buffer)
+        p = Polygons()
+        for ni, pi in self:
+            p.append((ni, pi.simplify(buffer,
+                preserve_topology=preserve_topology)))
+        return p
         
     def assign_to_pad(self, pads):
         """given a list of polygons or multipolygons and a list
@@ -186,3 +321,14 @@ if __name__ == "__main__":
                 print(ei.name, pi, oi)
         print()
     pickle.dump(s1, open("rfjunction1.pickle", "wb"))
+
+    import sys
+    from matplotlib import pyplot as plt
+    with open(sys.argv[1], "rb") as fil:
+        s = from_gds(fil)
+    fig, ax = plt.subplots()
+    s.plot(ax)
+    fig.savefig("gds_to_system.pdf")
+    l = to_gds(s)
+    with open("system_to_gds.gds", "wb") as fil:
+        l.save(fil)

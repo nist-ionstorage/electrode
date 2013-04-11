@@ -22,10 +22,11 @@ from __future__ import (absolute_import, print_function,
 
 import os
 import unittest
-from numpy import testing as nptest
 
+from numpy import testing as nptest
 import numpy as np
 from scipy import constants as ct
+import matplotlib.pyplot as plt
 
 from electrode import electrode, system, polygons
 
@@ -77,6 +78,63 @@ class PolygonsCase(unittest.TestCase):
     
     def test_gaps_union(self):
         g = self.p.gaps_union()
+
+
+fil1 = "test.gds"
+
+@unittest.skipUnless(os.path.exists(fil1), "no example gds")
+class GdsPolygonsCase(unittest.TestCase):
+    def test_read_simple(self):
+        p = polygons.Polygons.from_gds(open(fil1, "rb"),
+                scale=100e-6)
+        s = p.to_system()
+        fig, ax = plt.subplots(figsize=(17, 11))
+        s.plot(ax)
+        #fig.savefig("gds_polygons.pdf")
+        p = p.add_gaps(.01)
+        p = p.simplify(1e-3)
+        g = p.to_gds(scale=40e-6)
+        #g.save(open("test2a.gds", "wb"))
+
+    def test_read(self):
+        p = polygons.Polygons.from_gds(open(fil1, "rb"), scale=100e-6,
+                edge=30.)
+        s = p.to_system()
+        names = "c0 m1 m2 m3 m4 m5 m6 rf a1 a2 rf p6 p5 p4 p3 p2 p1".split()
+        pads = polygons.square_pads(step=.5, edge=30.)
+        for pad, poly in p.assign_to_pad(pads):
+            s[poly].name = names.pop(0)
+        assert not names
+        fig, ax = plt.subplots(figsize=(17, 11))
+        s.plot(ax)
+        #fig.savefig("gds_polygons.pdf")
+        p = p.add_gaps(.01)
+        p = p.simplify(1e-3)
+        g = p.to_gds(scale=40e-6)
+        #g.save(open("test2a.gds", "wb"))
+
+fil2 = "test2.gds"
+
+@unittest.skipUnless(os.path.exists(fil2), "no example gds")
+class GdsComplicatedCase(unittest.TestCase):
+    def test_read_complicated(self):
+        p = polygons.Polygons.from_gds(open(fil2, "rb"), scale=40e-6,
+                poly_layers=[(0, 0), (13, 1), (13, 2)],
+                route_layers=[(12, 2)], bridge_layers=[(13, 5)],
+                gap_layers=[(1, 0)], edge=35.)
+        names = ("m1 m2 m3 m4 m5 m6 m7 rf a1 a2 "
+                 "rf p7 p6 p5 p4 p3 p2 p1 c1").split()
+        pads = polygons.square_pads(step=.25, edge=35, odd=True)
+        for pad, poly in p.assign_to_pad(pads):
+            p[poly] = names.pop(0), p[poly][1]
+        assert not names, names
+        fig, ax = plt.subplots(figsize=(17, 11))
+        p.to_system().plot(ax)
+        #fig.savefig("gds_polygons.pdf")
+        p = p.add_gaps(.01)
+        p = p.simplify(1e-3)
+        g = p.to_gds(scale=40e-6)
+        #g.save(open("test2a.gds", "wb"))
 
 
 if __name__ == "__main__":
