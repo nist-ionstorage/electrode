@@ -23,111 +23,159 @@ from __future__ import (absolute_import, print_function,
 import logging
 
 import numpy as np
-
 from gdsii import library, structure, elements
+from shapely import geometry, ops
 
 from .system import System
 from .electrode import PolygonPixelElectrode
+from .polygons import Polygons
 
 logger = logging.getLogger()
 
 
-# attribute namespaces anyone?
-attr_base = sum(ord(i) for i in "electrode") # 951
-attr_info = attr_base + 5
-attr_name = attr_base + 10
-attr_vdc = attr_base + 11
-attr_vrf = attr_base + 12
+class GdsPolygons(Polygons):
+    # attribute namespaces anyone?
+    attr_base = sum(ord(i) for i in "electrode") # 951
+    attr_name = attr_base + 0
 
-def from_gds(fil, scale=1., layer=None):
-    lib = library.Library.load(fil)
-    s = System()
-    for stru in lib:
-        if not type(stru) is structure.Structure:
-            logger.debug("%s skipped", stru)
-            continue
-        for e in stru:
-            if not type(e) is elements.Boundary:
-                logger.debug("%s skipped", e)
+    @classmethod
+    def from_gds_simple(cls, fil, scale=1., layers=None, name=None):
+        lib = library.Library.load(fil)
+        polys = {}
+        for stru in lib:
+            assert type(stru) is structure.Structure
+            if name is not None and name != stru.name:
                 continue
-            if layer is not None and not e.layer == layer:
-                logger.debug("%s skipped", e)
-                continue
-            props = dict(e.properties)
-            name = props.get(attr_name, None)
+            for e in stru:
+                if not type(e) is elements.Boundary:
+                    logger.debug("%s skipped", e)
+                    continue
+                if (layers is not None and
+                        (e.layer, e.data_type) not in layers):
+                    logger.debug("%s skipped", e)
+                    continue
+                props = dict(e.properties)
+                name = props.get(cls.attr_name, "")
+                path = np.array(e.xy)*lib.physical_unit/scale
+                # a gds boundary is a full loop, shapely is ok with that
+                #path = path[:-1]
+                polys.setdefault(name, []).append(path)
+        obj = cls()
+        # there are only outer loops
+        for name, poly in polys.items():
+            poly = [geometry.polygon.orient(geometry.Polygon(i), 1) for i in poly]
             if name is None:
-                ele = PolygonPixelElectrode()
-                s.append(ele)
-            elif name in s.names:
-                ele = s.electrode(name)
+                obj.extend([(name, geometry.MultiPolygon(i)) for i in poly])
             else:
-                ele = PolygonPixelElectrode(name=name)
-                s.append(ele)
-            ele.dc = float(props.get(attr_vdc, 0.))
-            ele.rf = float(props.get(attr_vrf, 0.))
-            path = np.array(e.xy)*lib.physical_unit/scale
-            path = path[:-1] # a gds boundary is a full loop
-            ele.paths.append(path)
-    # there are only outer loops
-    for e in s:
-        e.paths = [p[::o] for p, o in zip(e.paths, e.orientations())]
-    return s
+                obj.append((name, geometry.MultiPolygon(poly)))
+        return obj
 
-
-def from_gds_gaps(fil, scale=1.):
-    lib = library.Library.load(fil)
-    boundaries = {}
-    routes = []
-    for stru in lib:
-        if not type(stru) is structure.Structure:
-            logger.debug("%s skipped", stru)
-            continue
-        for e in stru:
-            if type(e) is elements.Boundary:
+    @classmethod
+    def from_gds(cls, fil, scale=1., name=None, poly_layers=None,
+            gap_layers=None, route_layers=[], bridge_layers=[], **kwargs):
+        lib = library.Library.load(fil)
+        polys = []
+        gaps = []
+        routes = []
+        bridges = []
+        for stru in lib:
+            assert type(stru) is structure.Structure
+            for e in stru:
+                ij = e.layer, e.data_type
                 path = np.array(e.xy)*lib.physical_unit/scale
-                path = path[:-1] # a gds boundary is a full loop
-                name = "%i/%i" % (e.layer, e.data_type)
-                polys = boundaries.setdefault(name, [])
-                polys.append(path)
-            if type(e) is elements.Path:
-                path = np.array(e.xy)*lib.physical_unit/scale
-                routes.append(path)
-            else:
-                logger.debug("%s skipped", e)
-                continue
-    return boundaries.items(), routes
+                if type(e) is elements.Boundary:
+                    if poly_layers is None or ij in poly_layers:
+                        polys.append(path)
+                elif type(e) is elements.Path:
+                    if gap_layers is None or ij in gap_layers:
+                        gaps.append(path)
+                    elif ij in route_layers:
+                        routes.append(path)
+                    elif ij in bridge_layers:
+                        bridges.append(path)
+                    else:
+                        logger.debug("%s skipped", e)
+                else:
+                    logger.debug("%s skipped", e)
+        return cls.from_data(polys, gaps, routes, bridges, **kwargs)
 
+    @classmethod
+    def from_data(cls, polys=[], gaps=[], routes=[],
+            bridges=[], edge=40., buffer=1e-12):
+        """
+        start with a edge by edge square,
+        subtract boundaries and put them in polygon
+        electrodes named by their layer/datatype then pattern
+        the rest using the routes (taken to be near-zero-width) and
+        add one polygon electrode for each resulting fragment
+        """
+        fragments = []
+        field = geometry.Polygon([[edge/2, edge/2], [-edge/2, edge/2],
+                                  [-edge/2, -edge/2], [edge/2, -edge/2]])
+        gaps = geometry.MultiLineString(gaps)
+        #gaps = reduce(lambda a, b: a.union(b), gaps)
+        #gaps = ops.cascaded_union(gaps).intersection(field) # segfaults
+        field = field.difference(gaps.buffer(buffer, 1))
+        if routes and bridges:
+            routes = geometry.MultiLineString(routes)
+            bridges = geometry.MultiLineString(bridges)
+            for poly in ops.polygonize(routes.union(bridges)):
+                field = field.union(poly)
+        field = field.buffer(0, 1)
+        polys = map(geometry.Polygon, polys)
+        for poly in polys:
+            assert poly.is_valid, poly
+            assert field.is_valid, field
+            poly = poly.intersection(field)
+            field = field.difference(poly)
+            fragments.append(poly)
+        if routes:
+            routes = geometry.MultiLineString(routes)
+            field = field.difference(routes.buffer(buffer, 1))
+        fragments.append(field)
 
-def to_gds(sys, scale=1., layer=0, phys_unit=1e-9, gap_layer=1):
-    lib = library.Library(version=5, name=b"trap", physical_unit=phys_unit,
-            logical_unit=.001)
-    eles = structure.Structure(name=b"electrodes")
-    lib.append(eles)
-    gaps = structure.Structure(name=b"gaps")
-    lib.append(gaps)
+        p = cls()
+        for fragment in fragments:
+            if type(fragment) is geometry.Polygon:
+                fragment = [fragment]
+            for i in fragment:
+                # assume that buffer is much smaller than any relevant
+                # distance and round coordinates to 10*buffer, then simplify
+                i = np.array(i.exterior.coords)
+                i = np.around(i, int(-np.log10(buffer)-1))
+                i = geometry.Polygon(i)
+                p.append(("", geometry.MultiPolygon([i])))
+        return p
 
-    #stru.append(elements.Node(layer=layer, node_type=0, xy=[(0, 0)]))
-    for e in sys:
-        if not type(e) is PolygonPixelElectrode:
-            logger.debug("%s skipped" % e)
-            continue
-        for p in e.paths:
-            xy = p[:, :2]*scale/phys_unit
-            xyb = np.r_[xy, xy[:1]]
-            b = elements.Boundary(layer=layer, data_type=0, xy=xy)
-            p = elements.Path(layer=gap_layer, data_type=0, xy=xyb)
-            for i in p, b:
-                i.properties = []
-                if e.name:
-                    i.properties.append((attr_name, e.name))
-                i.properties.append((attr_vdc, str(e.dc)))
-                i.properties.append((attr_vrf, str(e.rf)))
-            eles.append(b)
-            gaps.append(p)
-            for l in eles, gaps:
-                l.append(elements.Text(layer=layer, text_type=0,
-                    xy=xy[:1], string=bytes(e.name)))
-    return lib
+    def to_gds(self, scale=1., poly_layer=(0, 0), gap_layer=None,
+            text_layer=0, phys_unit=1e-9):
+        lib = library.Library(version=5, name=b"trap_electrodes",
+                physical_unit=phys_unit, logical_unit=1e-3)
+        stru = structure.Structure(name=b"trap_electrodes")
+        lib.append(stru)
+        #stru.append(elements.Node(layer=layer, node_type=0, xy=[(0, 0)]))
+        for name, polys in self:
+            props = {cls.attr_name: bytes(name)}
+            for p in e.paths:
+                xy = p*scale/phys_unit
+                xyb = np.r_[xy, xy[:1]]
+                if poly_layer is not None:
+                    p = elements.Boundary(layer=poly_layer[0],
+                            data_type=poly_layer[1], xy=xy)
+                    p.properties = props.items()
+                    stru.append(p)
+                if gap_layer is not None:
+                    p = elements.Path(layer=gap_layer[0],
+                            data_type=gap_layer[1], xy=xyb)
+                    p.properties = props.items()
+                    stru.append(p)
+                if text_layer is not None:
+                    p = elements.Text(layer=text_layer[0],
+                            text_type=text_layer[1], xy=xy[:1],
+                            string=bytes(name))
+                    p.properties = props.items()
+                    stru.append(p)
+        return lib
 
 
 if __name__ == "__main__":
