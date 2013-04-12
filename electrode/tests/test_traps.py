@@ -21,11 +21,13 @@ from __future__ import (absolute_import, print_function,
         unicode_literals, division)
 
 import unittest
-from numpy import testing as nptest
 
-import numpy as np
-from scipy import constants as ct
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from scipy import constants as ct
+import numpy as np
+from numpy import testing as nptest
 
 from electrode import (transformations, utils, electrode, system,
     pattern_constraints)

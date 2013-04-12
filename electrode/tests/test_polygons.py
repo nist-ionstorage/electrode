@@ -23,10 +23,12 @@ from __future__ import (absolute_import, print_function,
 import os
 import unittest
 
-from numpy import testing as nptest
-import numpy as np
-from scipy import constants as ct
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from scipy import constants as ct
+import numpy as np
+from numpy import testing as nptest
 
 from electrode import electrode, system
 
