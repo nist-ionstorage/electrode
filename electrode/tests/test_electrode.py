@@ -63,7 +63,7 @@ class LargeElectrodeCase(unittest.TestCase):
 
     def test_pot_cover(self):
         #need large numbers due to large electrode
-        self.e.cover_nmax = 1e5
+        self.e.cover_nmax = int(1e5)
         self.e.cover_height = 1e6
         x = np.array([[0, 0, self.e.cover_height]])
         nptest.assert_allclose(self.e.potential(x, 0), 0, atol=1e-4)

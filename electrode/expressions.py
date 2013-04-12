@@ -21,15 +21,50 @@ from __future__ import (absolute_import, print_function,
         unicode_literals, division)
 
 import numpy as np
-from utils import norm
+from .utils import norm
 
-def point_potential(x, points, areas, potentials, derivative):
-    if potentials is not None:
-        areas = areas*potentials
-    return _point_potential(x, areas, points, derivative).sum(1).T
+
+def point_potential(x, points, areas, potential, derivative, cover_nmax,
+        cover_height, out):
+    nx = x.shape[0]
+    if out is None:
+        out = np.zeros([nx, derivative*2+1], dtype=np.double)
+    areas = areas*potential
+    for k in range(-cover_nmax, cover_nmax+1):
+        xx = x + [[0, 0, 2*k*cover_height]]
+        out += _point_potential(xx, areas, points, derivative).sum(1).T
+    return out
+
+
+def polygon_potential(x, polygons, potential, derivative, cover_nmax,
+        cover_height, out):
+    nx = x.shape[0]
+    if out is None:
+        out = np.zeros([nx, derivative*2+1], dtype=np.double)
+    for k in range(-cover_nmax, cover_nmax+1):
+        xx = x + [[0, 0, 2*k*cover_height]]
+        i = sum(_polygon_potential(xx, j, derivative) for j in polygons)
+        out += potential*i.T
+    return out
+
+
+def mesh_potential(x, points, edges, polygons, potentials, derivative,
+        cover_nmax, cover_height, out):
+    nx = x.shape[0]
+    if out is None:
+        out = np.zeros([nx, derivative*2+1], dtype=np.double)
+    p = points[edges, :]
+    v = potentials[polygons, ...][:, None]
+    for k in range(-cover_nmax, cover_nmax+1):
+        xx = x + [[0, 0, 2*k*cover_height]]
+        i = sum(_polygon_potential(xx, i, derivative) for i in p)
+        out += (v*i.T).sum(0)
+    return out
+
 
 def _point_potential(x, a, p, d):
     a = a[:, None]
+    p = np.c_[p, np.zeros((p.shape[0], 1))]
     p1 = x[None, :] - p[:, None]
     r = norm(p1)
     x, y, z = p1.transpose((2, 0, 1))
@@ -87,14 +122,8 @@ def _point_potential(x, a, p, d):
             ])/(2*np.pi/45*r**13)
 
 
-def polygon_potential(x, polygons, potentials, derivative):
-    if potentials is None:
-        potentials = np.ones(len(polygons))
-    return np.array(sum(vi*_polygon_potential(x, pi, derivative) for vi, pi in
-            zip(potentials, polygons))).T
-
-
 def _polygon_potential(x, p, d):
+    p = np.c_[p, np.zeros((p.shape[0], 1))]
     p1 = x[None, :] - p[:, None]
     x1, y1, z = p1.transpose((2, 0, 1))
     r1 = norm(p1)

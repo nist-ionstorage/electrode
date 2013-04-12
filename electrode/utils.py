@@ -142,19 +142,18 @@ def populate_maps():
                 assert (a not in names) or (b not in names), (name, a, b)
         idx = tuple(idx_to_nidx(name_to_idx(name)) for name in names)
         select_map.append(idx)
-        expand_map.append([None] * 3**deriv)
+        expand_map.append([])
         for idx in product(range(3), repeat=deriv):
-            nidx = idx_to_nidx(idx)
             name = idx_to_name(idx)
             if name in names:
-                expand_map[deriv][nidx] = names.index(name)
+                expand_map[deriv].append(names.index(name))
             else:
                 for a, b in find_laplace(idx):
                     a, b = map(idx_to_name, (a, b))
                     if a in names and b in names:
                         ia, ib = (names.index(i) for i in (a, b))
-                        expand_map[deriv][nidx] = ia, ib
-            assert expand_map[deriv][nidx] is not None, name
+                        expand_map[deriv].append((ia, ib))
+        assert len(expand_map[deriv]) == 3**deriv
 
 populate_maps()
 
