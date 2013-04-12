@@ -94,14 +94,15 @@ class Polygons(list):
             if name is None or name == stru.name:
                 break
         for e in stru:
-            ij = e.layer, e.data_type
             path = np.array(e.xy)*lib.physical_unit/scale
             props = dict(e.properties)
             name = props.get(cls.attr_name, "")
             if type(e) is elements.Boundary:
+                ij = e.layer, e.data_type
                 if poly_layers is None or ij in poly_layers:
                     polys.append((name, path))
             elif type(e) is elements.Path:
+                ij = e.layer, e.data_type
                 if gap_layers is None or ij in gap_layers:
                     gaps.append(path)
                 elif ij in route_layers:
@@ -174,7 +175,9 @@ class Polygons(list):
         lib.append(stru)
         #stru.append(elements.Node(layer=layer, node_type=0, xy=[(0, 0)]))
         for name, polys in self:
-            props = {self.attr_name: bytes(name)}
+            props = {}
+            if name:
+                props[self.attr_name] = bytes(name)
             if type(polys) is geometry.Polygon:
                 polys = [polys]
             for p in polys:
@@ -194,7 +197,7 @@ class Polygons(list):
                             data_type=gap_layer[1], xy=xyb)
                     p.properties = props.items()
                     stru.append(p)
-                if text_layer is not None:
+                if text_layer is not None and name:
                     p = elements.Text(layer=text_layer[0],
                             text_type=text_layer[1], xy=xy[:1],
                             string=bytes(name))
