@@ -6,3 +6,4 @@
 ./debian/files
 ./*.egg-info
 ./electrode/*.c
+./doc/_build/*
