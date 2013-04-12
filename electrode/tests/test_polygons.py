@@ -28,9 +28,15 @@ import numpy as np
 from scipy import constants as ct
 import matplotlib.pyplot as plt
 
-from electrode import electrode, system, polygons
+from electrode import electrode, system
+
+try:
+    from electrode import polygons
+except ImportError:
+    polygons = None
 
 
+@unittest.skipIf(polygons is None, "no shapely")
 class PolygonsCase(unittest.TestCase):
     def ringtrap(self):
         s = system.System()
@@ -82,6 +88,7 @@ class PolygonsCase(unittest.TestCase):
 
 fil1 = "test.gds"
 
+@unittest.skipIf(polygons is None, "no shapely")
 @unittest.skipUnless(os.path.exists(fil1), "no example gds")
 class GdsPolygonsCase(unittest.TestCase):
     def test_read_simple(self):
@@ -115,6 +122,7 @@ class GdsPolygonsCase(unittest.TestCase):
 
 fil2 = "test2.gds"
 
+@unittest.skipIf(polygons is None, "no shapely")
 @unittest.skipUnless(os.path.exists(fil2), "no example gds")
 class GdsComplicatedCase(unittest.TestCase):
     def test_read_complicated(self):

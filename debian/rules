@@ -6,12 +6,12 @@ PYTHON3=$(shell py3versions -vr)
 %:
 	dh $@ --with=python2,python3,sphinxdoc
 
-#ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-#test-python%:
-#	python$* setup.py test -vv
-#
-#override_dh_auto_test: $(PYTHON2:%=test-python%) $(PYTHON3:%=test-python%)
-#endif
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+test-python%:
+	python$* setup.py test -vv
+
+override_dh_auto_test: $(PYTHON2:%=test-python%) $(PYTHON3:%=test-python%)
+endif
 
 build-python%:
 	python$* setup.py build

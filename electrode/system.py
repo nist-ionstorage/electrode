@@ -32,11 +32,13 @@ try:
     import cvxopt, cvxopt.modeling
 except ImportError:
     warnings.warn("cvxopt not found, optimizations will fail", ImportWarning)
+    cvxopt = None
 
 try:
     from qc.theory.gni import gni
 except ImportError:
     warnings.warn("qc modules not found, some stuff will fail", ImportWarning)
+    gni = None
 
 from .transformations import euler_from_matrix
 from .saddle import rfo

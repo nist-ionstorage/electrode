@@ -31,6 +31,7 @@ from electrode import (transformations, utils, electrode, system,
     pattern_constraints)
 
 
+@unittest.skipIf(system.cvxopt is None, "no cvxopt")
 class ThreefoldOptimizeCase(unittest.TestCase):
     def hextess(self, n, points=False):
         x = np.array(sum(([np.array([i+j*.5, j*3**.5*.5])/(n+.5)
@@ -174,6 +175,7 @@ class FiveWireCase(unittest.TestCase):
         abc = np.array(transformations.euler_from_matrix(e0))/2/np.pi
         nptest.assert_allclose(abc, [0, 0, 0], atol=1, rtol=1e-3)
 
+    @unittest.skipIf(system.gni is None, "no gni")
     def test_integrate(self):
         h = 1.
         x0 = np.array([0, 0, 1.])
@@ -307,6 +309,7 @@ class MagtrapCase(unittest.TestCase):
             nptest.assert_allclose(self.s.rfs, rfs)
         nptest.assert_allclose(self.s.voltages, np.zeros((n, 2)))
 
+    @unittest.skipIf(system.cvxopt is None, "no cvxopt")
     def test_shims(self):
         x = self.x0
         eln = "c1 c2 c3 c4 c5 c6".split()
@@ -316,6 +319,7 @@ class MagtrapCase(unittest.TestCase):
         self.assertEqual(vectors.shape, (len(derivs), len(eln)))
         return vectors, s, derivs
 
+    @unittest.skipIf(system.cvxopt is None, "no cvxopt")
     def test_shims_shift(self):
         vectors, s, derivs = self.test_shims()
         x = self.x0
