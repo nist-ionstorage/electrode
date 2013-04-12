@@ -57,7 +57,8 @@ def point_potential(np.ndarray[dtype_t, ndim=2] x not None,
                 for k in range(-cover_nmax, cover_nmax+1):
                     z0 = x[j, 2] + 2*k*cover_height
                     r0 = sqrt(x0**2 + y0**2 + z0**2)
-                    point_potential_expr(x0, y0, z0, r0, a0, derivative, &out[j, 0])
+                    point_potential_expr(x0, y0, z0, r0, a0,
+                            derivative, &out[j, 0])
     return out
 
 
