@@ -128,7 +128,7 @@ class PixelElectrodeCase(unittest.TestCase):
                 p = utils.expand_tensor(ee.potential(self.x, n))[0]
                 pd = utils.expand_tensor(ee.potential(xd, n-1))
                 pd = (pd[1:] - pd[0])/d
-                nptest.assert_allclose(p, pd, rtol=d, atol=1e-15,
+                nptest.assert_allclose(p, pd, rtol=d, atol=1e-14,
                       err_msg="ee=%s, n=%i" % (ee, n))
 
 

@@ -68,7 +68,7 @@ class BasicFunctionsCase(unittest.TestCase):
     def test_expand_tensor_trace(self):
         d = np.random.random(5)[None, :]
         de = utils.expand_tensor(d)
-        nptest.assert_equal(de[0].trace(), 0)
+        nptest.assert_almost_equal(de[0].trace(), 0)
         d = np.random.random(7)[None, :]
         de = utils.expand_tensor(d)
         nptest.assert_almost_equal(de[0].trace(), np.zeros((3)))
