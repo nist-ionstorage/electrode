@@ -22,9 +22,9 @@ from __future__ import (absolute_import, print_function,
 
 import os
 import unittest
-from numpy import testing as nptest
 
 import numpy as np
+from numpy import testing as nptest
 
 from electrode import utils, electrode, system
 
@@ -239,7 +239,7 @@ class GridElectrodeCase(unittest.TestCase):
             nptest.assert_allclose(pe, pp, rtol=r, atol=1e-4)
 
 
-@unittest.skipIf(electrode.tvtk is None, "no tvtk")
+# @unittest.skipIf(electrode.tvtk is None, "no tvtk")
 class GridElectrodeVtkCase(unittest.TestCase):
     fil = "~/work/nist/qc-tools/trunk/bin/threefold_2_sim_dense_rf.vtk"
     fil = os.path.expanduser(fil)

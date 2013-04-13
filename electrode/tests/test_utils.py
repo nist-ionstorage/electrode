@@ -21,9 +21,9 @@ from __future__ import (absolute_import, print_function,
         unicode_literals, division)
 
 import unittest
-from numpy import testing as nptest
 
 import numpy as np
+from numpy import testing as nptest
 from scipy.special import sph_harm
 
 from electrode import transformations, utils, electrode

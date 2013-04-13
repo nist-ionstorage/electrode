@@ -23,9 +23,8 @@ from __future__ import (absolute_import, print_function,
 import os
 import unittest
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+plt.switch_backend("Agg")
 from scipy import constants as ct
 import numpy as np
 from numpy import testing as nptest

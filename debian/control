@@ -4,9 +4,9 @@ Priority: optional
 Maintainer: Robert Jordens <jordens@gmail.com>
 Build-Depends: debhelper (>= 7), python-all-dev (>= 2.6.6-3), python3-all-dev,
  python-setuptools (>= 0.6b3), cython, python-numpy-dev, python-sphinx,
- python-nose, python-matplotlib, python-scipy, python3-setuptools, cython3,
- python3-numpy-dev, python3-sphinx, python3-nose, python3-matplotlib,
- python3-scipy, python-tk
+ python-nose, python-matplotlib, python-scipy, python-tk, python3-setuptools,
+ cython3, python3-numpy-dev, python3-sphinx, python3-nose, python3-matplotlib,
+ python3-scipy, python3-tk
 XS-Python-Version: >= 2.5
 X-Python3-Version: >= 3.2
 Standards-Version: 3.9.3

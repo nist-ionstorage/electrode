@@ -26,11 +26,6 @@ import numpy as np
 import matplotlib as mpl
 from scipy.ndimage.interpolation import map_coordinates
 
-try:
-    from tvtk.api import tvtk
-except ImportError:
-    tvtk = None
-
 from .utils import area_centroid, derive_map
 
 try:
@@ -246,6 +241,7 @@ class GridElectrode(Electrode):
     def from_vtk(cls, fil):
         """load grid potential data from vtk StructuredPoints file "fil"
         and return a GridElectrode instance"""
+        from tvtk.api import tvtk
         #sgr = tvtk.XMLImageDataReader(file_name=fil)
         sgr = tvtk.StructuredPointsReader(file_name=fil)
         sgr.update()
