@@ -29,7 +29,7 @@ from scipy.ndimage.interpolation import map_coordinates
 from .utils import area_centroid, derive_map
 
 try:
-    if False: # test slow python only expressions
+    if True: # test slow python only or fast numba expressions
         raise ImportError
     from .cexpressions import (point_potential, polygon_potential,
             mesh_potential)

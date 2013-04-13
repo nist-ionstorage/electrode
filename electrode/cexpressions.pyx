@@ -76,7 +76,7 @@ def polygon_potential(np.ndarray[dtype_t, ndim=2] x not None,
     if out is None:
         out = np.zeros([nx, derivative*2+1], dtype=dtype)
 
-    for i, polygon in enumerate(iter(polygons)):
+    for polygon in iter(polygons):
         no = polygon.shape[0]
         assert polygon.shape[1] == 2
         with nogil:
