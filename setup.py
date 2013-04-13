@@ -66,7 +66,7 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
 """,
         license = "GPLv3+",
         install_requires = [
-            "numpy", "scipy", "matplotlib", "nose"],
+            "numpy", "scipy", "matplotlib", "nose", "cython"],
         extras_require = {
             "notebooks": ["ipython>=0.12"],
             "integrate": ["qc"],

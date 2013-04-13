@@ -2,13 +2,13 @@ Source: python-electrode
 Section: python
 Priority: optional
 Maintainer: Robert Jordens <jordens@gmail.com>
-Build-Depends: debhelper (>= 7), python-all-dev (>= 2.6.6-3), python3-all-dev,
+Build-Depends: debhelper (>= 7), python-all-dev (>= 2.6.6-3),
  python-setuptools (>= 0.6b3), cython, python-numpy-dev, python-sphinx,
- python-nose, python-matplotlib, python-scipy, python-tk, python3-setuptools,
- cython3, python3-numpy-dev, python3-sphinx, python3-nose, python3-matplotlib,
- python3-scipy, python3-tk
+ python-nose, python-matplotlib, python-scipy, python-tk, python-nose
+# , python3-setuptools, python3-all-dev, python3-scipy, python3-tk
+# cython3, python3-numpy-dev, python3-sphinx, python3-nose, python3-matplotlib,
 XS-Python-Version: >= 2.5
-X-Python3-Version: >= 3.2
+# X-Python3-Version: >= 3.2
 Standards-Version: 3.9.3
 
 Package: python-electrode-doc
@@ -56,40 +56,40 @@ Description: Numeric tools for RF ion traps (Python 2)
  in electrostatics. European Journal of Physics 22:31 (2001).
  http://dx.doi.org/10.1088/0143-0807/22/1/304
 
-Package: python3-electrode
-Architecture: any
-Depends: ${misc:Depends}, ${python3:Depends}
-Recommends: mayavi2 (>= 4), python3-cvxopt (>= 1), ipython3-notebook (>= 0.12),
- python3-shapely (>= 1.2.13), python3-gdsii
-Suggests: python-electrode-doc
-Provides: ${python3:Provides}
-Description: Numeric tools for RF ion traps (Python 3)
- Electrode is a toolkit to develop and analyze RF ion traps. It
- can optimize 2D surface electrode patterns to achieve desired
- trapping properties and extract relevant parameters of the
- resulting geometry. The software also treats precomputed 3D
- volumetric field and potential data transparently.
- .
- See also:
- .
- Roman Schmied <roman.schmied@unibas.ch>, SurfacePattern
- software package.
- http://atom.physik.unibas.ch/people/romanschmied/code/SurfacePattern.php
- .
- Roman Schmied: Electrostatics of gapped and finite surface
- electrodes. New Journal of Physics 12:023038 (2010).
- http://dx.doi.org/10.1088/1367-2630/12/2/023038
- .
- Roman Schmied, Janus H. Wesenberg, and Dietrich Leibfried:
- Optimal Surface-Electrode Trap Lattices for Quantum Simulation
- with Trapped Ions. Physical Review Letters 102:233002 (2009).
- http://dx.doi.org/10.1103/PhysRevLett.102.233002
- .
- A. van Oosterom and J. Strackee: The Solid Angle of a Plane
- Triangle, IEEE Transactions on Biomedical Engineering, vol.
- BME-30, no. 2, pp. 125-126. (1983)
- http://dx.doi.org/10.1109/TBME.1983.325207
- .
- Mário H. Oliveira and José A. Miranda: Biot–Savart-like law
- in electrostatics. European Journal of Physics 22:31 (2001).
- http://dx.doi.org/10.1088/0143-0807/22/1/304
+# Package: python3-electrode
+# Architecture: any
+# Depends: ${misc:Depends}, ${python3:Depends}
+# Recommends: mayavi2 (>= 4), python3-cvxopt (>= 1), ipython3-notebook (>= 0.12),
+#  python3-shapely (>= 1.2.13), python3-gdsii
+# Suggests: python-electrode-doc
+# Provides: ${python3:Provides}
+# Description: Numeric tools for RF ion traps (Python 3)
+#  Electrode is a toolkit to develop and analyze RF ion traps. It
+#  can optimize 2D surface electrode patterns to achieve desired
+#  trapping properties and extract relevant parameters of the
+#  resulting geometry. The software also treats precomputed 3D
+#  volumetric field and potential data transparently.
+#  .
+#  See also:
+#  .
+#  Roman Schmied <roman.schmied@unibas.ch>, SurfacePattern
+#  software package.
+#  http://atom.physik.unibas.ch/people/romanschmied/code/SurfacePattern.php
+#  .
+#  Roman Schmied: Electrostatics of gapped and finite surface
+#  electrodes. New Journal of Physics 12:023038 (2010).
+#  http://dx.doi.org/10.1088/1367-2630/12/2/023038
+#  .
+#  Roman Schmied, Janus H. Wesenberg, and Dietrich Leibfried:
+#  Optimal Surface-Electrode Trap Lattices for Quantum Simulation
+#  with Trapped Ions. Physical Review Letters 102:233002 (2009).
+#  http://dx.doi.org/10.1103/PhysRevLett.102.233002
+#  .
+#  A. van Oosterom and J. Strackee: The Solid Angle of a Plane
+#  Triangle, IEEE Transactions on Biomedical Engineering, vol.
+#  BME-30, no. 2, pp. 125-126. (1983)
+#  http://dx.doi.org/10.1109/TBME.1983.325207
+#  .
+#  Mário H. Oliveira and José A. Miranda: Biot–Savart-like law
+#  in electrostatics. European Journal of Physics 22:31 (2001).
+#  http://dx.doi.org/10.1088/0143-0807/22/1/304
