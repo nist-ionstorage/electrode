@@ -205,25 +205,31 @@ class System(list):
         for el, ci in zip(self, colors):
             el.plot(ax, color=ci, **kwargs)
 
-    def minimum(self, x0, axis=(0, 1, 2), coord=np.identity(3)):
+    def minimum(self, x0, axis=(0, 1, 2), coord=np.identity(3),
+        method="Newton-CG", **kwargs):
         """find a potential minimum near x0 searching along the
         specified axes in the orthonormal matrix coord"""
         x = np.array(x0)
-        def p(xi):
-            for i, ai in enumerate(axis):
-                x[ai] = xi[i]
+        def f(xi):
+            x[axis, :] = xi
             return self.potential(np.dot(coord, x), 0)[0]
         def g(xi):
-            for i, ai in enumerate(axis):
-                x[ai] = xi[i]
+            x[axis, :] = xi
             return rotate_tensor(self.potential(np.dot(coord, x), 1),
                     coord.T)[0, axis]
-        # downhill simplex
-        # bfgs seems better in test cases
-        xs = optimize.fmin_bfgs(p, np.array(x0)[:, axis], fprime=g,
-                disp=False)
-        for i, ai in enumerate(axis):
-            x[ai] = xs[i]
+        def h(xi):
+            x[axis, :] = xi
+            return rotate_tensor(self.potential(np.dot(coord, x), 2),
+                    coord.T)[0, axis][:, axis]
+        #xs = optimize.fmin_bfgs(p, np.array(x0)[:, axis], fprime=g,
+        #        disp=False)
+        x0 = np.array(x0)[axis, :]
+        res = optimize.minimize(fun=f, x0=x0, jac=g, hess=h,
+            method=method, options=kwargs)
+        if not res.success:
+            raise ValueError("failed, %i, %s, %s" % (res.success,
+                res.message, res))
+        x[axis, :] = res.x
         return x
 
     def saddle(self, x0, axis=(0, 1, 2), coord=np.identity(3), **kw):

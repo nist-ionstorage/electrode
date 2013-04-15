@@ -289,12 +289,12 @@ class MagtrapCase(unittest.TestCase):
         nptest.assert_almost_equal(xsp, .00421, decimal=4)
     
     def test_modes(self):
-        """fails sometimes due to near degeneracy"""
         o, e = self.s.modes(self.x0)
         nptest.assert_almost_equal(o, [0, .1164, .1164], decimal=4)
-        a = -86.89*np.pi/180
-        nptest.assert_almost_equal(e[1:, 1:],
-                [[np.cos(a), -np.sin(a)],[np.sin(a), np.cos(a)]], decimal=3)
+        #"""fails sometimes due to near degeneracy"""
+        #a = -86.89*np.pi/180
+        #nptest.assert_almost_equal(e[1:, 1:],
+        #        [[np.cos(a), -np.sin(a)],[np.sin(a), np.cos(a)]], decimal=3)
     
     def test_mathieu(self):
         mu, b = self.s.mathieu(self.x0, 4*.018, 30*.018)
