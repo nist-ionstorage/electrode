@@ -225,7 +225,7 @@ class System(list):
         #        disp=False)
         x0 = np.array(x0)[axis, :]
         res = optimize.minimize(fun=f, x0=x0, jac=g, hess=h,
-            method=method, options=kwargs)
+            method=method, **kwargs)
         if not res.success:
             raise ValueError("failed, %i, %s, %s" % (res.success,
                 res.message, res))
