@@ -69,15 +69,20 @@ class PatternRangeConstraint(Constraint):
     def constraints(self, system, variables):
         if self.index is not None:
             variables = variables[self.index]
-        if self.min is not None:
-            yield variables >= self.min
-        if self.max is not None:
-            yield variables <= self.max
+        if self.min is not None or self.max is not None:
+            if self.min == self.max:
+                yield variables == self.min
+            else:
+                if self.min is not None:
+                    yield variables >= self.min
+                if self.max is not None:
+                    yield variables <= self.max
 
 
 class SingleValueConstraint(Constraint):
-    def __init__(self, value=None, min=None, max=None):
+    def __init__(self, value=None, min=None, max=None, offset=None):
         self.value = value
+        self.offset = offset
         self.min = min
         self.max = max
 
@@ -87,17 +92,21 @@ class SingleValueConstraint(Constraint):
     def objective(self, system, variables):
         if self.value is not None:
             c = self.get(system, variables)
-            yield (c, self.value)
+            yield c, float(self.value)
     
     def constraints(self, system, variables):
-        if self.min is not None or self.max is not None:
+        if (self.offset is not None
+            or self.min is not None
+            or self.max is not None):
             c = self.get(system, variables)
             d = cvxopt.matrix(np.ascontiguousarray(c))
             v = cvxopt.modeling.dot(d, variables)
+            if self.offset is not None:
+                yield v == float(self.offset)
             if self.min is not None:
-                yield v >= self.min
+                yield v >= float(self.min)
             if self.max is not None:
-                yield v <= self.max
+                yield v <= float(self.max)
 
 
 class PotentialObjective(SingleValueConstraint):
