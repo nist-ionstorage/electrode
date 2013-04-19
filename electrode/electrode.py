@@ -228,12 +228,12 @@ class GridElectrode(Electrode):
 
     @classmethod
     def from_result(cls, result, maxderiv=4):
-        obj = cls()
-        obj.origin = result.grid.get_origin()
-        obj.spacing = result.grid.step
-        obj.data.append(result.potential[:, :, :, None])
+        origin = result.grid.get_origin()
+        spacing = result.grid.step
+        data = [result.potential[:, :, :, None]]
         if result.field is not None:
-            obj.data.append(result.field.transpose(1, 2, 3, 0))
+            data.append(result.field.transpose(1, 2, 3, 0))
+        obj = cls(data, origin, spacing)
         obj.generate(maxderiv)
         return obj
 

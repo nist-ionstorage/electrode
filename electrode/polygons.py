@@ -290,6 +290,17 @@ class Polygons(list):
             g = g.union(i)
         return g
 
+    def restrict(self, geometry):
+        p = Polygons()
+        for name, multipoly in self:
+            p.append((name, multipoly.intersection(geometry)))
+        return p
+
+    def within(self, edge=50):
+        e = edge/2.
+        g = geometry.Polygon([(e, e), (-e, e), (-e, -e), (e, -e)])
+        return self.restrict(g)
+
 
 def square_pads(step=10., edge=200., odd=False, start_corner=0):
     """generates a (n, 2) array of xy coordinates of pad centers
