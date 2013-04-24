@@ -233,12 +233,12 @@ class GridElectrode(Electrode):
         data = [result.potential[:, :, :, None]]
         if result.field is not None:
             data.append(result.field.transpose(1, 2, 3, 0))
-        obj = cls(data, origin, spacing)
+        obj = cls(origin=origin, spacing=spacing, data=data)
         obj.generate(maxderiv)
         return obj
 
     @classmethod
-    def from_vtk(cls, fil):
+    def from_vtk(cls, fil, maxderiv=4):
         """load grid potential data from vtk StructuredPoints file "fil"
         and return a GridElectrode instance"""
         from tvtk.api import tvtk
@@ -262,6 +262,7 @@ class GridElectrode(Electrode):
             data = data.reshape(dimensions[::-1]+(dim,)).transpose(2, 1, 0, 3)
             pot[int((dim-1)/2)] = data
         obj = cls(origin=origin, spacing=spacing, data=pot)
+        obj.generate(maxderiv)
         return obj
 
     def generate(self, maxderiv=4):
