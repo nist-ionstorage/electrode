@@ -140,12 +140,12 @@ class System(list):
             ei.potential(x, derivative, potential=1., out=eff[i])
         return eff
 
-    def time_potential(self, x, derivative=0, t=0., alpha_rf=1., expand=False):
+    def time_potential(self, x, derivative=0, t=0., expand=False):
         """electrical field at an instant in time t (physical units:
         1/omega_rf), no adiabatic approximation here"""
         dc, rf = (self.electrical_potential(x, typ, derivative, expand)
                 for typ in ("dc", "rf"))
-        return dc + alpha_rf*np.cos(t)*rf
+        return dc + np.cos(t)*rf
 
     def pseudo_potential(self, x, derivative=0):
         """return given derivative or the ponderomotive/pseudo potential
@@ -239,12 +239,10 @@ class System(list):
         kwargs.update(kw)
         x = np.array(x0)
         def f(xi):
-            for i, ai in enumerate(axis):
-                x[ai] = xi[i]
+            x[axis, :] = xi
             return self.potential(np.dot(coord, x), 0)[0]
         def g(xi):
-            for i, ai in enumerate(axis):
-                x[ai] = xi[i]
+            x[axis, :] = xi
             return rotate_tensor(self.potential(np.dot(coord, x), 1),
                     coord.T)[0, axis]
         h = rotate_tensor(self.potential(np.dot(coord, x), 2),
@@ -270,24 +268,24 @@ class System(list):
 
     def trajectory(self, x0, v0, axis=(0, 1, 2),
             t0=0, dt=.0063*2*np.pi, t1=1e4, nsteps=1,
-            integ="gni_irk2", methc=2, field=None, *args, **kwargs):
+            integ="gni_irk2", *args, **kwargs):
         """integrate the trajectory with initial position and speed x0,
         v0 along the specified axes (use symmetry to eliminate one),
         time step dt, from time t0 to time t1, yielding current position
         and speed every nsteps time steps"""
-        integ = getattr(gni, integ)
-        alpha_rf = 1.
-        if field is None:
-            field = lambda x0, t: self.time_potential(x0, 1, t,
-                    alpha_rf=alpha_rf, expand=True)[0]
+        if not callable(integ):
+            integ_ = getattr(gni, integ)
+            methc = kwargs.pop("methc", 2)
+            def integ(ddx, nsteps, t, p, q, t1, *args, **kwargs):
+                return integ_(ddx, nsteps, t, p, q, t1, methc,
+                        *args, **kwargs)
         t, p, q = t0, v0[:, axis], x0[:, axis]
         x0 = np.array(x0)
         def ddx(t, q, f):
-            for i, ai in enumerate(axis):
-                x0[ai] = q[i]
-            f[:len(axis)] = field(x0, t)[axis, :]
+            x0[axis, :] = q
+            f[:len(axis)] = self.time_potential(x0, 1, t, expand=True)[0, axis]
         while t < t1:
-            integ(ddx, nsteps, t, p, q, t+dt, methc, *args, **kwargs)
+            integ(ddx, nsteps, t, p, q, t+dt, *args, **kwargs)
             t += dt
             yield t, q.copy(), p.copy()
 
