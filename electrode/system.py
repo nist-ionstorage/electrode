@@ -99,17 +99,20 @@ class System(list):
     @contextmanager
     def with_voltages(self, dcs=None, rfs=None):
         """contextmanager with temporary voltage setting"""
-        if dcs is not None:
-            odc = self.dcs
-            self.dcs = dcs
-        if rfs is not None:
-            orf = self.rfs
-            self.rfs = rfs
-        yield
-        if dcs is not None:
-            self.dcs = odc
-        if rfs is not None:
-            self.rfs = orf
+        odc, orf = None, None
+        try:
+            if dcs is not None:
+                odc = self.dcs
+                self.dcs = dcs
+            if rfs is not None:
+                orf = self.rfs
+                self.rfs = rfs
+            yield
+        finally:
+            if odc is not None:
+                self.dcs = odc
+            if orf is not None:
+                self.rfs = orf
 
     def electrical_potential(self, x, typ="dc", derivative=0, expand=False):
         """
