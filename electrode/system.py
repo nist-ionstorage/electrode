@@ -286,21 +286,11 @@ class System(list):
         x0 = np.array(x0)
         def ddx(t, q, f):
             x0[axis, :] = q
-            f[:len(axis)] = self.time_potential(x0, 1, t, expand=True)[0, axis]
+            f[:] = self.time_potential(x0, 1, t, expand=True)[0, axis]
         while t < t1:
             integ(ddx, nsteps, t, p, q, t+dt, *args, **kwargs)
             t += dt
             yield t, q.copy(), p.copy()
-
-    def stability(self, maxx, *a, **k):
-        """integrate the trajectory (see :meth:trajectory()) as long as
-        the position remains within a maxx ball or t>t1"""
-        t, q, p = [], [], []
-        for ti, qi, pi in self.trajectory(*a, **k):
-            t.append(ti), q.append(qi), p.append(pi)
-            if (qi**2).sum() > maxx**2:
-                break
-        return map(np.array, (t, q, p))
 
     def shims(self, x_coord_deriv, objectives=[], constraints=None):
         """
