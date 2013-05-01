@@ -1,2 +1,4 @@
-include COPYING README AUTHORS
-include notebooks/*.ipynb
+include COPYING README AUTHORS *.md *.py *.txt
+recursive-include docs *.ipynb *.txt *.py Makefile *.rst
+prune docs/_build
+prune docs/gh-pages
