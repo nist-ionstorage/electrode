@@ -28,7 +28,7 @@ import numpy
 
 setup(
         name = "electrode",
-        version = "1.4",
+        version = "1.4+dev",
         author = "Robert Jordens",
         author_email = "jordens@gmail.com",
         url = "http://launchpad.net/electrode",
