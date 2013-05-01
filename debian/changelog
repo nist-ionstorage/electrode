@@ -1,3 +1,9 @@
+python-electrode (1.4) raring; urgency=low
+
+  * new release
+
+ -- Robert Jördens <jordens@gmail.com>  Tue, 30 Apr 2013 21:14:48 -0600
+
 python-electrode (1.3+dev) raring; urgency=low
 
   * start new release
