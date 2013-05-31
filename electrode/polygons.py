@@ -137,14 +137,16 @@ class Polygons(list):
         fragments = cls()
         field = geometry.Polygon([[edge/2, edge/2], [-edge/2, edge/2],
                                   [-edge/2, -edge/2], [edge/2, -edge/2]])
-        gaps = geometry.MultiLineString(gaps)
-        field = field.difference(gaps.buffer(buffer, 1))
+        field0 = field
+        if gaps:
+            gaps = geometry.MultiLineString(gaps)
+            field = field.difference(gaps.buffer(buffer, 1))
         if routes:
             routes = geometry.MultiLineString(routes)
         if routes and bridges:
             bridges = geometry.MultiLineString(bridges)
             for poly in ops.polygonize(routes.union(bridges)):
-                field = field.union(poly)
+                field = field.union(poly.intersection(field0))
         # field = field.buffer(0, 1)
         for name, poly in polys:
             poly = geometry.Polygon(poly)
@@ -168,41 +170,62 @@ class Polygons(list):
         return fragments
 
     def to_gds(self, scale=1., poly_layer=(0, 0), gap_layer=(1, 0),
-            text_layer=(0, 0), phys_unit=1e-9, name="trap_electrodes"):
+            text_layer=(0, 0), phys_unit=1e-9, name="trap_electrodes",
+            edge=None, gap_width=0.):
         lib = library.Library(version=5, name=bytes(name),
                 physical_unit=phys_unit, logical_unit=1e-3)
         stru = structure.Structure(name=bytes(name))
         lib.append(stru)
+        if edge:
+            field = geometry.Polygon([[edge/2, edge/2], [-edge/2, edge/2],
+                                      [-edge/2, -edge/2], [edge/2, -edge/2]])
         #stru.append(elements.Node(layer=layer, node_type=0, xy=[(0, 0)]))
+        gaps = []
         for name, polys in self:
             props = {}
             if name:
                 props[self.attr_name] = bytes(name)
-            if type(polys) is geometry.Polygon:
+            if not hasattr(polys, "geoms"):
                 polys = [polys]
-            for p in polys:
-                assert p.is_valid, p
-                if p.is_empty:
+            for poly in polys:
+                assert poly.is_valid, poly
+                if poly.is_empty:
                     continue
-                xy = np.array(p.exterior.coords.xy).copy()
+                if edge is not None:
+                    poly = poly.intersection(field)
+                xy = np.array(poly.exterior.coords.xy).copy()
                 xy = xy.T[:, :2]*scale/phys_unit
-                xyb = np.r_[xy, xy[:1]]
-                if poly_layer is not None:
-                    p = elements.Boundary(layer=poly_layer[0],
-                            data_type=poly_layer[1], xy=xy)
-                    p.properties = props.items()
-                    stru.append(p)
-                if gap_layer is not None:
-                    p = elements.Path(layer=gap_layer[0],
-                            data_type=gap_layer[1], xy=xyb)
-                    p.properties = props.items()
-                    stru.append(p)
                 if text_layer is not None and name:
                     p = elements.Text(layer=text_layer[0],
                             text_type=text_layer[1], xy=xy[:1],
                             string=bytes(name))
                     p.properties = props.items()
                     stru.append(p)
+                if poly_layer is not None:
+                    p = elements.Boundary(layer=poly_layer[0],
+                            data_type=poly_layer[1], xy=xy)
+                    p.properties = props.items()
+                    stru.append(p)
+                gaps.append(poly.exterior)
+                gaps.extend(poly.interiors)
+        if gap_layer is not None:
+            #g = ops.cascaded_union(gaps) # segfaults
+            g = geometry.LineString()
+            for i in gaps:
+                g = g.union(i)
+            if edge is not None:
+                g = g.intersection(field)
+                g = g.difference(field.exterior)
+            if not hasattr(g, "geoms"):
+                g = [g]
+            for loop in g:
+                xy = np.array(loop.coords.xy).copy()
+                xy = xy.T[:, :2]*scale/phys_unit
+                xyb = np.r_[xy, xy[:1]]
+                p = elements.Path(layer=gap_layer[0],
+                        data_type=gap_layer[1], xy=xyb)
+                p.width = int(gap_width*scale/phys_unit)
+                stru.append(p)
         return lib
 
     def validate(self):
