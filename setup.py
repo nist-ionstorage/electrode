@@ -86,16 +86,17 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
         #package_data = {"": ["notebooks/*.ipynb"]},
         ext_modules=[
                 Extension("electrode._transformations",
-                    sources=["electrode/transformations.c"],),
+                    sources=["electrode/transformations.c"],
+                    include_dirs=[numpy.get_include()]),
                 Extension("electrode.cexpressions",
                     sources=["electrode/cexpressions.pyx",
                          #"electrode/cexpressions.c",
                          ],
-                extra_compile_args=[
+                    extra_compile_args=[
                         "-ffast-math", # improves expressions
                         #"-Wa,-adhlns=cexprssions.lst", # for amusement
                         ],
-                include_dirs=[numpy.get_include()]),
+                    include_dirs=[numpy.get_include()]),
             ],
         cmdclass = {"build_ext": build_ext},
         )
