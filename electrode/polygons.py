@@ -210,13 +210,15 @@ class Polygons(list):
                 gaps.append(poly.exterior)
                 gaps.extend(poly.interiors)
         if gap_layer is not None:
-            #g = ops.cascaded_union(gaps) # segfaults
+            ##g = ops.cascaded_union(gaps) # segfaults
+            #g = geometry.MultiLineString(gaps)
+            # this breaks it up badly
             g = geometry.LineString()
             for i in gaps:
                 g = g.union(i)
             if edge is not None:
                 g = g.intersection(field)
-                g = g.difference(field.exterior)
+                g = g.difference(field.boundary)
             if not hasattr(g, "geoms"):
                 g = [g]
             for loop in g:
@@ -290,9 +292,14 @@ class Polygons(list):
         p = Polygons()
         for name, mpoly in self:
             smoothed = []
+            if not hasattr(mpoly, "geoms"):
+                mpoly = [mpoly]
             for poly in mpoly:
                 loops = []
-                for line in [poly.exterior] + list(poly.interiors):
+                b = poly.boundary
+                if not hasattr(p, "geoms"):
+                    b = [b]
+                for line in b:
                     x, y = np.array(line.coords.xy)
                     assert x[0] == x[-1] and y[0] == y[-1], "not periodic"
                     # periodic central differences
@@ -345,8 +352,7 @@ class Polygons(list):
             if type(multipoly) is geometry.Polygon:
                 multipoly = [multipoly]
             for poly in multipoly:
-                gaps.append(poly.exterior)
-                gaps.extend(poly.interiors)
+                gaps.append(poly.boundary)
         #return ops.cascaded_union(gaps) # segfaults
         g = geometry.LineString()
         for i in gaps:
