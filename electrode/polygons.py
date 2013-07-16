@@ -23,6 +23,7 @@ from __future__ import (absolute_import, print_function,
 import logging
 
 import numpy as np
+from scipy.interpolate import splprep, splev
 from shapely import geometry, ops
 from gdsii import library, structure, elements
 
@@ -276,7 +277,46 @@ class Polygons(list):
             p.append((ni, pi.simplify(buffer,
                 preserve_topology=preserve_topology)))
         return p
-        
+
+    def smooth(self, smoothing=1, straight=1e-9, clip_len=(1e-2, 1e2)):
+        """smoothes the polygons
+        `smoothing` gets passed down to splprep() and is the average
+        deviation in units of the local segment length.
+        `straight` enables straight path detection and forces the spline
+        to pass through straight points.
+        `clip_len` clips the local segment length to within the given
+        interval.
+        """
+        p = Polygons()
+        for name, mpoly in self:
+            smoothed = []
+            for poly in mpoly:
+                loops = []
+                for line in [poly.exterior] + list(poly.interiors):
+                    x, y = np.array(line.coords.xy)
+                    assert x[0] == x[-1] and y[0] == y[-1], "not periodic"
+                    # periodic central differences
+                    dx = np.roll(x, 1) - np.roll(x, -1)
+                    dy = np.roll(y, 1) - np.roll(y, -1)
+                    du = np.sqrt(dx**2 + dy**2)/2
+                    if clip_len is not None:
+                        np.clip(du, clip_len[0], clip_len[1], du)
+                    if straight is not None:
+                        ver = np.fabs(dx) < straight
+                        hor = np.fabs(dy) < straight
+                        ta = np.roll(ver, -1) | np.roll(ver, 1)
+                        tb = np.roll(hor, -1) | np.roll(hor, 1)
+                        du = np.where(ta | tb, straight, du)
+                    u = np.cumsum(du)
+                    s = len(x)*smoothing
+                    tckp, u = splprep([x, y], w=1/du, u=u/u[-1], s=s,
+                                      k=1, per=1, nest=len(x) + 2)
+                    xn, yn = splev(np.r_[tckp[0][1+1:-1-1], 1], tckp)
+                    loops.append(np.c_[xn, yn])
+                smoothed.append(geometry.Polygon(loops[0], loops[1:]))
+            p.append((name, geometry.MultiPolygon(smoothed)))
+        return p
+
     def assign_to_pad(self, pads):
         """given a list of polygons or multipolygons and a list
         of pad xy coordinates, yield tuples of
