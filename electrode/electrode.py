@@ -132,7 +132,8 @@ class PointPixelElectrode(SurfaceElectrode):
                 edgecolors="none",
                 #cmap=plt.cm.binary, norm=plt.Normalize(0, 1.),
                 facecolor=color,
-                widths=a, heights=a, units="x", # FIXME xy in matplotlib>r8111
+                # FIXME/workaround: x in matplotlib<r8111
+                widths=a, heights=a, units="xy", 
                 angles=np.zeros(a.shape),
                 offsets=p[:, (0, 1)], transOffset=ax.transData)
         ax.add_collection(col)
@@ -157,13 +158,20 @@ class PolygonPixelElectrode(SurfaceElectrode):
         return np.sign([area_centroid(pi)[0] for pi in self.paths])
 
     def plot(self, ax, label=None, color=None, **kw):
+        # we already store the right order for interior/exterior
+        vertices = np.concatenate([np.r_[p, [p[0]]]  for p in self.paths])
+        codes = np.concatenate([np.r_[
+            mpl.path.Path.MOVETO, np.ones(len(p))*mpl.path.Path.LINETO
+            ].astype(mpl.path.Path.code_type)
+            for p in self.paths])
+        path = mpl.path.Path(vertices, codes)
+        patch = mpl.patches.PathPatch(path, facecolor=color,
+            edgecolor=kw.pop("edgecolor", "none"), **kw)
+        ax.add_patch(patch)
         if label is None:
             label = self.name
-        for p in self.paths:
-            ax.fill(p[:,0], p[:,1],
-                    edgecolor=kw.get("edgecolor", "none"),
-                    color=color, **kw)
-            if label:
+        if label:
+            for p in self.paths:
                 ax.text(p[:,0].mean(), p[:,1].mean(), label)
 
     def to_points(self):
