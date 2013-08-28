@@ -297,7 +297,9 @@ class Polygons(list):
             for poly in mpoly:
                 loops = []
                 b = poly.boundary
-                if not hasattr(p, "geoms"):
+                try:
+                    len(b)
+                except TypeError:
                     b = [b]
                 for line in b:
                     x, y = np.array(line.coords.xy)
