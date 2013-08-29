@@ -280,6 +280,17 @@ class Polygons(list):
                 preserve_topology=preserve_topology)))
         return p
 
+    def filter(self, test=lambda name, poly: poly.area > 1e-2):
+        """drops all patches that fail the test function"""
+        p = Polygons()
+        for ni, pi in self:
+            if not hasattr(pi, "geoms"):
+                pi = [pi]
+            pi = [_ for _ in pi if test(ni, _)]
+            if pi:
+                p.append((ni, geometry.MultiPolygon(pi)))
+        return p
+
     def smooth(self, smoothing=1, straight=1e-9, clip_len=(1e-2, 1e2)):
         """smoothes the polygons
         `smoothing` gets passed down to splprep() and is the average
@@ -322,7 +333,12 @@ class Polygons(list):
                                       k=1, per=1, nest=len(x) + 2)
                     xn, yn = splev(np.r_[tckp[0][1+1:-1-1], 1], tckp)
                     loops.append(np.c_[xn, yn])
-                smoothed.append(geometry.Polygon(loops[0], loops[1:]))
+                # TODO: does not ensure that all interiors are within
+                # exterior and that the interiors do not overlap
+                exterior, interior = loops[0], loops[1:]
+                if len(exterior) >= 3:
+                    interior = [_ for _ in interior if len(_) >= 3]
+                    smoothed.append(geometry.Polygon(exterior, interior))
             p.append((name, geometry.MultiPolygon(smoothed)))
         return p
 
