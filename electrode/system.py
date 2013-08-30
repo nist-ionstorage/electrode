@@ -448,24 +448,28 @@ class System(list):
             l=100e-6, o=2*np.pi*1e6):
         scale = (u*q/l/o)**2/(4*m) # rf pseudopotential energy scale
         dc_scale = scale/q # dc energy scale
-        yield "u = %.3g V, f = %.3g MHz, m = %.3g amu, "\
-                 "q = %.3g qe, l = %.3g µm, axis=%s" % (
+        yield "params: u=%.3g V, f=%.3g MHz, m=%.3g amu, "\
+                 "q=%.3g qe, l=%.3g µm, scale=%.3g eV, axis=%s" % (
                 u, o/(2e6*np.pi), m/ct.atomic_mass,
-                q/ct.elementary_charge, l/1e-6, axis)
-        yield "energy scale: %.3g eV" % dc_scale
-        yield "analyze point: %s (%s µm)" % (x, x*l/1e-6)
+                q/ct.elementary_charge, l/1e-6, dc_scale, axis)
+        yield "corrdinates:"
+        yield " analyze point: %s (%s µm)" % (x, x*l/1e-6)
         trap = self.minimum(x, axis=axis)
-        yield " minimum is at offset: %s" % (trap - x)
+        yield " minimum is at offset: %s (%s µm)" % (trap - x,
+                (trap -x)*l/1e-6)
         p_rf = self.pseudo_potential(x, 0)[0]
         p_dc = self.electrical_potential(x, "dc", 0)[0]
-        yield " rf, dc potentials: %.2g, %.2g (%.2g eV, %.2g eV)" % (
+        yield "potential:"
+        yield " rf pseudo, dc electrical: %.2g, %.2g (%.2g eV, %.2g eV)" % (
             p_rf, p_dc, p_rf*dc_scale, p_dc*dc_scale)
         try:
-            xs, xsp = self.saddle(x+1e-2, axis=axis)
-            yield " saddle offset, height: %s, %.2g (%.2g eV)" % (
-                xs - x, xsp - p_rf - p_dc, (xsp - p_rf - p_dc)*dc_scale)
+            xs, xsp = self.saddle(x + 1e-2*x[2], axis=axis)
+            yield " saddle offset: %s (%s µm)" % (xs - x, (xs - x)*l/1e-6)
+            yield " saddle height: %.2g (%.2g eV)" % (
+                xsp - p_rf - p_dc, (xsp - p_rf - p_dc)*dc_scale)
         except:
             yield " saddle not found"
+        yield "modes:"
         curves, modes_pp = self.modes(x)
         freqs_pp = (scale*curves/l**2/m)**.5/(2*np.pi)
         q_o2l2m = q/((l*o)**2*m)
@@ -474,22 +478,22 @@ class System(list):
         freqs = mu[:3].imag*o/(2*np.pi)
         modes = b[len(b)/2-3:len(b)/2, :3].real
         yield " pp+dc normal curvatures: %s" % curves
-        yield " motion is bounded: %s" % np.allclose(0, mu.real)
+        yield " motion is bounded: %s" % np.allclose(mu.real, 0)
         for nj, fj, mj in (("pseudopotential", freqs_pp, modes_pp),
                 ("mathieu", freqs, modes)):
             yield " %s modes:" % nj
-            for fi, mi in zip(fj, mj.T):
-                yield "  %.4g MHz, %s" % (fi/1e6, mi)
-            yield "  euler angles: %s" % (
+            for ci, fi, mi in zip("abc", fj, mj.T):
+                yield "  %s: %.4g MHz, %s" % (ci, fi/1e6, mi)
+            yield "  euler angles (rxyz): %s deg" % (
                     np.rad2deg(np.array(euler_from_matrix(mj, "rxyz"))))
-        se = (self.individual_potential(x, 1)[:, 0]**2).sum(0)/l**2
-        yield " heating for 1 nV²/Hz white on each electrode:"
-        yield "  field-noise psd: %s V²/(m² Hz)" % (se*1e-9**2)
-        for fi, mi in zip(freqs_pp, modes_pp.T):
-            sej = (np.abs(mi)*se**.5).sum()**2
+        se = self.individual_potential(x, 1)[:, 0, :]/l
+        yield " heating for 1 nV²/Hz white uncorrelated on each electrode:"
+        yield "  field-noise psd: %s V²/(m² Hz)" % ((se*1e-9)**2).sum(0)
+        for ci, fi, mi in zip("abc", freqs_pp, modes_pp.T):
+            sej = ((mi[None, :]*se).sum(1)**2).sum()
             ndot = sej*q**2/(4*m*ct.h*fi)
-            yield "  %.4g MHz: ndot=%.4g/s, S_E*f=%.4g (V² Hz)/(m² Hz)" % (
-                fi/1e6, ndot*1e-9**2, sej*fi*1e-9**2)
+            yield "  %s: ndot=%.4g /s, S_E*f=%.4g (V² Hz)/(m² Hz)" % (
+                ci, ndot*1e-9**2, sej*fi*1e-9**2)
         if do_ions:
             xi = x+np.random.randn(2)[:, None]*1e-3
             qi = np.ones(2)*q/(scale*l*4*np.pi*ct.epsilon_0)**.5
@@ -497,11 +501,11 @@ class System(list):
             freqs_ppi = (scale*cis/l**2/m)**.5/(1e6*np.pi)
             r2 = norm(xis[1]-xis[0])
             r2a = ((q*l)**2/(2*np.pi*ct.epsilon_0*scale*curves[0]))**(1/3.)
-            yield " two ion modes:"
-            yield "  separation: %.3g (%.3g µm, %.3g µm harmonic)" % (
+            yield "two ion modes:"
+            yield " separation: %.3g (%.3g µm, %.3g µm harmonic)" % (
                 r2, r2*l/1e-6, r2a/1e-6)
-            for fi, mi in zip(freqs_ppi, mis.transpose(2, 0, 1)):
-                yield "  %.4g MHz, %s/%s" % (fi/1e6, mi[0], mi[1])
+            for ci, fi, mi in zip("abcdef", freqs_ppi, mis.transpose(2, 0, 1)):
+                yield " %s: %.4g MHz, %s/%s" % (ci, fi/1e6, mi[0], mi[1])
 
     def ions(self, x0, q):
         """find the minimum energy configuration of several ions with
