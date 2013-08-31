@@ -17,6 +17,8 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function, division, absolute_import
+
 from functools import partial
 
 import numpy as np
@@ -48,14 +50,14 @@ def paths_to_mesh(paths):
 
 def transformed_copy(transformations, path):
     p4 = np.c_[path, np.zeros(len(path)), np.ones(len(path))]
-    return [np.dot(p4, t.T)[:, :2] for t in transformations]
+    return [np.dot(p4, t.T)[::sign, :2] for t, sign in transformations]
 
 
 def transformer(transformations):
     return partial(transformed_copy, transformations)
 
 
-def adapt_mesh(constraints, variable, fixed=[], threshold=.01,
+def adapt_mesh(constraints, variable, fixed=[], threshold=.5,
         nmax=int(2**15.5), a=1, q=20, up=16., down=4., verbose=False,
         symmetry=lambda p: [p], **kwargs):
     opts = "Qq%fa%fn" % (q, a)
@@ -67,7 +69,7 @@ def adapt_mesh(constraints, variable, fixed=[], threshold=.01,
         if n > nmax:
             break
         if verbose:
-            print "triangles:", n,
+            print("triangles:", n, ", ", end="")
         areas = np.empty(n, dtype=np.double)
         centroids = np.empty((n, 2), dtype=np.double)
         paths = args["points"][args["triangles"], :]
@@ -77,10 +79,11 @@ def adapt_mesh(constraints, variable, fixed=[], threshold=.01,
             s.append(PolygonPixelElectrode(paths=symmetry(p), **kwargs))
         v, c = s.optimize(constraints, verbose=False) #verbose)
         if verbose: 
-            print "objective:", c
-        pf = v[len(fixed):]
+            print("objective:", c)
+        potentials = v[len(fixed):]
         neighbors = args.pop("neighbors")
-        pfne = np.fabs(pf[neighbors, :] - pf[:, None]).max(1)
-        args["triangleareas"] = np.where(pfne > threshold, areas/down, areas*up)
+        edge_changes = potentials[neighbors, :] - potentials[:, None]
+        refine = np.fabs(edge_changes).max(1) > threshold
+        args["triangleareas"] = np.where(refine, areas/down, areas*up)
     return s, v, c
 
