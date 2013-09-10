@@ -484,8 +484,8 @@ class System(list):
             yield " %s modes:" % nj
             for ci, fi, mi in zip("abc", fj, mj.T):
                 yield "  %s: %.4g MHz, %s" % (ci, fi/1e6, mi)
-            yield "  euler angles (rxyz): %s deg" % (
-                    np.rad2deg(np.array(euler_from_matrix(mj, "rxyz"))))
+            yield "  euler angles (rzxz): %s deg" % (
+                    np.rad2deg(np.array(euler_from_matrix(mj, "rzxz"))))
         se = self.individual_potential(x, 1)[:, 0, :]/l
         yield " heating for 1 nV²/Hz white uncorrelated on each electrode:"
         yield "  field-noise psd: %s V²/(m² Hz)" % ((se*1e-9)**2).sum(0)
