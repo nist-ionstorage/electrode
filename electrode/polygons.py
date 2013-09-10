@@ -53,14 +53,15 @@ class Polygons(list):
                 {-1: ints, 0: [], 1: exts}[ei].append(pi)
             if not exts:
                 continue
-            mp = geometry.Point()
+            groups = []
             for exti in exts:
                 for interior in ints[:]:
                     if exti.contains(interior):
                         exti = exti.difference(interior)
                         ints.remove(interior)
-                mp = mp.union(exti)
+                groups.append(exti)
             assert not ints
+            mp = geometry.MultiPolygon(groups)
             obj.append((e.name, mp))
         return obj
 
