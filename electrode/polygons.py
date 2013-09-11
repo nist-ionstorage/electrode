@@ -73,6 +73,8 @@ class Polygons(list):
             if type(p) is geometry.Polygon:
                 p = [p]
             for pi in p:
+                if not pi.is_valid or not pi.area:
+                    continue
                 ext = np.array(pi.exterior.coords)
                 if not pi.exterior.is_ccw:
                     ext = ext[::-1]
@@ -170,9 +172,9 @@ class Polygons(list):
         for i in field:
             # assume that buffer is much smaller than any relevant
             # distance and round coordinates to 10*buffer, then simplify
-            i = np.array(i.exterior.coords)
-            i = np.around(i, int(-np.log10(buffer)-1))
-            i = geometry.Polygon(i)
+            i = [np.around(j.coords, int(-np.log10(buffer)-1)) for j in
+                    [i.exterior] + list(i.interiors)]
+            i = geometry.Polygon(i[0], i[1:])
             fragments.append(("", i))
         return fragments
 
