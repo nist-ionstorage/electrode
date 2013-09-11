@@ -442,20 +442,19 @@ class System(list):
             mu, b = mu[i], b[:, i]
         return mu/2, b
 
-    # FIXME
     def analyze_static(self, x, axis=(0, 1, 2), do_ions=False,
             m=ct.atomic_mass, q=ct.elementary_charge, u=1.,
             l=100e-6, o=2*np.pi*1e6):
         scale = (u*q/l/o)**2/(4*m) # rf pseudopotential energy scale
         dc_scale = scale/q # dc energy scale
         yield "params: u=%.3g V, f=%.3g MHz, m=%.3g amu, "\
-                 "q=%.3g qe, l=%.3g µm, scale=%.3g eV, axis=%s" % (
+                 "q=%.3g qe, l=%.3g µm, scale=%.3g eV" % (
                 u, o/(2e6*np.pi), m/ct.atomic_mass,
-                q/ct.elementary_charge, l/1e-6, dc_scale, axis)
+                q/ct.elementary_charge, l/1e-6, dc_scale)
         yield "corrdinates:"
         yield " analyze point: %s" % (x,)
         yield "               (%s µm)" % (x*l/1e-6,)
-        trap = self.minimum(x, axis=axis)
+        trap = self.minimum(x)
         yield " minimum is at offset: %s" % (trap - x,)
         yield "                      (%s µm)" % ((trap - x)*l/1e-6,)
         p_dc = self.electrical_potential(x, "dc", 0)[0]
@@ -464,7 +463,7 @@ class System(list):
         yield " dc electrical: %.2g (%.2g eV)" % (p_dc, p_dc*dc_scale)
         yield " rf pseudo: %.2g (%.2g eV)" % (p_rf, p_rf*dc_scale)
         try:
-            xs, xsp = self.saddle(x + 1e-2*x[2], axis=axis)
+            xs, xsp = self.saddle(x + 1e-2*x[2])
             yield " saddle offset: %s" % (xs - x,)
             yield "               (%s µm)" % ((xs - x)*l/1e-6,)
             yield " saddle height: %.2g (%.2g eV)" % (
