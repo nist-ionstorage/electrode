@@ -453,22 +453,31 @@ class System(list):
                 u, o/(2e6*np.pi), m/ct.atomic_mass,
                 q/ct.elementary_charge, l/1e-6, dc_scale, axis)
         yield "corrdinates:"
-        yield " analyze point: %s (%s µm)" % (x, x*l/1e-6)
+        yield " analyze point: %s" % (x,)
+        yield "               (%s µm)" % (x*l/1e-6,)
         trap = self.minimum(x, axis=axis)
-        yield " minimum is at offset: %s (%s µm)" % (trap - x,
-                (trap -x)*l/1e-6)
-        p_rf = self.pseudo_potential(x, 0)[0]
+        yield " minimum is at offset: %s" % (trap - x,)
+        yield "                      (%s µm)" % ((trap - x)*l/1e-6,)
         p_dc = self.electrical_potential(x, "dc", 0)[0]
+        p_rf = self.pseudo_potential(x, 0)[0]
         yield "potential:"
-        yield " rf pseudo, dc electrical: %.2g, %.2g (%.2g eV, %.2g eV)" % (
-            p_rf, p_dc, p_rf*dc_scale, p_dc*dc_scale)
+        yield " dc electrical: %.2g (%.2g eV)" % (p_dc, p_dc*dc_scale)
+        yield " rf pseudo: %.2g (%.2g eV)" % (p_rf, p_rf*dc_scale)
         try:
             xs, xsp = self.saddle(x + 1e-2*x[2], axis=axis)
-            yield " saddle offset: %s (%s µm)" % (xs - x, (xs - x)*l/1e-6)
+            yield " saddle offset: %s" % (xs - x,)
+            yield "               (%s µm)" % ((xs - x)*l/1e-6,)
             yield " saddle height: %.2g (%.2g eV)" % (
                 xsp - p_rf - p_dc, (xsp - p_rf - p_dc)*dc_scale)
         except:
             yield " saddle not found"
+        yield "force:"
+        f_dc = self.electrical_potential(x, "dc", 1)[0]
+        f_rf = self.pseudo_potential(x, 1)[0]
+        yield " dc electrical: %s" % (f_dc,)
+        yield "               (%s eV/m)" % (f_dc*dc_scale/l,)
+        yield " rf pseudo: %s" % (f_rf,)
+        yield "           (%s eV/m)" % (f_rf*dc_scale/l,)
         yield "modes:"
         curves, modes_pp = self.modes(x)
         freqs_pp = (scale*curves/l**2/m)**.5/(2*np.pi)
