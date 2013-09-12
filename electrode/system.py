@@ -292,7 +292,8 @@ class System(list):
             t += dt
             yield t, q.copy(), p.copy()
 
-    def shims(self, x_coord_deriv, objectives=[], constraints=None):
+    def shims(self, x_coord_deriv, objectives=[], constraints=None,
+            **kwargs):
         """
         solve the shim equations simultaneously at all points 
         [(x, rotation, derivative), ...]
@@ -306,7 +307,8 @@ class System(list):
                 np.double)
         for i, objective in enumerate(obj):
             objective.value = 1
-            p, c = self.optimize(constraints+obj, verbose=False)
+            p, c = self.optimize(constraints+obj, verbose=False,
+                    **kwargs)
             objective.value = 0
             vectors[i] = p/c
         return vectors
