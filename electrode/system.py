@@ -184,11 +184,9 @@ class System(list):
         -------
         potential : array
             Potential at `x`.
-            If `expand == False`:
-                shape (n, l). `l` is the derivative index,
-                `l = 2*derivative + 1`.
-            Else:
-                shape (n, 3, ..., 3), fully expanded tensorial form.
+            If `expand == False`, shape (n, l) and `l` is the derivative
+            index, `l = 2*derivative + 1`. Else, shape (n, 3, ..., 3) and
+            returns the fully expanded tensorial form.
 
         See Also
         --------

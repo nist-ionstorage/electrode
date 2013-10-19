@@ -94,6 +94,7 @@ pygments_style = 'sphinx'
 # A list of ignored prefixes for module index sorting.
 #modindex_common_prefix = []
 
+numpydoc_show_class_members = False
 
 # -- Options for HTML output ---------------------------------------------------
 
