@@ -33,12 +33,37 @@ from .electrode import PolygonPixelElectrode
 logger = logging.getLogger()
 
 
+"""Polygons class, methods for polygons manipulation, and tools for
+loading, saving GDS files.
+
+.. note::
+    Needs GDSII and Shapely
+"""
+
+
 class Polygons(list):
+    """A simple representations of polygonal electrode data (two
+    dimensional).
+    
+    A named list of shapely `MultiPolygons`::
+
+        [
+            ("electrode_name", MultiPolygon(...)),
+            ...
+        ]
+    """
+
     @classmethod
     def from_system(cls, system):
-        """
-        convert a System() to a list of [("electrode name",
-        MultiPolygon(...)), ...]
+        """Convert a `System` instance to a `Polygons` instance.
+        
+        Parameters
+        ----------
+        system : System
+            
+        Returns
+        -------
+        Polygons
         """
         obj = cls()
         for e in system:
@@ -66,6 +91,12 @@ class Polygons(list):
         return obj
 
     def to_system(self):
+        """Convert self to a `System` instance.
+
+        Returns
+        -------
+        System
+        """
         s = System()
         for n, p in self:
             e = PolygonPixelElectrode(name=n, paths=[])
@@ -87,12 +118,48 @@ class Polygons(list):
         return s
 
     # attribute namespaces anyone?
-    attr_base = sum(ord(i) for i in "electrode") # 951
-    attr_name = attr_base + 0
+    _attr_base = sum(ord(i) for i in "electrode") # 951
+    _attr_name = _attr_base + 0
 
     @classmethod
     def from_gds(cls, fil, scale=1., name=None, poly_layers=None,
             gap_layers=None, route_layers=[], bridge_layers=[], **kwargs):
+        """Opens a GDS Library and converts a Structure to a `Polygons`
+        instance.
+
+        Parameters
+        ----------
+        fil : file or string
+            GDS file to be opened
+        scale : float
+            Natural length scale to rescale the data to. Usually the ion
+            height. Defaults to 1 (one meter).
+        name : str
+            Name of the Structure (aka Cell) in the GDS file to be used.
+            The first if `name` is `None`.
+        poly_layers : list of tuples (layer number, data type number)
+            Layers and datatypes where polygons are to be extraced and
+            used. E.g. [(13, 6), (14, 0)].
+        gap_layers : list of tuples (layer number, data type number)
+            Layers/datatypes where paths are to be used as gaps cutting
+            into the polygons.
+        route_layers : list of tuples (layer number, data type number)
+            Layers/datatypes where paths are to be used to route through
+            polygons. Polygons defined by the union of the paths in
+            `route_layers` and `bridge_layers` together define new
+            polygons. Paths in `route_layers` separate these from
+            existing polygons. Paths in `bridge_layers` connect these
+            new polygons to existing ones.
+        **kwargs : passed to `cls.from_data()`
+
+        Returns
+        -------
+        System
+
+        See also
+        --------
+        from_data()
+        """
         lib = library.Library.load(fil)
         polys = []
         gaps = []
@@ -105,7 +172,7 @@ class Polygons(list):
         for e in stru:
             path = np.array(e.xy)*lib.physical_unit/scale
             props = dict(e.properties)
-            name = props.get(cls.attr_name, "")
+            name = props.get(cls._attr_name, "")
             if type(e) is elements.Boundary:
                 ij = e.layer, e.data_type
                 if poly_layers is None or ij in poly_layers:
@@ -127,21 +194,41 @@ class Polygons(list):
     @classmethod
     def from_data(cls, polys=[], gaps=[], routes=[],
             bridges=[], edge=40., buffer=1e-10):
-        """
-        start with a edge by edge square, and cut it according to
-        gaps. then undo the fragmentation that is fully encircled by
-        routes and bridges. then undo fragmentation within polys and
-        then fragment along the poly boundaries. finally fragment
-        along routes.
+        """Process polygonal, gaps, route and bridge data into a
+        `Polygons` instance.
 
-        the result is a Polygons() that contains the fragmented area of
+        Start with a `edge` by `edge` square centered at (0, 0), and cut
+        it according to gaps. Then undo the fragmentation that is fully
+        encircled by routes and bridges. Then undo fragmentation within
+        polys and then fragment along the poly boundaries. Tinally
+        fragment along routes (again).
+
+        The result is a `Polygons` that contains the fragmented area of
         the original square, with polys as some of the fragments and the
         rest fragmented along routes and those gaps that are
         not encircled in routes and bridges.
 
-        buffer is a small size that is used to associate a finite width
-        to gaps and routes. there should be no features smaller than
-        10*buffer.
+        Parameters
+        ----------
+        polys : list of array_like
+            Polygons (arrays of points with (n, 2) shape).
+        gaps : list of array_like
+            Gap paths (arrays of points with (n, 2) shape).
+        routes : list of array_like
+        bridges : list of array_like
+        edge : float
+            Edge length of the bounding square. All Polygons and gaps
+            are intersected with this. There will be nothing outside
+            this square and all area inside the square will be segmented
+            and output in one of the resulting polygons.
+        buffer : float
+            A small size that is used to associate a finite width
+            to gaps and routes. there should be no features smaller than
+            10*buffer.
+
+        Returns
+        -------
+        Polygons
         """
         fragments = cls()
         field = geometry.Polygon([[edge/2, edge/2], [-edge/2, edge/2],
@@ -181,6 +268,36 @@ class Polygons(list):
     def to_gds(self, scale=1., poly_layer=(0, 0), gap_layer=(1, 0),
             text_layer=(0, 0), phys_unit=1e-9, name="trap_electrodes",
             edge=None, gap_width=0.):
+        """Convert this `Polygons` instance to a GDS library with one
+        structure.
+
+        Parameters
+        ----------
+        scale : float
+            Length scale to convert to. One Polygons length unit will be
+            one physical scale unit in the GDS file (irrespective of
+            `phys_unit`).
+        poly_layer : tuple (int, int)
+        gap_layer : tuple (int, int)
+        text_layer : tuple (int, int)
+            Layers to put the various pieces of data into.
+        phys_unit : float
+            Physical length scale in the GDS (see the GDS file format
+            specifications).
+        name : str
+            Name of the Structure (aka Cell) to write the data to.
+        edge : float
+            Edge length of the clipping square to clip all `Polygons`
+            data to.
+        gap_width : float
+            Gap paths are to be exported with a width of `gap_width`
+
+        Returns
+        -------
+        Library
+            `gdsii.library.Library` with one Structure/Cell named `name`
+            containing the given data.
+        """
         lib = library.Library(version=5, name=bytes(name),
                 physical_unit=phys_unit, logical_unit=1e-3)
         stru = structure.Structure(name=bytes(name))
@@ -193,7 +310,7 @@ class Polygons(list):
         for name, polys in self:
             props = {}
             if name:
-                props[self.attr_name] = bytes(name)
+                props[self._attr_name] = bytes(name)
             if not hasattr(polys, "geoms"):
                 polys = [polys]
             for poly in polys:
@@ -240,16 +357,25 @@ class Polygons(list):
         return lib
 
     def validate(self):
-        """
-        asserts geometric validity of all electrodes
+        """Asserts geometric validity of all electrodes.
+
+        Raises
+        ------
+        ValueError
+           If the polygon is geometrically invalid (see shapely
+           documentation).
         """
         for ni, pi in self:
             if not pi.is_valid:
                 raise ValueError("%s %s" % (ni, pi))
 
     def remove_overlaps(self):
-        """
-        successively removes overlaps with preceeding electrodes
+        """Successively removes overlaps with preceeding electrodes.
+
+        Returns
+        -------
+        Polygons
+            Output with overlaps removed
         """
         p = Polygons()
         acc = geometry.Point()
@@ -266,10 +392,21 @@ class Polygons(list):
         return p
 
     def add_gaps(self, gapsize=0):
-        """
-        shrinks each electrode by adding a gapsize buffer around it.
-        gaps between previously touching electrodes will be gapsize wide
-        electrodes must not be overlapping
+        """Shrinks each electrode by adding a buffer around it.
+
+        Gaps between previously touching electrodes will be gapsize wide
+        electrodes must not be overlapping.
+
+        Parameters
+        ----------
+        gapsize : float
+           Size of the gap. Each polygon will be buffered by
+           `-gapsize/2`.
+
+        Returns
+        -------
+        Polygons
+            Output with gaps added
         """
         p = Polygons()
         for ni, pi in self:
@@ -280,6 +417,24 @@ class Polygons(list):
         return p
 
     def simplify(self, buffer=0, preserve_topology=False):
+        """Simplify the polygons.
+
+        See the shapely method for details
+
+        Parameters
+        ----------
+        buffer : float
+            Adds gaps of size buffer before the simplification. See
+            `add_gaps()` and determines the simplification tolerance
+            (see shapely).
+        preserve_topology : bool
+            See shapely doc
+
+        Returns
+        -------
+        Polygons
+            Simplified output
+        """
         if buffer == 0:
             return self.add_gaps(buffer)
         p = Polygons()
@@ -289,7 +444,19 @@ class Polygons(list):
         return p
 
     def filter(self, test=lambda name, poly: poly.area > 1e-2):
-        """drops all patches that fail the test function"""
+        """Drops all patches that fail the test function.
+       
+        Parameters
+        ----------
+        test : callable
+            Function to be called as `test(name, multipoly)` that returns
+            `True` if the MultiPolygon is to be kept.
+
+        Returns
+        -------
+        Polygons
+            Filtered output
+        """
         p = Polygons()
         for ni, pi in self:
             if not hasattr(pi, "geoms"):
@@ -300,13 +467,26 @@ class Polygons(list):
         return p
 
     def smooth(self, smoothing=1, straight=1e-9, clip_len=(1e-2, 1e2)):
-        """smoothes the polygons
-        `smoothing` gets passed down to splprep() and is the average
-        deviation in units of the local segment length.
-        `straight` enables straight path detection and forces the spline
-        to pass through straight points.
-        `clip_len` clips the local segment length to within the given
-        interval.
+        """Smoothes the polygons.
+
+        Parameters
+        ----------
+        smoothing : float
+            Gets passed down to splprep() and is the average
+            deviation in units of the local segment length.
+        straight : float
+            Enables straight path detection and forces the spline
+            to pass through straight points. Also the straightness
+            threshold in dx and dy.
+        clip_len : tuple (float, float)
+            The local segment length to within the given interval. Only
+            used for weighting the deviation of the path relative to the
+            local edge length.
+
+        Returns
+        -------
+        Polygons
+            Smoothed output
         """
         p = Polygons()
         for name, mpoly in self:
@@ -351,9 +531,19 @@ class Polygons(list):
         return p
 
     def assign_to_pad(self, pads):
-        """given a list of polygons or multipolygons and a list
-        of pad xy coordinates, yield tuples of
-        (pad number, polygon index, polygon)"""
+        """Finds polygons intersecting the points given.
+        
+        Parameters
+        ----------
+        pads : list of tuples (float, float)
+            (x, y) tuples of the pad coordinates
+
+        Returns
+        -------
+        iterator
+            Iterator over matching tuples `(pad number, polygon index,
+            polygon)`
+        """
         polys = range(len(self))
         for pad, (x, y) in enumerate(pads):
             p = geometry.Point(x, y)
@@ -368,11 +558,16 @@ class Polygons(list):
         # assert not polys, polys
 
     def gaps_union(self):
-        """returns the union of the boundaries of the polygons.
-        if the boundaries of adjacent polygons coincide, this returns
+        """Union of the boundaries of the polygons.
+
+        If the boundaries of adjacent polygons coincide, this returns
         only the gap paths.
 
-        polys is a list of multipolygons or polygons"""
+        Returns
+        -------
+        LineString
+            Union of all gaps.
+        """
         gaps = []
         for name, multipoly in self:
             if type(multipoly) is geometry.Polygon:
@@ -386,6 +581,12 @@ class Polygons(list):
         return g
 
     def restrict(self, geometry):
+        """Intersect each constituent with the given geometry.
+
+        Returns
+        -------
+        Polygons
+        """
         p = Polygons()
         for name, multipoly in self:
             p.append((name, multipoly.intersection(geometry)))
@@ -398,11 +599,27 @@ class Polygons(list):
 
 
 def square_pads(step=10., edge=200., odd=False, start_corner=0):
-    """generates a (n, 2) array of xy coordinates of pad centers
-    pad are spaced by `step`, on the edges with edge length `edge`.
-    if odd=True, there is a pad the center of an edge. The corner to
-    start is given in `start_corner`. 0 is top left (-x, +y). counter
-    clockwise from that"""
+    """Generatex XY coordinates for equally spaced pads around a square.
+    
+    Pads are along each edge of the square, placed inwards by `step/2`.
+
+    Parameters
+    ----------
+    step : float
+        Pad pitch
+    edge : float
+        Edge length of the square
+    odd : bool
+        If odd=True, there is a pad the center of an edge.
+    start_corner : int
+        Corner to start in. 0 is top left (-x, +y). Counter
+        clockwise from there.
+
+    Returns
+    -------
+    array_like
+        (n, 2) array of xy coordinates of pad centers.
+    """
     n = int(edge/step)
     if odd: n += (n % 2) + 1
     p = np.arange(-n/2.+.5, n/2.+.5)*step

@@ -27,6 +27,11 @@ import numpy as np
 
 
 def shaped(func):
+    """Wraps the given function so that it can be given a (n, m, ..., k)
+    array. The function to be wrapped is is called with a (n, l) array. 
+    The wrapper then returns a (m, ..., k, l) array.
+
+    """
     def shape_wrapper(xyz, *args, **kwargs):
         xyz = np.atleast_2d(xyz)
         s = xyz.shape
@@ -38,30 +43,54 @@ def shaped(func):
 
 
 def shaper(func, xyz, *args, **kwargs):
+    """Builds a `shaped()` wrapper for `func` on the fly and calls it.
+
+    """
     return shaped(func)(xyz, *args, **kwargs)
 
 
 def apply_method(s, name, *args, **kwargs):
-    """small helper to work around non-picklable
+    """Small helper to work around non-picklable
     instance methods and allow them to be called by multiprocessing
-    tools"""
+    tools.
+    
+    """
     return getattr(s, name)(*args, **kwargs)
 
 
 def norm(a, axis=-1):
-    """special version of np.linalg.norm() that only covers the
-    specified axis"""
+    """Special version of np.linalg.norm() that only covers the
+    specified axis.
+    
+    Parameters
+    ----------
+    a : array_like
+    axis : int
+        Axis to calculate the norm over.
+    """
     # return np.sqrt(np.einsum("...j,...j->...", a, a))
     return np.sqrt(np.square(a).sum(axis=axis))
 
 
 def rotate_tensor(c, r, order=None):
-    """rotate a tensor c into the coordinate system r
-    assumes that its order is len(c.shape)-1
-    the first dimension(s) are used for parallelizing"""
+    """Rotate a tensor into another coordinate system.
+    
+    The first dimension(s) are used for parallelizing (arrays of
+    tensors). The last dimensions are the indices of the tensor.
+
+    Parameters
+    ----------
+    c : array_like, shape (3, 3)
+        Coordinate system
+    r : array_like
+        Tensor to be rotated.
+    order : int or None
+        Tensor degree. If given, the last `order` dimenstions are rotated,
+        else the degree degree is `r.ndim - 1`.
+    """
     #c = np.atleast_1d(c)
     #r = np.atleast_2d(r)
-    n = len(c.shape)-1
+    n = c.ndim - 1
     if order is None:
         order = n
     #slower: O(n**order)
@@ -96,7 +125,13 @@ derive_map = {} # (derivative order, derivative index): ((lower
 # derivative order, lower derivative index), axis to derive)
 
 def name_to_idx(name):
-    """return a tuple of axis indices for given derivative"""
+    """Return a tuple of axis indices for given derivative
+    
+    Parameters
+    ----------
+    name : str
+        A derivative name. E.g. `"xxz"`
+    """
     return tuple("xyz".index(n) for n in name)
 
 def idx_to_name(idx):
@@ -199,7 +234,7 @@ def select_tensor(c, order=None):
 
     inverse of expand_tensor()"""
     #c = np.atleast_1d(c)
-    n = len(c.shape)
+    n = c.ndim
     if order is None:
         order = n - 1 # nx, 3, ..., 3
     c = c.reshape(c.shape[:n-order]+(-1,))

@@ -29,8 +29,18 @@ from .utils import area_centroid
 
 from bem.pytriangle import triangulate
 
+"""Tools to perform adaptive mesh refinement based on System.optimize
+output.
+
+.. note::
+    Needs the python triangulate() wrapper.
+"""
+
 
 def paths_to_mesh(paths):
+    """Converts a coordinates to `triangulate()` input data.
+
+    """
     points = np.concatenate(paths, axis=0)
     segments = []
     segmentmarkers = []
@@ -60,6 +70,57 @@ def transformer(transformations):
 def adapt_mesh(constraints, variable, fixed=[], threshold=.5,
         nmax=int(2**15.5), a=1, q=20, up=16., down=4., verbose=False,
         symmetry=lambda p: [p], **kwargs):
+    """Adaptively refines the electrode boundaries based on the
+    incremental `System.optimize()` results.
+
+    Parameters
+    ----------
+    constraints : list of `pattern_constraint.Constraint`
+        Constraints and and objectives from `pattern_constraints` 
+        to be passed to `System.optimize()`.
+    variable : list of array_like
+        List of xy arrays (n, 2) shaped boundaries of the electrodes to
+        be subdivided and incrementally segmented.
+    fixed : list of array_like
+        List of xy arrays (n, 2) shaped electrode boundaries that are
+        not to be changed in shaped but can be changed in voltage.
+    threshold : float
+        Potential jump threshold above which to detect an electrode
+        boundary. Refinement happens at boundaries where electrodes of
+        potentials that are differing by more than `threshold` are
+        adjacent.
+    nmax : int
+        Number of triangles to stop the iterative refinemement at.
+    a : float
+        Initial may triangle area for first triangulation.
+    q : float
+        Minimum triangle corner angle during triangulation (constrained
+        Delaunay, see triangulate() documentation).
+    up : float
+    down : float
+        Factors to increase/decrease the triangle area by before each
+        re-triangulation. Increase happens at triangles that are
+        surrounded by triangles with similar potential. Decrease
+        otherwise.
+    verbose : bool
+        Print triangulation information. Also passed to
+        System.optimize()
+    symmetry : callable
+        Symmetry operation to transform every triangle with. Generates
+        Segmentations that strictly adhere to this symmetry. Called as
+        `symmetry(triangle)`. With triangle being a (3, 2) array of
+        corners. See `transformed_copy()` and `transformer()` for some
+        utilities how to write these symmetry functions.
+
+    Returns
+    -------
+    s : System
+        The `System()` instance with the polygonal electrodes.
+    v : array_like
+        The array of potentials for the electrodes in `s`.
+    c : float
+        Final strength of the constraints. See `System.optimize()`.
+    """
     opts = "Qq%fa%fn" % (q, a)
     args = paths_to_mesh(variable)
     s = v = c = None

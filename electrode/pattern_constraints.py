@@ -32,6 +32,13 @@ from .utils import (select_tensor, expand_tensor, rotate_tensor,
         name_to_deriv)
 
 
+"""Constraints and objectives to be used with `System.optimize()`
+
+.. note::
+    Needs cvxopt.
+"""
+
+
 class Constraint(object):
     def objective(self, system, variables):
         return
@@ -43,6 +50,9 @@ class Constraint(object):
 
 
 class PatternValueConstraint(Constraint):
+    """
+    .. note:: deprecated and potentially broken.
+    """
     def __init__(self, x, d, v, r=None):
         warnings.warn("use PotentialObjective and MultiPotentialObjective",
                 DeprecationWarning)
@@ -61,6 +71,17 @@ class PatternValueConstraint(Constraint):
 
 
 class PatternRangeConstraint(Constraint):
+    """Constrains the potential to lie within the given range
+
+    Parameters
+    ----------
+    min : float or None
+        Minimum potential value or unbounded below if None.
+    max : float or None
+        Maximum potential value or unbounded above if None.
+    index : int or None
+        Only affect the given electrode index or all if None.
+    """
     def __init__(self, min=None, max=None, index=None):
         self.min = min
         self.max = max
@@ -80,6 +101,21 @@ class PatternRangeConstraint(Constraint):
 
 
 class SingleValueConstraint(Constraint):
+    """Base class for Constraints/Objectives.
+
+    Parameters
+    ----------
+    value : float or None
+        If not None, the final value (the .get() of self) is optimized
+        and kept proportional to `value`.
+    min : float or None
+        If not None, the value of this constraint is kept at or above
+        `min.`
+    max : float or None
+        If not None, it is kept below or equal `max`.
+    offset : float or None
+        The value is forced exactly (not proportional) to `offset`.
+    """
     def __init__(self, value=None, min=None, max=None, offset=None):
         self.value = value
         self.offset = offset
@@ -110,6 +146,24 @@ class SingleValueConstraint(Constraint):
 
 
 class PotentialObjective(SingleValueConstraint):
+    """Constrain or optimize potential.
+
+    Parameters
+    ----------
+    x : array_like, shape (3,)
+        Position where to evalue/constrain/optimize potential
+    derivative : str
+        Derivative to constrain/optimize. String of characters from
+        "xyz". See `utils.name_to_deriv.keys()` for possible values.
+        Not all possible cartesian derivatives are allowed, only those
+        that are evaluated as the basis for the given order. Use
+        `MultiPotentialObjective` to constrain sums or differences that
+        make up the other derivatives.
+    rotation : array_like, shape (3, 3)
+        Rotation of the local coordinate system. np.eye(3) if None.
+    **kwargs : any
+        Passed to `SingleValueConstraint()`
+    """
     def __init__(self, x, derivative, rotation=None, **kwargs):
         super(PotentialObjective, self).__init__(**kwargs)
         self.x = np.asanyarray(x, np.double)
@@ -127,6 +181,20 @@ class PotentialObjective(SingleValueConstraint):
     
 
 class MultiPotentialObjective(SingleValueConstraint):
+    """Constrains or optimizes a linear combination of
+    `PotentialObjective()` s.
+
+    The value of this constraint (either used as a min/max or equal
+    constraint or as part of the objective) is the sum of the
+    constituents' `objective()` s. Thus the component `value` s are their
+    weights.
+
+    Parameters
+    ----------
+    components : list of `PotentialObjective()` s
+    **kwargs : any
+        Passed to `SingleValueConstraint()`.
+    """
     def __init__(self, components=[], **kwargs):
         super(MultiPotentialObjective, self).__init__(**kwargs)
         self.components = components

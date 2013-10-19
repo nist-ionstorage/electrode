@@ -11,6 +11,38 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+Introduction
+============
+
+.. include:: ../README.rst
+
+
+API documentation
+=================
+
+.. automodule:: electrode.electrode
+   :members:
+   :undoc-members:
+
+.. automodule:: electrode.system
+   :members:
+   :undoc-members:
+   
+.. automodule:: electrode.polygons
+   :members:
+   :undoc-members:
+
+.. automodule:: electrode.pattern_constraints
+   :members:
+   :undoc-members:
+
+.. automodule:: electrode.adaptive
+   :members:
+   :undoc-members:
+
+.. automodule:: electrode.utils
+   :members:
+   :undoc-members:
 
 
 Indices and tables
