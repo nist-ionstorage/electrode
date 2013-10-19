@@ -26,7 +26,7 @@ import numpy as np
 import matplotlib as mpl
 from scipy.ndimage.interpolation import map_coordinates
 
-from .utils import area_centroid, derive_map
+from .utils import area_centroid, construct_derivative
 
 try:
     if False: # test slow python only or fast numba expressions
@@ -40,6 +40,23 @@ except ImportError:
 
 
 class Electrode(object):
+    """An electrode of a Paul trap.
+
+    Encapsulates the name, the dc and rf voltages and the electrical
+    potential contribution of an electrode.
+
+    Parameters
+    ----------
+    name : str
+    dc : float
+        DC potential associated with the constituents of this electrode.
+        The electrodes's electrical potential is proportional to the DC
+        potential. Does not influence the pseudopotential contribution.
+    rf : float
+        RF potential of this electrode. The pseudopotential controbution
+        of this electrode is proportional to the square of its RF
+        potential.
+    """
     __slots__ = "name dc rf".split()
 
     def __init__(self, name="", dc=0., rf=0.):
@@ -48,26 +65,92 @@ class Electrode(object):
         self.rf = rf
 
     def potential(self, x, derivative=0, potential=1., out=None):
-        """return the specified derivative of the eletrical potential,
-        units are volts"""
+        """Electrical potential contribution.
+        
+        Return the specified derivative of the eletrical potential
+        contribution of this electrode assuming all other electrodes in
+        the system are grounded.
+        
+        Parameters
+        ----------
+        x : array_like, shape (n, 3)
+            Position to evaluate the electrical potential at. The first
+            dimension is used to evaluate at several points in parallel.
+        derivative : int
+            Derivative order of the potential. `derivative=0` returns
+            the potential, `derivative=1` the field/force,
+            `derivative=2` the curvature/hessian.
+        potential : float
+            Scaling of the potential. Could be set to `self.rf` or
+            `self.dc`. Since this method is used to determine both
+            potentials (electrical and pseudo). Scaling with `self.dc`
+            and `self.rf` is done in the respective methods of the `System`
+            instance that contains this electrode.
+        out : None or array_like, shape (n, 2*derivative + 1), double
+            Array to add the potential contribution to. Needs to be
+            zeroed before. If None, an array is created and returned.
+        
+        Returns
+        -------
+        potential : array, shape(n, 2*derivative + 1), double
+            Output potential or `out` if given. The first dimension is
+            the point index (same as `x`) the second is the derivative
+            index. There are only `2*derivative + 1` values as the
+            others are lineraly dependent. See `utils.expand_tensor` and
+            `utils.select_tensor` for details and utility methods.
+
+        See Also
+        --------
+        utils.expand_tensor
+            Expand this reduced tensor to full form.
+        utils.cartesian_to_spherical_harmonics
+            Convert the reduced tensor to spherical harmonics.
+        utils.find_laplace
+            Find partial derivates that can be used to construct others
+            using the vanishing trace of the Laplacian of.
+        """
         raise NotImplementedError
 
     def orientations(self):
-        """return the orientation of pathes (positive orientation
-        yields positive potential for positive voltage and z>0"""
+        """Return the orientation of the electrode surfaces with respect
+        to the `z > 0` half space.
+        
+        Positive orientation yields positive potential for
+        positive voltage and z>0.
+        
+        .. note:: Only fully implemented for `PolygonPixelElectrode`.
+        """
         return np.array([])
 
     def plot(self, ax, label=None, color=None, **kw):
-        """plot this electrode's in the supplied axes"""
+        """Plot this electrode in the supplied axes.
+        
+        Visualize a 2D projection of the electrode in the plot.
+        
+        .. note:: Only fully implemented in `PolyGonPixelElectrode` and
+            `PointPixelElectrode`.
+        """
         pass
 
 
 class CoverElectrode(Electrode):
-    __slots__ = "height".split()
+    """
+    Continuous infinite conducting cover or mesh electrode.
 
-    # also adjust cover_height in
-    # the other electrodes to include the cover's effect on their
-    # potentials
+    Parameters
+    ----------
+    height : float
+        height above `z = 0`
+
+    Notes
+    -----
+    * Only valid as part of a `System` consisting purely of
+      `SurfaceElectrode`.
+    * The other electrodes in the `System` all need to have their
+      `cover_height` adjusted and set to the same value as `height`
+      here. Otherwise their contributions are calculated wrong.
+    """
+    __slots__ = "height".split()
 
     def __init__(self, height=50., **kwargs):
         super(CoverElectrode, self).__init__(**kwargs)
@@ -86,22 +169,31 @@ class CoverElectrode(Electrode):
 
 
 class SurfaceElectrode(Electrode):
-    """
-    Gapless surface electrode patch set.
+    """A patch set embedded in a gapless infinite grounded conducting
+    plane at `z = 0`.
 
-    Parts of the PixelElectrode code are based on:
+    Subclasses of this class can make use of the cover electrode
+    potential expansion [1]_ and play together with a `CoverElectrode`
+    instance in a `System`.
 
-    Roman Schmied, SurfacePattern software package
-    http://atom.physik.unibas.ch/people/romanschmied/code/SurfacePattern.php
+    Parameters
+    ----------
+    cover_height : float
+        The height of the CoverElectrode plane above the `z=0` plane.
+    cover_nmax : int
+        Expansion order of the effect of the cover plane onto this
+        electrode's potential contribution.
 
-    [1] R. Schmied, "Electrostatics of gapped and finite surface
-    electrodes", New J. Phys. 12:023038 (2010),
-    http://dx.doi.org/10.1088/1367-2630/12/2/023038
+    See Also
+    --------
+    Electrode
+        `name`, `dc`, `rf` attributes/parameters
+    CoverElectrode
 
-    [2] R. Schmied, J. H. Wesenberg, and D. Leibfried, "Optimal
-    Surface-Electrode Trap Lattices for Quantum Simulation with Trapped
-    Ions", PRL 102:233002 (2009),
-    http://dx.doi.org/10.1103/PhysRevLett.102.233002
+    References
+    ----------
+    .. [1] Roman Schmied et al. 2011 New J. Phys. 13 115011
+        http://dx.doi.org/10.1088/1367-2630/13/11/115011
     """
     __slots__ = "cover_height cover_nmax".split()
 
@@ -114,6 +206,25 @@ class SurfaceElectrode(Electrode):
 
 
 class PointPixelElectrode(SurfaceElectrode):
+    """Surface electrode comprising several small pixels.
+
+    The pixels are approximated as potential points. Their potential
+    contribution is scaled by `areas`.
+
+    Parameters
+    ----------
+    points : array_like, shape (n, s)
+        Point pixel positions
+    areas : array_like, shape (n,)
+        Point pixel areas
+
+    See Also
+    --------
+    Electrode
+        `name`, `dc`, `rf` attributes/parameters
+    SurfaceElectrode
+        `cover_nmax` and `cover_height` attributes/constructor parameters
+    """
     __slots__ = "points areas".split()
 
     def __init__(self, points=[], areas=[], **kwargs):
@@ -148,6 +259,22 @@ class PointPixelElectrode(SurfaceElectrode):
 
 
 class PolygonPixelElectrode(SurfaceElectrode):
+    """Surface electrode comprising several polygonal patches.
+
+    Parameters
+    ----------
+    paths : list of array_like, shape (n, 2)
+        Polygon boundaries as lists of points. Polygons with positive
+        orientation (counter clock wise) contribute with poisitive sign.
+        THose with negative orientation contribute with negative sign.
+
+    See Also
+    --------
+    Electrode
+        `name`, `dc`, `rf` attributes/parameters
+    SurfaceElectrode
+        `cover_nmax` and `cover_height` attributes/constructor parameters
+    """
     __slots__ = "paths".split()
 
     def __init__(self, paths=[], **kwargs):
@@ -175,6 +302,13 @@ class PolygonPixelElectrode(SurfaceElectrode):
                 ax.text(p[:,0].mean(), p[:,1].mean(), label)
 
     def to_points(self):
+        """Convert all polygons to points at their centroids with the
+        appropriate area.
+
+        Returns
+        -------
+        PointPixelElectrode
+        """
         a, c = [], []
         for p in self.paths:
             ai, ci = area_centroid(p)
@@ -191,6 +325,31 @@ class PolygonPixelElectrode(SurfaceElectrode):
 
 
 class MeshPixelElectrode(SurfaceElectrode):
+    """A surface electrode consisting of a polygonal mesh with
+    different potential for each polygon.
+
+    .. note:: untested, unused
+
+    Parameters
+    ----------
+    points : array_like, shape (n, 2)
+        Vertex coordinates
+    edges : array_like, shape (m, 2)
+        The two vertex indices comprising each edge.
+        Each value is an index into the first axis of `points`.
+    polygons : array_like, shape (m,)
+        Polygon associations of each edge. Each value is an index into
+        `potentials`.
+    potentials : array_like, shape (k,)
+        Polygon potential prefactors.
+
+    See Also
+    --------
+    Electrode
+        `name`, `dc`, `rf` attributes/parameters
+    SurfaceElectrode
+        `cover_nmax` and `cover_height` attributes/constructor parameters
+    """
     __slots__ = "points edges polygons potentials".split()
 
     def __init__(self, points=[], edges=[], polygons=[], potentials=[],
@@ -225,6 +384,23 @@ class MeshPixelElectrode(SurfaceElectrode):
 
 
 class GridElectrode(Electrode):
+    """Electrode based on a precalculated grid of electrical potentials.
+
+    Parameters
+    ----------
+    data : list of array_like, shape (n, m, k, l)
+        List of potential derivatives. The ith data entry is of order
+        (l - 1)/2. Each entry is shaped as a (n, m, k) grid.
+    origin : array_like, shape (3,)
+        Position of the (n, m, k) = (0, 0, 0) voxel.
+    spacing : array_like, shape (3,)
+        Voxel pitch.
+
+    See Also
+    --------
+    Electrode
+        `name`, `dc`, `rf` attributes/parameters
+    """
     __slots__ = "data origin spacing".split()
 
     def __init__(self, data=[], origin=(0, 0, 0), spacing=(1, 1, 1),
@@ -236,6 +412,19 @@ class GridElectrode(Electrode):
 
     @classmethod
     def from_result(cls, result, maxderiv=4):
+        """Create a `GridElectrode` from a `bem.result.Result` instance.
+
+        Parameters
+        ----------
+        result : bem.result.Result
+        maxderiv : int
+            Maximum derivative order to precompute based on the
+            available data.
+
+        Returns
+        -------
+        GridElectrode
+        """
         origin = result.grid.get_origin()
         spacing = result.grid.step
         data = [result.potential[:, :, :, None]]
@@ -247,8 +436,22 @@ class GridElectrode(Electrode):
 
     @classmethod
     def from_vtk(cls, fil, maxderiv=4):
-        """load grid potential data from vtk StructuredPoints file "fil"
-        and return a GridElectrode instance"""
+        """Load grid potential data from vtk StructuredPoints.
+        
+        .. note:: needs `tvtk`
+
+        Parameters
+        ----------
+        fil : str
+            File name of the VTK StructuredPoints file containing the
+            gridded data.
+        maxderiv : int
+            Maximum derivative order to precompute.
+        
+        Returns
+        -------
+        GridElectrode
+        """
         from tvtk.api import tvtk
         #sgr = tvtk.XMLImageDataReader(file_name=fil)
         sgr = tvtk.StructuredPointsReader(file_name=fil)
@@ -274,6 +477,18 @@ class GridElectrode(Electrode):
         return obj
 
     def generate(self, maxderiv=4):
+        """Generate missing derivative orders by successive finite
+        differences from the already present derivative orders.
+
+        .. note:: Finite differences amplify noise and discontinuities
+            in the original data.
+
+        Parameters
+        ----------
+        maxderiv : int
+            Maximum derivative order to precompute if not already
+            present.
+        """
         for deriv in range(maxderiv):
             if len(self.data) < deriv+1:
                 self.data.append(self.derive(deriv))
@@ -284,10 +499,21 @@ class GridElectrode(Electrode):
                 assert ddata.shape[:-1] == self.data[deriv-1].shape[:-1]
 
     def derive(self, deriv):
+        """Take finite differences along each axis.
+
+        Parameters
+        ----------
+        deriv : derivative order to generate
+
+        Returns
+        -------
+        data : array, shape (n, m, k, l)
+            New derivative data, l = 2*deriv + 1
+        """
         odata = self.data[deriv-1]
         ddata = np.empty(odata.shape[:-1] + (2*deriv+1,), np.double)
         for i in range(2*deriv+1):
-            (e, j), k = derive_map[(deriv, i)]
+            (e, j), k = construct_derivative(deriv, i)
             # TODO triple work
             grad = np.gradient(odata[..., j], *self.spacing)[k]
             ddata[..., i] = grad

@@ -70,7 +70,7 @@ class LargeElectrodeCase(unittest.TestCase):
 
     def test_z_symmetry(self):
         x = self.x*[[1, 1, 1,], [1, 1, -1]]
-        for i, deriv in enumerate(utils.derivative_names):
+        for i, deriv in enumerate(utils._derivative_names):
             s = -(-1)**np.array([_.count("z") for _ in deriv])
             p = self.e.potential(x, i)
             nptest.assert_allclose(s*p[0], p[1])
@@ -109,7 +109,7 @@ class PixelElectrodeCase(unittest.TestCase):
 
     def test_z_symmetry(self):
         x = self.x*[[1, 1, 1,], [1, 1, -1]]
-        for i, deriv in enumerate(utils.derivative_names):
+        for i, deriv in enumerate(utils._derivative_names):
             s = -(-1)**np.array([_.count("z") for _ in deriv])
             p = self.e.potential(x, i)
             nptest.assert_allclose(s*p[0], p[1])
@@ -201,7 +201,7 @@ class PolygonTestCase(unittest.TestCase):
 
     def test_z_symmetry(self):
         x = self.x*[[1, 1, 1,], [1, 1, -1]]
-        for i, deriv in enumerate(utils.derivative_names):
+        for i, deriv in enumerate(utils._derivative_names):
             s = -(-1)**np.array([_.count("z") for _ in deriv])
             p = self.e.potential(x, i)
             nptest.assert_allclose(s*p[0], p[1])

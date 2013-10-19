@@ -31,6 +31,7 @@ def shaped(func):
     array. The function to be wrapped is is called with a (n, l) array. 
     The wrapper then returns a (m, ..., k, l) array.
 
+    .. note:: deprecated, unused
     """
     def shape_wrapper(xyz, *args, **kwargs):
         xyz = np.atleast_2d(xyz)
@@ -45,6 +46,7 @@ def shaped(func):
 def shaper(func, xyz, *args, **kwargs):
     """Builds a `shaped()` wrapper for `func` on the fly and calls it.
 
+    .. note:: deprecated, unused
     """
     return shaped(func)(xyz, *args, **kwargs)
 
@@ -62,14 +64,17 @@ def norm(a, axis=-1):
     """Special version of np.linalg.norm() that only covers the
     specified axis.
     
+    .. note:: unused
+
     Parameters
     ----------
     a : array_like
     axis : int
         Axis to calculate the norm over.
     """
-    # return np.sqrt(np.einsum("...j,...j->...", a, a))
-    return np.sqrt(np.square(a).sum(axis=axis))
+    # apparently faster
+    return np.sqrt(np.einsum("...j,...j->...", a, a))
+    # return np.sqrt(np.square(a).sum(axis=axis))
 
 
 def rotate_tensor(c, r, order=None):
@@ -107,7 +112,7 @@ def rotate_tensor(c, r, order=None):
     return c
 
 
-derivative_names = [[""]] + [s.split() for s in [
+_derivative_names = [[""]] + [s.split() for s in [
     "x y z",
     "xx xy xz yy yz",
     "xxy xxz yyz xyy xzz yzz xyz",
@@ -115,13 +120,13 @@ derivative_names = [[""]] + [s.split() for s in [
     "xxxyy xxxyz xxxzz xxyyy xxyyz xxyzz xxzzz xyyyz xyyzz yyyzz yyzzz",
     ]]
 
-derivatives_map = {} # sorted name: (derivative order, derivative index)
-name_map = {} # reverse derivatives_map
-expand_map = [] # derivative order: 3**order list of selected index
+_derivatives_map = {} # sorted name: (derivative order, derivative index)
+_name_map = {} # reverse derivatives_map
+_expand_map = [] # derivative order: 3**order list of selected index
 # or laplace pair
-select_map = [] # derivative order: 2*order+1 list of indices into
+_select_map = [] # derivative order: 2*order+1 list of indices into
 # 3**order expanded
-derive_map = {} # (derivative order, derivative index): ((lower
+_derive_map = {} # (derivative order, derivative index): ((lower
 # derivative order, lower derivative index), axis to derive)
 
 def name_to_idx(name):
@@ -130,21 +135,69 @@ def name_to_idx(name):
     Parameters
     ----------
     name : str
-        A derivative name. E.g. `"xxz"`
+        A derivative name, e.g. `"xxz."`
+
+    Returns
+    -------
+    idx : tuple of int
+        Axis tuple, e.g. `(0, 0, 2)`.
+
+    See also
+    --------
+    idx_to_name : Inverse
     """
     return tuple("xyz".index(n) for n in name)
 
 def idx_to_name(idx):
-    """return sorted derivative name for axis tuple"""
+    """Return sorted derivative name for axis tuple
+    
+    Parameters
+    ----------
+    idx : tuple of int
+        An axis tuple.
+    
+    Returns
+    -------
+    name : str
+        Derivative name.
+
+    See also
+    --------
+    name_to_idx : Inverse
+    """
     return "".join("xyz"[i] for i in sorted(idx))
 
 def idx_to_nidx(idx):
-    """return index into flattened 3**order array for given order-tuple"""
+    """Return index into flattened 3**order array for given order-tuple.
+    
+    Parameters
+    ----------
+    idx : tuple of int
+        Axis tuple.
+        
+    Returns
+    -------
+    i : int
+        Derivative order.
+    j : int
+        Index into flattened derivative tensor.
+    """
     return sum(j*3**(len(idx)-i-1) for i, j in enumerate(idx))
 
 def find_laplace(c):
-    """given derivative name c returns the two derivatives a and b
-    such that a+b+c=0 for a harmonic tensor"""
+    """Finds the two partial derivatives `a` and `b` such that the
+    triple `a, b, c` is traceless, `a + b + c == 0`.
+
+    Parameters
+    ----------
+        c : axis tuple
+
+    Returns
+    -------
+    generator
+        Generator of tuples `(a, b)` such that `a + b + c == 0` for any
+        harmonic tensor of any order.
+    """
     name = sorted(c)
     letters = list(range(3))
     found = None
@@ -158,58 +211,118 @@ def find_laplace(c):
             a, b = (tuple(sorted(keep+[j,j])) for j in take)
             yield a, b
 
-def populate_maps():
-    for deriv, names in enumerate(derivative_names):
+def _populate_maps():
+    for deriv, names in enumerate(_derivative_names):
         #assert len(names) == 2*deriv+1, names
         for idx, name in enumerate(names):
             assert len(name) == deriv, name
-            derivatives_map[name] = (deriv, idx)
-            name_map[(deriv, idx)] = name
+            _derivatives_map[name] = (deriv, idx)
+            _name_map[(deriv, idx)] = name
             if deriv > 0:
-                for i, n in enumerate(derivative_names[deriv-1]):
+                for i, n in enumerate(_derivative_names[deriv-1]):
                     for j, m in enumerate("xyz"):
                         if name == "".join(sorted(n+m)):
-                            derive_map[(deriv, idx)] = (deriv-1, i), j
+                            _derive_map[(deriv, idx)] = (deriv-1, i), j
                             break
-                assert (deriv, idx) in derive_map, name
+                assert (deriv, idx) in _derive_map, name
             for lap in find_laplace(name_to_idx(name)):
                 a, b = map(idx_to_name, lap)
                 assert (a not in names) or (b not in names), (name, a, b)
         idx = tuple(idx_to_nidx(name_to_idx(name)) for name in names)
-        select_map.append(idx)
-        expand_map.append([])
+        _select_map.append(idx)
+        _expand_map.append([])
         for idx in product(range(3), repeat=deriv):
             name = idx_to_name(idx)
             if name in names:
-                expand_map[deriv].append(names.index(name))
+                _expand_map[deriv].append(names.index(name))
             else:
                 for a, b in find_laplace(idx):
                     a, b = map(idx_to_name, (a, b))
                     if a in names and b in names:
                         ia, ib = (names.index(i) for i in (a, b))
-                        expand_map[deriv].append((ia, ib))
-        assert len(expand_map[deriv]) == 3**deriv
+                        _expand_map[deriv].append((ia, ib))
+        assert len(_expand_map[deriv]) == 3**deriv
 
-populate_maps()
+_populate_maps()
 
 
 def name_to_deriv(name):
-    return derivatives_map[name]
+    """Return (derivtive order, derivative index) for a given derivative
+    name.
+
+    Parameters
+    ----------
+    name : str
+        Derivative name
+
+    Returns
+    -------
+    order : int
+    index : int
+
+    See also
+    --------
+    deriv_to_name : inverse
+    """
+    return _derivatives_map[name]
 
 def deriv_to_name(deriv, idx):
-    return name_map[(deriv, idx)]
+    """Return name for given (derivative order, index).
+
+    Parameters
+    ----------
+    deriv : int
+    idx : int
+
+    Returns
+    -------
+    name : str
+
+    See also
+    --------
+    name_to_deriv ; inverse
+    """
+    return _name_map[(deriv, idx)]
 
 def construct_derivative(deriv, idx):
-    """return lower deriv and axis to derive"""
-    return derive_map[(deriv, idx)]
+    """Return lower deriv and axis to derive.
+    When constructing a higher order derivative, take the value of the
+    lower order derivative and evaluate its derivative along the axis
+    returned by this function.
+    
+    Parameters
+    ----------
+    deriv : int
+    idx : int
+    
+    Returns
+    -------
+    i : tuple (int, int)
+        Lower derivative (derivative order, derivative index)
+    j : int
+        Axis to derive along
+    """
+    return _derive_map[(deriv, idx)]
 
 
 def expand_tensor(c, order=None):
-    """from the minimal linearly independent entries of a derivative of
-    a harmonic field c build the complete tensor using its symmtry
-    and laplace
+    """From the minimal linearly independent entries of a derivative of
+    a harmonic field build the complete tensor using its symmtry
+    and Laplace.
 
-    inverse of select_tensor()"""
+    See also
+    --------
+    select_tensor : The inverse to this function.
+    
+    Parameters
+    ----------
+    c : array_like, shape (n, m)
+    order : int or None
+    
+    Returns
+    -------
+    d : array_like, shape (n, 3, ..., 3)
+    """
     #c = np.atleast_2d(c)
     if order is None:
         order = (c.shape[-1]-1)//2
@@ -220,7 +333,7 @@ def expand_tensor(c, order=None):
     else:
         shape = c.shape[:-1]
         d = np.empty(shape + (3**order,), c.dtype)
-        for i, j in enumerate(expand_map[order]):
+        for i, j in enumerate(_expand_map[order]):
             if type(j) is int:
                 d[..., i] = c[..., j]
             else:
@@ -229,10 +342,30 @@ def expand_tensor(c, order=None):
 
 
 def select_tensor(c, order=None):
-    """select only a linealy idependent subset from a derivative of a
-    harmonic field
+    """Select only a linealy idependent subset from a derivative of a
+    harmonic field.
 
-    inverse of expand_tensor()"""
+    See also
+    --------
+    expand_tensor : The inverse to this function.
+ 
+    Parameters
+    ----------
+    c : array_like, shape (n, 3, ..., 3)
+        Input array to select from. `n` is the point index to select
+        multiple values in parallel. The remaining axis are the
+        respective derivatives. The order of the tensor is `l = (c.ndim
+        - 1)/2`
+    order : int
+        Overrides the value inferred from c.ndim. The length of the
+        first axis of the output array.
+
+    Returns
+    -------
+    d : array_like, shape (n, m)
+        Selected lineraly independent tensor. `l = (m - 1)/2` is the
+        order of the tensor.
+    """
     #c = np.atleast_1d(c)
     n = c.ndim
     if order is None:
@@ -241,17 +374,32 @@ def select_tensor(c, order=None):
     if order < 2:
         return c # fastpath
     else:
-        return c[..., select_map[order]]
+        return c[..., _select_map[order]]
 
 
 def cartesian_to_spherical_harmonics(c):
-    """given a cartesian derivative of a harmonic potential where the
-    derivative index is the first dimension (reduced as per
-    select_tensor, expand_tensor), rewrite it in terms of real 
-    spherical harmonics where m (-l...l) is the first dimension. l is
-    inferred from the input shape. 
+    """Converts basis cartesian derivative set to spherical harmonics.
+    
+    Given a cartesian derivative of a harmonic potential
+    rewrite it in terms of real spherical harmonics.
+
     Convention and conversion to complex spherical harmonics as per
     http://theoretical-physics.net/dev/src/math/operators.html#real-spherical-harmonics
+
+    Parameters
+    ----------
+    c : array_like, shape (m, n)
+        Cartesian derivative values. `m` determines the derivative order
+        `l = (m - 1)/2`. `n` is the point index (to evaluate mutliple
+        values in parallel). Reshape to (n, -1) where necessary.
+        This tensor should have either been created in reduced form or 
+        reduced using to `select_tensor()`.
+
+    Returns
+    -------
+    d : array_like, shape (m, n)
+        Spherical harmonics values. The first axis is the azimuthal part
+        and ranges from `(-l...l)`.
     """
     #c = np.atleast_1d(c)
     l = (c.shape[0] - 1)//2
@@ -340,27 +488,63 @@ def cartesian_to_spherical_harmonics(c):
 
 
 def area_centroid(p1):
-    """return the centroid and the area of the polygon p1
-    (list of points)"""
+    """Area and centroid of 2d polygon.
+    
+    Parameters
+    ----------
+    p1 : array_like, shape (n, 2)
+        polygon boundary
+    
+    Returns
+    -------
+    a : float
+        Polygon area, positive if polygon boundary is CCW if viewed from
+        above.
+    c : array, shape (2,)
+        Centroid of the polygon area. Not necessarily inside the
+        polygon.
+    """
     p2 = np.roll(p1, -1, axis=0)
-    r = p1[:, 0]*p2[:, 1]-p2[:, 0]*p1[:, 1]
+    r = p1[:, 0]*p2[:, 1] - p2[:, 0]*p1[:, 1]
     a = r.sum(0)/2.
-    c = ((p1+p2)*r[:, None]).sum(0)/(6*a)
+    c = ((p1 + p2)*r[:, None]).sum(0)/(6*a)
     return a, c
 
 
 def mathieu(r, *a):
-    """solve the mathieu/floquet equation 
+    """Solve the exteded Mathieu/Floquet equation::
+
         x'' + (a_0 + 2 a_1 cos(2 t) + 2 a_2 cos(4 t) ... ) x = 0
-    in n dimensions and with a frequency cutoff at +- r
-    a.shape == (n, n)
-    returns mu eigenvalues and b eigenvectors
-    b.shape == (2*r+1, 2, n, 2*n*(2*r+1))
-    with indices: frequency component (-r...r), derivative, dimension, eigenvalue
-    mu.shape == (2*n*(2*r+1),)
-    b[..., i] the eigenvector to the eigenvalue mu[i]
-    the eigenvalues and eigenvectors are not necessarily ordered
-    (see numpy.linalg.eig())
+
+    .. math:: \\frac{\\partial^2x}{\\partial t^2} + \\left(a_0 + \\sum_{i=1}^k
+        2 a_i \\cos(2 i t)\\right)x = 0
+
+    in n dimensions.
+
+    Parameters
+    ----------
+    r : int
+        frequency cutoff at `+- r`
+    *a : tuple of array_like, all shape (n, n)
+        `a[0]` is usually called `q`.
+        `a[1]` is often called `-a`.
+        `a[i]` is the prefactor of the `2 cos(2 i t)` term.
+        Each `a[i]` can be an (n, n) matrix. In this case the `x` is an
+        (n,) vector.
+
+    Returns
+    -------
+    mu : array, shape (2*n*(2*r + 1),)
+        eigenvalues
+    b : array, shape (2*r + 1, 2, n, 2*n*(2*r + 1))
+        eigenvectors with the following indices:
+        (frequency component (-r...r), derivative, dimension,
+        eigenvalue). b[..., i] the eigenvector to the eigenvalue mu[i].
+
+    Notes
+    -----
+    * the eigenvalues and eigenvectors are not necessarily ordered
+      (see numpy.linalg.eig())
     """
     n = a[0].shape[0]
     m = np.zeros((2*r+1, 2*r+1, 2, 2, n, n), dtype=np.complex)
@@ -385,6 +569,10 @@ def mathieu(r, *a):
 
 
 class DummyPool(object):
+    """Trivial dummy class that offers the `multiprocessing.Pool`
+    `apply_async()` method. But in a synchronous way.
+
+    """
     def apply_async(self, func, args=(), kwargs={}):
         class _DummyRet(object):
             def get(self):

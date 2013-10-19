@@ -54,12 +54,23 @@ logger = logging.getLogger()
 
 
 class System(list):
+    """A collection of Electrodes.
+
+    Parameters
+    ----------
+    electrodes : list of `Electrode`
+        Individual Electrodes comprising this System.
+    """
     def __init__(self, electrodes=[], **kwargs):
         super(System, self).__init__(**kwargs)
         self.extend(electrodes)
    
     @property
     def names(self):
+        """List of names of the electrodes.
+        
+        This property can be set but in-place changes have no effect.
+        """
         return [el.name for el in self]
    
     @names.setter
@@ -69,6 +80,10 @@ class System(list):
     
     @property
     def dcs(self):
+        """Array of `dc` potentials of the electrodes.
+        
+        This property can be set but in-place changes have no effect.
+        """
         return np.array([el.dc for el in self])
 
     @dcs.setter
@@ -78,6 +93,10 @@ class System(list):
 
     @property
     def rfs(self):
+        """Array of `rf` potentials of the electrodes. 
+        
+        This property can be set but in-place changes have no effect.
+        """
         return np.array([el.rf for el in self])
 
     @rfs.setter
@@ -86,7 +105,19 @@ class System(list):
             ei.rf = vi
 
     def __getitem__(self, name_or_index):
-        """return the first electrode named name or None if not found"""
+        """Electrode lookup.
+        
+        Returns
+        -------
+        Electrode
+            The electrode given by its index or name.
+            None if not found by name.
+            
+        Raises
+        ------
+        IndexError
+            If electrode index does not exist.
+        """
         try:
             return list.__getitem__(self, name_or_index)
         except TypeError:
@@ -98,27 +129,73 @@ class System(list):
 
     @contextmanager
     def with_voltages(self, dcs=None, rfs=None):
-        """contextmanager with temporary voltage setting"""
-        odc, orf = None, None
+        """Returns a contextmanager with temporary voltage setting.
+        
+        This is a convenient way to temporarily change the voltages and
+        ensure they are reset to their old values.
+
+        Parameters
+        ----------
+        dcs : array_like
+            `dc` voltages for all electrodes, or None to keep present
+            ones.
+        rfs : array_like
+            `rf` voltages for all electrodes, or None to keep present
+            ones.
+            
+        Returns
+        -------
+        contextmanager
+        
+        Examples
+        --------
+        >>> s = System()
+        >>> with s.with_voltages(dcs=0*s.dcs, rfs=[0, 1]):
+        ...     print(s.potential([0, 0, 1.]))
+        """
         try:
             if dcs is not None:
-                odc = self.dcs
-                self.dcs = dcs
+                dcs, self.dcs = self.dcs, dcs
             if rfs is not None:
-                orf = self.rfs
-                self.rfs = rfs
+                rfs, self.rfs = self.rfs, rfs
             yield
         finally:
-            if odc is not None:
-                self.dcs = odc
-            if orf is not None:
-                self.rfs = orf
+            if dcs is not None:
+                self.dcs = dcs
+            if rfs is not None:
+                self.rfs = rfs
 
     def electrical_potential(self, x, typ="dc", derivative=0, expand=False):
-        """
-        return electrical potential derivative due to the electrodes at x
-        electrode voltage given in typ names attribute, expand the
-        tensor to full form if expand==True
+        """Electrical potential derivative.
+
+        Parameters
+        ----------
+        x : array_like, shape (n, 3)
+            Positions to evaluate the potential at.
+        typ : {"dc", "rf"}
+            Potential to scale the electrodes contribution with.
+        derivative : int
+            Derivative order.
+        expand : bool
+            If True, return the fully expanded tensor, else return the
+            reduced form.
+
+        Returns
+        -------
+        potential : array
+            Potential at `x`.
+            If `expand == False`:
+                shape (n, l). `l` is the derivative index,
+                `l = 2*derivative + 1`.
+            Else:
+                shape (n, 3, ..., 3), fully expanded tensorial form.
+
+        See Also
+        --------
+        utils.expand_tensor
+        utils.select_tensor
+            Utility functions to convert between the reduced and
+            expanded tensorial forms.
         """
         x = np.asanyarray(x, dtype=np.double).reshape(-1, 3)
         pot = np.zeros((x.shape[0], 2*derivative+1), np.double)
@@ -131,10 +208,25 @@ class System(list):
         return pot
     
     def individual_potential(self, x, derivative=0):
-        """
-        return derivatives of the electrical potential at x and
-        contribution of each of the specified electrodes per volt
-        O(len(electrodes)*len(x))
+        """Individual contributions to the electrical potential.
+        
+        Returns an array of the contributions by the electrodes to the
+        potential at each point.  Each electrode is taken to have unit
+        potential (in turn grounding all others).
+
+        Parameters
+        ----------
+        x : array_like, shape (n, 3)
+            Points to evaluate at.
+        derivative : int
+            Derivative order.
+
+        Returns
+        -------
+        potentials : array, shape (m, n, l)
+            Potential contributions. `m` is the electrode index (index
+            into `self`). `n` is the point index, `l = 2 * derivative +
+            1` is the derivative index.
         """
         x = np.asanyarray(x, dtype=np.double).reshape(-1, 3)
         eff = np.zeros((len(self), x.shape[0], 2*derivative+1),
@@ -144,15 +236,48 @@ class System(list):
         return eff
 
     def time_potential(self, x, derivative=0, t=0., expand=False):
-        """electrical field at an instant in time t (physical units:
-        1/omega_rf), no adiabatic approximation here"""
+        """Electrical potential at an instant.
+        
+        No pseudopotential averaging. The phase of the rf voltage is
+        assumed to be equal across all rf carrying electrodes and the rf
+        voltage is assumed to be maximal at `t = 0`::
+
+            e_dc + cos(t) * e_rf
+
+        Parameters
+        ----------
+        derivative : int
+            Derivative order
+        t : float
+            Time instant
+        expand : bool
+            Expand to full tensorial form if True
+
+        Returns
+        -------
+        array
+            See `electrical_potential`.
+        """
         dc, rf = (self.electrical_potential(x, typ, derivative, expand)
                 for typ in ("dc", "rf"))
         return dc + np.cos(t)*rf
 
     def pseudo_potential(self, x, derivative=0):
-        """return given derivative or the ponderomotive/pseudo potential
-        at x"""
+        """The ponderomotive/pseudo potential.
+        
+        Parameters
+        ----------
+        x : array, shape (n, 3)
+            Points to evaluate the pseudopotential at
+        derivative : int <= 4
+            Derivative order. Implemented up to 4th order.
+            
+        Returns
+        -------
+        potential : array, shape (n, 3, ..., 3)
+            Pseudopotential derivative. Fully expanded since this is not
+            generally harmonic.
+        """
         p = [self.electrical_potential(x, "rf", i, expand=True)
                 for i in range(1, derivative+2)]
         if derivative == 0:
@@ -181,25 +306,67 @@ class System(list):
             a += c.transpose(0, 1, 4, 3, 2)
             a += c.transpose(0, 1, 3, 2, 4)
             return 2*a
+        else:
+            raise ValueError("only know how to generate pseudopotentials "
+                "up to 4th order")
 
     def potential(self, x, derivative=0):
-        """combined electrical and ponderomotive potential"""
+        """Combined electrical and ponderomotive potential.
+        
+        Parameters
+        ----------
+        x : array, shape (n, 3)
+            Points to evaluate at.
+        derivative : int <= 4
+            Derivative order. Implemented up to 4th order.
+
+        Returns
+        -------
+        potential : array, shape (n, 3, ..., 3)
+            Pseudopotential derivative. Fully expanded since this is not
+            generally harmonic.
+        """
         dc = self.electrical_potential(x, "dc", derivative,
                 expand=True)
         rf = self.pseudo_potential(x, derivative)
         return dc + rf
 
     def plot(self, ax, alpha=.3, **kwargs):
-        """plot electrodes with sequential colors"""
+        """Plot electrodes projected onto the xy plane.
+        
+        Plots each electrode according to its interpretation of `plot()`
+        with sequential colors into the given axes.
+        
+        Parameters
+        ----------
+        ax : matplotlib axes
+        **kwargs : any
+            Passed to all `Electrode.plot()`.
+        """
         for e, c in zip(self, itertools.cycle(colors.set3)):
             e.plot(ax, color=tuple(c/255.), alpha=alpha, **kwargs)
 
     def plot_voltages(self, ax, u=None, um=None, cmap=plt.cm.RdBu_r,
             **kwargs):
-        """plot electrodes with color proportional to voltage 
-        red for positive, blue for negative"""
+        """Plot electrodes with color proportional to voltage.
+
+        Red for positive, blue for negative.
+        
+        Parameters
+        ----------
+        ax : matplotlib axes
+        u : array or None
+            Voltages to use for plotting. If None, use `self.dcs`.
+        um : float or None
+            Maximum voltage to scale colors to. If None, use
+            `max(abs(u))`.
+        cmap : matplotlib color map
+            Color map to use.
+        **kwargs : any
+            Passed to each `Electrode.plot()`.
+        """
         if u is None:
-            u = np.array(self.dcs)
+            u = self.dcs
         if um is None:
             um = np.fabs(u).max() or 1.
         u = (u / um + 1)/2
@@ -210,8 +377,26 @@ class System(list):
 
     def minimum(self, x0, axis=(0, 1, 2), coord=np.identity(3),
         method="Newton-CG", **kwargs):
-        """find a potential minimum near x0 searching along the
-        specified axes in the orthonormal matrix coord"""
+        """Find a potential minimum.
+        
+        Parameters
+        ----------
+        x0 : array_like, shape (3,)
+            Start point for the downhill search.
+        axis : tuple of int
+            Only vary the given axis in the given coordinate system.
+        coord : array, shape (3, 3)
+            Coordinate system to vary the axes in.
+        method : str
+            Method for minimization. See `scipy.opimize.minimize()` for
+            possible values.
+        **kwargs : any
+            Passed to the minimization method.
+            
+        See Also
+        --------
+        scipy.optimize.minimize
+        """
         x = np.array(x0)
         def f(xi):
             x[axis, :] = xi
@@ -236,8 +421,27 @@ class System(list):
         return x
 
     def saddle(self, x0, axis=(0, 1, 2), coord=np.identity(3), **kw):
-        """find a saddle point close to x0 along the specified axes in
-        the coordinate system coord"""
+        """Find a saddle point using rational function optimization.
+
+        A saddle point is a point with vanishing first derivatives and
+        only one negative second normal derivative.
+        
+        Parameters
+        ----------
+        x0 : array_like, shape (3,)
+            Start point for the saddlepoint search.
+        axis : tuple of int
+            Only vary the given axis in the given coordinate system.
+        coord : array, shape (3, 3)
+            Coordinate system to vary the axes in.
+        **kw : any
+            Passed to `rfo()`.
+
+        See Also
+        --------
+        saddle.rfo
+            Find Saddle points using rational function optimization.
+        """
         kwargs = dict(dx_max=.1, xtol=1e-5, ftol=1e-5)
         kwargs.update(kw)
         x = np.array(x0)
@@ -258,10 +462,26 @@ class System(list):
         return x, p
 
     def modes(self, x, sorted=True):
-        """returns curvatures and eigenmode vectors at x
+        """Curvatures and eigenmode vectors.
+
         physical units of the trap frequenzies (Hz):
         scale = (q*u/(omega*scale))**2/(4*m)
         (scale*ew/scale**2/m)**.5/(2*pi)
+
+        Parameters
+        ----------
+        x : array_like, shape (3,)
+            Point to determine modes at.
+        sorted : bool
+            If True, return data sorted by eigenvalue in ascending
+            order.
+
+        Returns
+        -------
+        ew : array, shape (3,)
+            Eigenmodes
+        ev : array, shape (3, 3)
+            Normal modes. The mode index is the second axis.
         """
         ew, ev = np.linalg.eigh(self.potential(x, 2)[0])
         if sorted:

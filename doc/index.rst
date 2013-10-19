@@ -1,49 +1,20 @@
-.. electrode documentation master file, created by
-   sphinx-quickstart on Fri Apr 12 14:17:20 2013.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to electrode's documentation!
 =====================================
 
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
 Introduction
 ============
 
 .. include:: ../README.rst
 
-
 API documentation
 =================
 
-.. automodule:: electrode.electrode
-   :members:
-   :undoc-members:
-
-.. automodule:: electrode.system
-   :members:
-   :undoc-members:
-   
-.. automodule:: electrode.polygons
-   :members:
-   :undoc-members:
-
-.. automodule:: electrode.pattern_constraints
-   :members:
-   :undoc-members:
-
-.. automodule:: electrode.adaptive
-   :members:
-   :undoc-members:
-
-.. automodule:: electrode.utils
-   :members:
-   :undoc-members:
-
+.. include:: api.rst
 
 Indices and tables
 ==================
@@ -51,4 +22,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
