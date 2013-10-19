@@ -16,7 +16,7 @@ debian/python-module-stampdir*
 debian/files
 *.egg-info
 electrode/cexpressions.c
-./doc/_build/*
+doc/_build/*
 __pycache__
 debian/tmp
 *.gds

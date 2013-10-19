@@ -4,18 +4,12 @@ Welcome to electrode's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 3
+    :maxdepth: 3
+    
+    intro
+    electrode
 
-Introduction
-============
-
-.. include:: ../README.rst
-
-API documentation
-=================
-
-.. include:: api.rst
-
+    
 Indices and tables
 ==================
 

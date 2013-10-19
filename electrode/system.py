@@ -129,7 +129,7 @@ class System(list):
 
     @contextmanager
     def with_voltages(self, dcs=None, rfs=None):
-        """Returns a contextmanager with temporary voltage setting.
+        """Returns a `contextmanager` with temporary voltage setting.
         
         This is a convenient way to temporarily change the voltages and
         ensure they are reset to their old values.
@@ -492,10 +492,36 @@ class System(list):
     def trajectory(self, x0, v0, axis=(0, 1, 2),
             t0=0, dt=.0063*2*np.pi, t1=1e4, nsteps=1,
             integ="gni_irk2", *args, **kwargs):
-        """integrate the trajectory with initial position and speed x0,
-        v0 along the specified axes (use symmetry to eliminate one),
-        time step dt, from time t0 to time t1, yielding current position
-        and speed every nsteps time steps"""
+        """Calculate an ion trajectory.
+        
+        Integrates the ion trajectory without the
+        adiabatic/pseudopotential approximation using a symplectic
+        integration scheme.
+        
+        Parameters
+        ----------
+        x0 : array_like, shape (3,)
+            Initial position.
+        v0 : array_like, shape (3,)
+            Initial speed.
+        axis : tuple of int
+            Axes to vary during the integration. If `x0` and `v0` lie in
+            a symmetry plane, the perpendicular axis can be dropped.
+        t0 : float
+            Initial time.
+        dt : float
+            Time step.
+        t1 : float
+            Final time.
+        nsteps : int
+            Interval to report position and speed at. Every `nstep` time
+            stap (each `dt`) is reported.
+
+        Returns
+        -------
+        generator
+            Yields `(t, x, v)` time, position ans speed data.
+        """
         if not callable(integ):
             integ_ = getattr(gni, integ)
             methc = kwargs.pop("methc", 2)
@@ -514,9 +540,34 @@ class System(list):
 
     def shims(self, x_coord_deriv, objectives=[], constraints=None,
             **kwargs):
-        """
-        solve the shim equations simultaneously at all points 
-        [(x, rotation, derivative), ...]
+        """Determine shim vectors.
+
+        Solves the shim equations (orthogonalizes) simultaneously at
+        all points for all given derivatives. 
+
+        Parameters
+        ----------
+        x_coord_deriv : list of tuples (x, coord, derivative)
+            `x` being array_like, shape (3,), `coord` either None or a
+            array_like shape (3, 3) coordinate system rotation matrix,
+            and `derivative` a string for a partial derivative.
+            For possible values see `utils._derivative_names`.
+        objectives : list of `pattern_constraints.Constraint`
+            Additional objectives. Use this for e.g.
+            `pattern_constraints.MultiPotentialObjective`.
+        constraints : None or list of `pattern_constraints.Constraint`
+            List of constraints. If None, the pattern electrode
+            potential values are constrained between -1 and 1.
+        **kwargs : any
+            Passed to `self.optimize`.
+
+        Returns
+        -------
+        vectors : array, shape (n, m)
+            The ith row is a shim vector that achieves a unit of the ith
+            constraint's effect. `n` being the number of objectives in
+            the (`len(x_coord_deriv) + len(objectives)`) and m is the
+            number of electrodes (`len(self)`).
         """
         obj = [PotentialObjective(x=x, derivative=deriv, value=0,
             rotation=coord) for x, coord, deriv in x_coord_deriv]
@@ -535,9 +586,30 @@ class System(list):
 
     def solve(self, x, constraints, verbose=True):
         """
-        optimize dc voltages at positions x to satisfy constraints.
+        Optimize dc voltages at positions x to satisfy constraints.
 
         O(len(constraints)*len(x)*len(electrodes)) if sparse (most of the time)
+
+        .. note:: broken, unused
+    
+        Parameters
+        ----------
+        x : array_like, shape (n, 3)
+            Points
+        constraints : list of Constraints
+        verbose : bool
+            Passed to the solver.
+
+        Returns
+        -------
+        u
+            Electrode potentials
+        p
+            Potential contributions at x
+        f
+            Field contributions at x
+        c
+            Curvature contributions at x
         """
         v0 = [el.voltage_dc for el in self]
         for el in self:
@@ -590,8 +662,28 @@ class System(list):
         return u, p, f, c
 
     def optimize(self, constraints, rcond=1e-9, verbose=True):
-        """optimize this electrode voltages with respect to
-        constraints"""
+        """Find electrode potentials that maximize given
+        constraints/objectives.
+        
+        Parameters
+        ----------
+        constraints : list of `pattern_constraints.Constraint`
+            Constraints and objectives.
+        rcond : float
+            Cutoff for small singular values. See `scipy.linalg.pinv`
+            for details.
+        verbose : bool
+            Passed to the solver.
+        
+        Returns
+        -------
+        potentials : array, shape (n,)
+            Electrode potentials that maximize the objective and
+            fulfill the constraints. `n = len(self)`.
+        c : float
+            Solution strength. `c` times the objective value could
+            be achieved using `potentials`.
+        """
         p = cvxopt.modeling.variable(len(self))
         obj = []
         ctrs = []
@@ -629,6 +721,27 @@ class System(list):
         return p, c
 
     def group(self, thresholds=[0], voltages=None):
+        """Group electrodes by their potentials.
+
+        Regroups all electrodes and combines those that fall in the same
+        potential bin to a single electrode.
+
+        Parameters
+        ----------
+        thresholds : array_like, shape (n,), float
+            Bin edges. Will be flanked by `-inf, thresholds, inf`.
+        voltages : None or array_like, shape (m,)
+            Electrode potentials to use for binning. If None, take
+            `self.dcs`.
+
+        Returns
+        -------
+        System
+            The new `System` instance containing the electrode groups.
+            The System returned will contain `len(thresholds) + 1`
+            electrodes. The ith electrode contains all electrodes `j`
+            with `thresholds[i-1] <= voltages[j] < thresholds[i]`.
+        """
         if voltages is None:
             voltages = self.dcs
         if thresholds is None:
@@ -652,8 +765,32 @@ class System(list):
         return System(eles)
 
     def mathieu(self, x, u_dc, u_rf, r=2, sorted=True):
-        """return characteristic exponents (mode frequencies) and
-        fourier components"""
+        """Return characteristic exponents (mode frequencies) and
+        fourier components.
+        
+        Parameters
+        ----------
+        x : array_like, shape (3,)
+            Position.
+        u_dc : float
+            Dc potential prefactor.
+        u_rf : float
+            Rf potential prefactor.
+        r : int
+            Frequency cutoff.
+        sorted : bool
+            If True, sort modes by ascending eigenvalue.
+        
+        Returns
+        -------
+        mu : array, shape (3*(2*r + 1),)
+            Eigenvalues, sorted by value if `sorted == True`.
+        b : aray, shape (3*(2*r + 1), 3*(2*r + 1))
+            Eigenmodes. The ith row corresponds to the ith eigenvalue.
+            If each row is reshaped as `(2*r + 1, 3)`, the first axis is
+            the rf frequency multiple (from `-r` to `r`) and the second
+            is the spatial direction.
+        """
         a = 4*u_dc*self.electrical_potential(x, "dc", 2, expand=True)[0]
         q = 2*u_rf*self.electrical_potential(x, "rf", 2, expand=True)[0]
         mu, b = mathieu(r, a, q)
@@ -667,6 +804,42 @@ class System(list):
     def analyze_static(self, x, axis=(0, 1, 2), do_ions=False,
             m=ct.atomic_mass, q=ct.elementary_charge, u=1.,
             l=100e-6, o=2*np.pi*1e6):
+        """Perform an textual analysis of the potential at and around
+        a point.
+
+        Use `atomic_mass` and `elementary_charge` from `scipy.constants`
+        to set `m` and `q` correctly. All constants `m, q, u, l, o` are
+        given in SI units.
+
+        To print out the output of this function, use::
+
+            for line in s.analyze_static(...):
+                print(line)
+
+        Parameters
+        ----------
+        x : array_like, shape (3,)
+            Point to analyze around.
+        axis : tuple of int
+            Axes to vary during minimum and saddle point searches.
+        do_ions : bool
+            Also analyze the modes of multiple ions.
+        m : float
+            Ion mass (kg).
+        q : float
+            Ion charge (C)
+        u : float
+            Rf voltage (V).
+        l : float
+            Length scale (m).
+        o : float
+            Rf frequency (rad/s).
+
+        Returns
+        -------
+        generator
+            Yields strings that can be printed or written to a file.
+        """        
         scale = (u*q/l/o)**2/(4*m) # rf pseudopotential energy scale
         dc_scale = scale/q # dc energy scale
         yield "params: u=%.3g V, f=%.3g MHz, m=%.3g amu, "\
@@ -738,9 +911,27 @@ class System(list):
                 yield " %s: %.4g MHz, %s/%s" % (ci, fi/1e6, mi[0], mi[1])
 
     def ions(self, x0, q):
-        """find the minimum energy configuration of several ions with
-        normalized charges q and starting positions x0, return their
-        equilibrium positions, the mode frequencies and vectors"""
+        """Find minimum energy positions of an multiple ions and
+        calculate normal modes.
+       
+        .. note:: unused, untested, probably broken
+
+        Parameters
+        ----------
+        x0 : array_like, shape (n, 3)
+            Initial positions of `n` ions
+        q : array_like, shape (n,)
+            Normalized charge to mass ratios of the ions.
+
+        Returns
+        -------
+        x : array, shape (n, 3)
+            Equilibrium positions.
+        ew : array, shape (3*n,)
+            Eigenvalues.
+        ev : array, shape (3*n, 3*n)
+            Normal mode vectors.
+        """
         n = len(x0)
         qs = q[:, None]*q[None, :]
 
