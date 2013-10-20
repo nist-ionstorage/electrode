@@ -7,6 +7,8 @@ from .electrode import (PolygonPixelElectrode, PointPixelElectrode,
 from .pattern_constraints import (PotentialObjective, PatternRangeConstraint,
         MultiPotentialObjective)
 from .transformations import euler_from_matrix, euler_matrix
+from .utils import shaped
+
 #from .constraints import (VoltageConstraint, SymmetryConstraint,
 #        PotentialConstraint, ForceConstraint, CurvatureConstraint,
 #        OffsetPotentialConstraint)

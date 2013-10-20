@@ -28,11 +28,18 @@ import sys, os
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
-    #'sphinx.ext.coverage',
+#    'sphinx.ext.coverage',
     'sphinx.ext.pngmath',
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
-    'numpydoc',
+    'sphinx.ext.inheritance_diagram',
+    'matplotlib.sphinxext.mathmpl',
+    'matplotlib.sphinxext.only_directives',
+    'matplotlib.sphinxext.plot_directive',
+    'IPython.sphinxext.ipython_console_highlighting',
+    'IPython.sphinxext.ipython_directive',
+    'numpydoc',  # to preprocess docstrings
+#    'github',  # for easy GitHub links
     ]
 
 # Add any paths that contain templates here, relative to this directory.

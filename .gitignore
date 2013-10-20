@@ -17,6 +17,7 @@ debian/files
 *.egg-info
 electrode/cexpressions.c
 doc/_build/*
+doc/_static/*
 __pycache__
 debian/tmp
 *.gds
