@@ -24,10 +24,10 @@ import unittest
 
 try:
     import matplotlib as mpl
-    mpl.use("Agg", warn=False, force=True)
+    mpl.use("Agg", warn=False)
     import matplotlib.pyplot as plt
 except ImportError:
-    pass
+    plt = None
 
 from scipy import constants as ct
 import numpy as np
@@ -88,6 +88,7 @@ class ThreefoldOptimizeCase(unittest.TestCase):
         s1 = self.s.group(thresholds=[.5**.5], voltages=self.s.rfs)
         self.assertEqual(len(s1), 2)
 
+    @unittest.skipIf(plt is None, "no matplotlib")
     def test_plot(self):
         fig, ax = plt.subplots()
         self.get(points=True)
@@ -95,6 +96,7 @@ class ThreefoldOptimizeCase(unittest.TestCase):
         self.get(points=False)
         self.s.plot(ax)
 
+    @unittest.skipIf(plt is None, "no matplotlib")
     def test_plot_voltages(self):
         fig, ax = plt.subplots()
         self.get(points=True)
@@ -416,10 +418,12 @@ class RingtrapCase(unittest.TestCase):
         abc = np.array(transformations.euler_from_matrix(e0))/2/np.pi
         nptest.assert_allclose(abc, 0, atol=1, rtol=1e-3)
 
+    @unittest.skipIf(plt is None, "no matplotlib")
     def test_plot(self):
         fig, ax = plt.subplots()
         self.s.plot(ax)
 
+    @unittest.skipIf(plt is None, "no matplotlib")
     def test_plot_voltages(self):
         fig, ax = plt.subplots()
         self.s.plot_voltages(ax)

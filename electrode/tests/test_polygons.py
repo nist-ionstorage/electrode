@@ -25,10 +25,10 @@ import unittest
 
 try:
     import matplotlib as mpl
-    mpl.use("Agg", warn=False, force=True)
+    mpl.use("Agg", warn=False)
     import matplotlib.pyplot as plt
 except ImportError:
-    pass
+    plt = None
 
 from scipy import constants as ct
 import numpy as np
@@ -94,6 +94,7 @@ class PolygonsCase(unittest.TestCase):
 
 fil1 = "test.gds"
 
+@unittest.skipIf(plt is None, "no matplotlib")
 @unittest.skipIf(polygons is None, "no shapely")
 @unittest.skipUnless(os.path.exists(fil1), "no example gds")
 class GdsPolygonsCase(unittest.TestCase):
@@ -128,6 +129,7 @@ class GdsPolygonsCase(unittest.TestCase):
 
 fil2 = "test2.gds"
 
+@unittest.skipIf(plt is None, "no matplotlib")
 @unittest.skipIf(polygons is None, "no shapely")
 @unittest.skipUnless(os.path.exists(fil2), "no example gds")
 class GdsComplicatedCase(unittest.TestCase):
