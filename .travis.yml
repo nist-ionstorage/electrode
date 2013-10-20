@@ -2,5 +2,16 @@ language: python
 python:
   - "2.7"
   - "3.3"
-install: "pip install -r requirements.txt --use-mirrors"
+virtualenv:
+  system_site_packages: true
+before_install:
+  - "sudo apt-get install python-numpy python-scipy python-numpy-dev"
+  - "sudo apt-get install cython python-matplotlib"
+  - "sudo apt-get install python3-numpy python3-scipy python3-numpy-dev"
+  - "sudo apt-get install cython3"
+#  python3-matplotlib"
+install:
+  - "pip install -r requirements.txt --use-mirrors"
 script: nosetests
+notifications:
+  email: false
