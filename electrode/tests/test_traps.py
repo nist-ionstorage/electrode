@@ -22,8 +22,13 @@ from __future__ import (absolute_import, print_function,
 
 import unittest
 
-import matplotlib.pyplot as plt
-plt.switch_backend("Agg")
+try:
+    import matplotlib as mpl
+    mpl.use("Agg", warn=False, force=True)
+    import matplotlib.pyplot as plt
+except ImportError:
+    pass
+
 from scipy import constants as ct
 import numpy as np
 from numpy import testing as nptest

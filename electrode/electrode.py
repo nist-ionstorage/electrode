@@ -23,7 +23,6 @@ from __future__ import (absolute_import, print_function,
 import warnings
 
 import numpy as np
-import matplotlib as mpl
 from scipy.ndimage.interpolation import map_coordinates
 
 from .utils import area_centroid, construct_derivative
@@ -236,6 +235,7 @@ class PointPixelElectrode(SurfaceElectrode):
         return np.ones_like(self.areas)
 
     def plot(self, ax, label=None, color=None, **kw):
+        import matplotlib as mpl
         # color="red"?
         p = self.points
         a = (self.areas/np.pi)**.5*2
@@ -285,6 +285,7 @@ class PolygonPixelElectrode(SurfaceElectrode):
         return np.sign([area_centroid(pi)[0] for pi in self.paths])
 
     def plot(self, ax, label=None, color=None, **kw):
+        import matplotlib as mpl
         # we already store the right order for interior/exterior
         vertices = np.concatenate([np.r_[p, [p[0]]]  for p in self.paths])
         codes = np.concatenate([np.r_[

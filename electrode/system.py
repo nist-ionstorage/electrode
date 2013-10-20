@@ -26,7 +26,6 @@ import logging
 
 import numpy as np
 from scipy import optimize, constants as ct
-import matplotlib.pyplot as plt
 
 try:
     import cvxopt, cvxopt.modeling
@@ -344,7 +343,7 @@ class System(list):
         for e, c in zip(self, itertools.cycle(colors.set3)):
             e.plot(ax, color=tuple(c/255.), alpha=alpha, **kwargs)
 
-    def plot_voltages(self, ax, u=None, um=None, cmap=plt.cm.RdBu_r,
+    def plot_voltages(self, ax, u=None, um=None, cmap=None,
             **kwargs):
         """Plot electrodes with color proportional to voltage.
 
@@ -363,6 +362,9 @@ class System(list):
         **kwargs : any
             Passed to each `Electrode.plot()`.
         """
+        if cmap is None:
+            import matplotlib.pyplot as plt
+            cmap = plt.cm.RdBu_r
         if u is None:
             u = self.dcs
         if um is None:

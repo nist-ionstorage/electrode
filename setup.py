@@ -66,16 +66,15 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
 """,
         license = "GPLv3+",
         install_requires = [
-            "numpy", "scipy", "matplotlib", "nose", "cython", "sphinx",
+            "numpy", "scipy", "nose", "cython", "sphinx",
             "numpydoc"],
         extras_require = {
             "notebooks": ["ipython>=0.12"],
             "integrate": ["qc"],
             "optimization": ["cvxopt>=1"],
-            "visualization": ["mayavi>4"],
+            "visualization": ["mayavi>4", "matplotlib"],
             "polygons": ["shapely>=1.2"],
             "gds": ["gdsii"],
-            "speedups": ["cython"],
             },
         dependency_links = [],
         packages = find_packages(),
