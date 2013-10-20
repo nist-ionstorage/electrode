@@ -1,3 +1,8 @@
+.. image:: https://travis-ci.org/jordens/electrode.png?branch=master
+  :target: https://travis-ci.org/jordens/electrode
+
+
+
 Description
 ===========
 
