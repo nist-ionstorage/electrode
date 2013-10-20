@@ -27,6 +27,20 @@ import logging
 import numpy as np
 from scipy import optimize, constants as ct
 
+if not hasattr(optimize, "minimize"):
+    # quick work around for scipy<0.11
+    class _Result(object):
+        pass
+    def minimize(fun, x0, jac=None, hess=None, *args, **kwargs):
+        method = kwargs.pop("method", "Newton-CG")
+        assert method == "Newton-CG"
+        r = optimize.fmin_ncg(f=fun, x0=x0, fprime=jac,
+                fhess=hess, full_output=True, *args, **kwargs)
+        res = _Result()
+        res.x, res.success, res.message = r[0], r[5] == 0, "unknown"
+        return res
+    optimize.minimize = minimize
+
 try:
     import cvxopt, cvxopt.modeling
 except ImportError:
