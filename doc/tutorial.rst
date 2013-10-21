@@ -131,9 +131,9 @@ Plot the horizontal logarithmic pseudopotential at the ion height.
     In [1]: ax.set_aspect("equal")
 
     @savefig threefold_xy.png width=6in
-    In [1]:     ax.contour(xyz[0].reshape((n,n)), xyz[1].reshape((n,n)),
-       ...:                np.log(shaped(s.potential)(xyz)).reshape((n,n)),
-       ...:                20, cmap=plt.cm.hot)
+    In [1]: ax.contour(xyz[0].reshape((n,n)), xyz[1].reshape((n,n)),
+       ...:            np.log(shaped(s.potential)(xyz)).reshape((n,n)),
+       ...:            20, cmap=plt.cm.hot)
 
 
 Plot the logarithmic pseudopotential and the separatrix in the xz plane.
