@@ -16,16 +16,81 @@ either `PointPixelElectrodes` for point approximations or
 .. ipython::
 
     In [1]: import matplotlib.pyplot as plt, numpy as np, scipy.constants as ct
-
-    In [1]: from electrode import (System, PolygonPixelElectrode, euler_matrix,
-       ...:  PointPixelElectrode, PotentialObjective, PatternRangeConstraint, shaped)
-
-    In [1]: np.set_printoptions(precision=2) # have numpy print fewer digits
+       ...: from electrode import (System, PolygonPixelElectrode, euler_matrix,
+       ...:     PointPixelElectrode, PotentialObjective,
+       ...:     PatternRangeConstraint, shaped)
+       ...:
+       ...: np.set_printoptions(precision=2) # have numpy print fewer digits
 
 
 Linear surface trap
 -------------------
 
+.. ipython::
+
+    In [1]: def five_wire(edge, width, top, mid, bot):
+       ...:     e, r, t, m, b = edge, width/2, top + mid/2, mid/2, -bot - mid/2
+       ...:     electrodes = [
+       ...:         ("tl", [[(-e, e), (-e, t), (-r, t), (-r, e)]]),
+       ...:         ("tm", [[(-r, e), (-r, t), (r, t), (r, e)]]),
+       ...:         ("tr", [[(r, e), (r, t), (e, t), (e, e)]]),
+       ...:         ("bl", [[(-e, -e), (-r, -e), (-r, b), (-e, b)]]),
+       ...:         ("bm", [[(-r, -e), (r, -e), (r, b), (-r, b)]]),
+       ...:         ("br", [[(r, -e), (e, -e), (e, b), (r, b)]]),
+       ...:         ("r", [[(-e, t), (-e, m), (e, m), (e, t)],
+       ...:                [(-e, b), (e, b), (e, -m), (-e, -m)]]),
+       ...:         ("c",  [[(-e, m), (-e, -m), (e, -m), (e, m)]]),
+       ...:         ]
+       ...:     s = System([PolygonPixelElectrode(name=n, paths=map(np.array, p))
+       ...:                 for n, p in electrodes])
+       ...:     s["r"].rf = 1.
+       ...:     return s
+
+.. ipython::
+
+    @savefig five_ele.png width=6in
+    In [1]: s = five_wire(5, 2., 1., 1., 1.)
+       ...: 
+       ...: fig, ax = plt.subplots(1, 2)
+       ...: r = 5
+       ...: s.plot(ax[0])
+       ...: s.plot_voltages(ax[1], u=s.rfs)
+       ...: 
+       ...: for axi in ax.flat:
+       ...:     axi.set_aspect("equal")
+       ...:     axi.set_xlim(-r, r)
+       ...:     axi.set_ylim(-r, r)
+
+
+.. ipython::
+
+    In [1]: l = 30e-6
+       ...: u = 20.
+       ...: m = 25*ct.atomic_mass
+       ...: q = 1*ct.elementary_charge
+       ...: o = 2*np.pi*100e6
+       ...: 
+       ...: x0 = s.minimum((0, 0, 1.), axis=(1, 2))
+       ...:
+       ...: for line in s.analyze_static(x0, axis=(1, 2), m=m, q=q, u=u, l=l, o=o):
+       ...:     print line.encode("ascii", errors="replace")
+
+.. ipython::
+
+    @savefig five_shim.png width=8in
+    In [1]: s1 = System([e for e in s if not e.rf])
+       ...: derivs = "x y z xx yy".split()
+       ...: u = s1.shims([(x0, None, deriv) for deriv in derivs])
+       ...: 
+       ...: fig, ax = plt.subplots(1, len(derivs), figsize=(12, 5))
+       ...: for d, ui, axi in zip(derivs, u, ax):
+       ...:     with s1.with_voltages(dcs=ui):
+       ...:         s.plot_voltages(axi)
+       ...:     axi.set_aspect("equal")
+       ...:     axi.set_xlim(-r, r)
+       ...:     axi.set_ylim(-r, r)
+       ...:     um = ui[np.argmax(np.fabs(ui))]
+       ...:     axi.set_title("%s, max=%g" % (d, um))
 
 
 Rf/dc pattern optimization
@@ -91,8 +156,7 @@ Run the optimization.
 .. ipython::
 
     In [1]: points, n, h, d = True, 12, 1/8., 1/4.
-
-    In [1]: s, c = threefold(n, h, d, points)
+       ...: s, c = threefold(n, h, d, points)
 
 Analysis of the result. `c` is the obtained strength of the constraints,
 the rf field should vanish and the rf curvature should be `(2, 1, 1)`.
@@ -100,23 +164,18 @@ the rf field should vanish and the rf curvature should be `(2, 1, 1)`.
 .. ipython::
 
     In [1]: x0 = np.array([d/3**.5, 0, h])
-    
-    In [1]: print "c:", c
-
-    In [1]: print "rf'/c:", s.electrical_potential(x0, "rf", 1)[0]/c
-
-    In [1]: print "rf''/c:", s.electrical_potential(x0, "rf", 2)[0]/c
+       ...: print "c:", c
+       ...: print "rf'/c:", s.electrical_potential(x0, "rf", 1)[0]/c
+       ...: print "rf''/c:", s.electrical_potential(x0, "rf", 2)[0]/c
 
 Plot the electrode pattern, white is ground, black/red is rf.
 
 .. ipython::
 
-    In [1]: fig, ax = plt.subplots()
-
-    In [1]: ax.set_aspect("equal"), ax.set_xlim((-1,1)), ax.set_ylim((-1,1))
-
     @savefig threefold_ele.png width=6in
-    In [1]: s.plot_voltages(ax, u=s.rfs)
+    In [1]: fig, ax = plt.subplots()
+       ...: ax.set_aspect("equal"), ax.set_xlim((-1,1)), ax.set_ylim((-1,1))
+       ...: s.plot_voltages(ax, u=s.rfs)
 
 Some textual analysis of one of the trapping sites.
 
@@ -125,16 +184,12 @@ Some textual analysis of one of the trapping sites.
 .. ipython::
 
     In [1]: l = 320e-6 # length scale, hexagon radius
-
-    In [1]: u = 20. # peak rf voltage
-
-    In [1]: o = 2*np.pi*50e6 # rf frequency
-
-    In [1]: m = 24*ct.atomic_mass # ion mass
-
-    In [1]: q = 1*ct.elementary_charge # ion charge
-
-    In [1]: for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
+       ...: u = 20. # peak rf voltage
+       ...: o = 2*np.pi*50e6 # rf frequency
+       ...: m = 24*ct.atomic_mass # ion mass
+       ...: q = 1*ct.elementary_charge # ion charge
+       ...:
+       ...: for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
        ...:     print line.encode("ascii", errors="replace")
 
 
@@ -143,33 +198,19 @@ and the logarithmic pseudopotential and the separatrix in the xz plane.
 
 .. ipython::
 
-    In [1]: n = 50
-
-    In [1]: xyz = np.mgrid[-d:d:1j*n, -d:d:1j*n, h:h+1]
-
-    In [1]: fig, ax = plt.subplots(1, 2, subplot_kw=dict(aspect="equal"))
-
-    In [1]: pot = shaped(s.potential)(xyz)
-
-    In [1]: v = np.arange(-10, 3)
-
-    In [1]: x, y, p = (_.reshape(n, n) for _ in (xyz[0], xyz[1], pot))
-
-    In [1]: ax[0].contour(x, y, np.log2(p), v, cmap=plt.cm.hot)
-
-    In [1]: (xs1, ps1), (xs0, ps0) = s.saddle(x0+1e-2), s.saddle([0, 0, .8])
-
-    In [1]: print "main saddle:", xs0, ps0
-
-    In [1]: xyz = np.mgrid[-d:d:1j*n, 0:1, .7*h:3*h:1j*n]
-
-    In [1]: pot = shaped(s.potential)(xyz)
-
-    In [1]: x, z, p = (_.reshape(n, n) for _ in (xyz[0], xyz[2], pot))
-
-    In [1]: ax[1].contour(x, z, np.log2(p), v, cmap=plt.cm.hot)
-
     @savefig threefold_xy_xz.png width=6in
-    In [1]: ax[1].contour(x, z, np.log2(p), np.log2((ps0, ps1)), color="black")
-
-
+    In [1]: n = 50
+       ...: xyz = np.mgrid[-d:d:1j*n, -d:d:1j*n, h:h+1]
+       ...: fig, ax = plt.subplots(1, 2, subplot_kw=dict(aspect="equal"))
+       ...: pot = shaped(s.potential)(xyz)
+       ...: v = np.arange(-10, 3)
+       ...: x, y, p = (_.reshape(n, n) for _ in (xyz[0], xyz[1], pot))
+       ...: ax[0].contour(x, y, np.log2(p), v, cmap=plt.cm.hot)
+       ...:
+       ...: (xs1, ps1), (xs0, ps0) = s.saddle(x0+1e-2), s.saddle([0, 0, .8])
+       ...: print "main saddle:", xs0, ps0
+       ...: xyz = np.mgrid[-d:d:1j*n, 0:1, .7*h:3*h:1j*n]
+       ...: pot = shaped(s.potential)(xyz)
+       ...: x, z, p = (_.reshape(n, n) for _ in (xyz[0], xyz[2], pot))
+       ...: ax[1].contour(x, z, np.log2(p), v, cmap=plt.cm.hot)
+       ...: ax[1].contour(x, z, np.log2(p), np.log2((ps0, ps1)), color="black")
