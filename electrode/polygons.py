@@ -443,27 +443,43 @@ class Polygons(list):
                 preserve_topology=preserve_topology)))
         return p
 
-    def filter(self, test=lambda name, poly: poly.area > 1e-2):
+    def filter(self, test=None, deep=True):
         """Drops all patches that fail the test function.
        
         Parameters
         ----------
         test : callable
-            Function to be called as `test(name, multipoly)` that returns
-            `True` if the MultiPolygon is to be kept.
+            Function to be called as `test(name, poly_or_boundary)` that
+            returns `True` if the Polygon or boundary (LinearRing) is to
+            be kept. If `None`, defaults to dropping polygons smaller than
+            1e-2 in area.
+        deep : bool
+            If `True`, apply test to every boundary (exterior and
+            interiors), else every polygon.
 
         Returns
         -------
         Polygons
             Filtered output
         """
+        if test is None and deep:
+            def test(name, boundary):
+                return abs(geometry.Polygon(boundary).area) > 1e-2
+
         p = Polygons()
         for ni, pi in self:
             if not hasattr(pi, "geoms"):
                 pi = [pi]
-            pi = [_ for _ in pi if test(ni, _)]
-            if pi:
-                p.append((ni, geometry.MultiPolygon(pi)))
+            if deep:
+                pe = []
+                for ppi in pi:
+                    if test(ni, ppi.exterior):
+                        pe.append(geometry.Polygon(ppi.exterior,
+                            [_ for _ in ppi.interiors if test(ni, _)]))
+            else:
+                pe = [_ for _ in pi if test(ni, _)]
+            if pe:
+                p.append((ni, geometry.MultiPolygon(pe)))
         return p
 
     def smooth(self, smoothing=1, straight=1e-9, clip_len=(1e-2, 1e2)):
