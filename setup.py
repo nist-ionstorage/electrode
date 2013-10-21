@@ -81,9 +81,7 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
         namespace_packages = [],
         #test_suite = "electrode.tests.test_all",
         test_suite = "nose.collector",
-        scripts = glob("notebooks/*.py"),
         include_package_data = True,
-        #package_data = {"": ["notebooks/*.ipynb"]},
         ext_modules=[
                 Extension("electrode._transformations",
                     sources=["electrode/transformations.c"],
