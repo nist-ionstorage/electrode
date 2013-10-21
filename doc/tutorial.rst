@@ -26,6 +26,19 @@ either `PointPixelElectrodes` for point approximations or
 Linear surface trap
 -------------------
 
+Let's start with a very simple five-wire linear surface electrode trap.
+
+We start with a function that returns a parametrized system of surface
+electrodes. This way different designs can be compared quickly and the
+design parameter space can be explored.
+
+There ware two rf wires running along `x` with width in the `y`
+direction of `top` and `bottom`. Between them, there is a long `dc`
+electrode `c` of width `mid`. Above and below the rf electrodes there
+are three dc electrodes `tl, tm, tr` and `bl, bm, br` to provide stray
+field compensation, axial confinement and knobs to change the curvature
+tensor.
+
 .. ipython::
 
     In [1]: def five_wire(edge, width, top, mid, bot):
@@ -46,44 +59,67 @@ Linear surface trap
        ...:     s["r"].rf = 1.
        ...:     return s
 
+Now we can retrieve such a system and plot the electrodes' shapes, and
+the rf voltages on them.
+
 .. ipython::
 
     @savefig five_ele.png width=6in
     In [1]: s = five_wire(5, 2., 1., 1., 1.)
        ...: 
        ...: fig, ax = plt.subplots(1, 2)
-       ...: r = 5
        ...: s.plot(ax[0])
        ...: s.plot_voltages(ax[1], u=s.rfs)
        ...: 
+       ...: r = 5
        ...: for axi in ax.flat:
        ...:     axi.set_aspect("equal")
        ...:     axi.set_xlim(-r, r)
        ...:     axi.set_ylim(-r, r)
 
+To trap an ion in this trap, we find the potential minimum in `x0` the `yz`
+plane (`axis=(1, 2)`) and perform a analysis of the potential landscape
+at and around this minimum assuming some typical operating parameters.
+Again, we constrain the search for the minimum and the saddle point to
+the `yz` plane since there is no adequate axial confinement yet.
 
 .. ipython::
 
-    In [1]: l = 30e-6
-       ...: u = 20.
-       ...: m = 25*ct.atomic_mass
-       ...: q = 1*ct.elementary_charge
-       ...: o = 2*np.pi*100e6
+    In [1]: l = 30e-6 # µm length scale
+       ...: u = 20. # V rf peak voltage
+       ...: m = 25*ct.atomic_mass # ion mass
+       ...: q = 1*ct.elementary_charge # ion charge
+       ...: o = 2*np.pi*100e6 # rf frequency in rad/s
        ...: 
        ...: x0 = s.minimum((0, 0, 1.), axis=(1, 2))
        ...:
        ...: for line in s.analyze_static(x0, axis=(1, 2), m=m, q=q, u=u, l=l, o=o):
        ...:     print line.encode("ascii", errors="replace")
 
+The seven dc electrodes (three top, three bottom and the center wire)
+can be used to apply electrical fields and electrical curvatures to
+compensate stray fields and confine the ion axially.
+
+The `shim()` method can be used to calculate voltage vectors for these
+dc electrodes that are result in orthogonal effects with regards to some
+cartesian partial derivatives at certain points. To use it we build a
+temporary new system `s1` holding only the dc electrodes. Since these dc
+electrode instances also appear in our primary system `s`, changes in
+voltages are automatically synchronized between the two systems.
+
+We then can calculate the shim voltage vectors that result in unit
+changes of each of the partial derivatives `y, z, xx, xy, xz, yy` at
+`x0` and plot the voltage distributions.
+
 .. ipython::
 
     @savefig five_shim.png width=8in
     In [1]: s1 = System([e for e in s if not e.rf])
-       ...: derivs = "x y z xx yy".split()
+       ...: derivs = "y z xx xy xz yy".split()
        ...: u = s1.shims([(x0, None, deriv) for deriv in derivs])
        ...: 
-       ...: fig, ax = plt.subplots(1, len(derivs), figsize=(12, 5))
-       ...: for d, ui, axi in zip(derivs, u, ax):
+       ...: fig, ax = plt.subplots(2, len(derivs)/2, figsize=(12, 10))
+       ...: for d, ui, axi in zip(derivs, u, ax.flat):
        ...:     with s1.with_voltages(dcs=ui):
        ...:         s.plot_voltages(axi)
        ...:     axi.set_aspect("equal")
@@ -174,7 +210,9 @@ Plot the electrode pattern, white is ground, black/red is rf.
 
     @savefig threefold_ele.png width=6in
     In [1]: fig, ax = plt.subplots()
-       ...: ax.set_aspect("equal"), ax.set_xlim((-1,1)), ax.set_ylim((-1,1))
+       ...: ax.set_aspect("equal")
+       ...: ax.set_xlim((-1,1))
+       ...: ax.set_ylim((-1,1))
        ...: s.plot_voltages(ax, u=s.rfs)
 
 Some textual analysis of one of the trapping sites.
