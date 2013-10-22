@@ -5,7 +5,7 @@ python:
 virtualenv:
   system_site_packages: true
 before_install:
-  - "sudo apt-get install libatlas-dev liblapack-dev gfortran"
+  - "sudo apt-get install libatlas-dev liblapack-dev gfortran libgeos-dev"
   - "sudo apt-get install python-numpy python-scipy python-numpy-dev"
   - "sudo apt-get install cython python-matplotlib"
 # precise does not have them or they are broken
