@@ -74,19 +74,31 @@ class Polygons(list):
             for pi, ei in zip(e.paths, e.orientations()):
                 # shapely ignores f-contiguous arrays so copy
                 # https://github.com/sgillies/shapely/issues/26
-                pi = geometry.Polygon(pi.copy("C"))
-                {-1: ints, 0: [], 1: exts}[ei].append(pi)
+                pi = geometry.LinearRing(pi.copy("C"))
+                if ei == -1:
+                    ints.append(pi)
+                elif ei == 1:
+                    exts.append(pi)
             if not exts:
                 continue
+            # the following needs to be so complicated to cover the "ext in
+            # int in ext" case. The "int in ext in int in ext" is not
+            # handled correctly if the larger ext appears first. FIXME
             groups = []
             for exti in exts:
+                ep = geometry.Polygon(exti)
+                gint = []
                 for interior in ints[:]:
-                    if exti.contains(interior):
-                        exti = exti.difference(interior)
+                    if ep.contains(interior):
                         ints.remove(interior)
-                groups.append(exti)
-            assert not ints
+                        gint.append(interior)
+                pi = geometry.Polygon(exti, gint)
+                if pi.is_valid and pi.area > 0:
+                    groups.append(pi)
+            assert not ints, ints
             mp = geometry.MultiPolygon(groups)
+            #mp = mp.union(geometry.Point())
+            #mp = ops.cascaded_union(mp)
             obj.append((e.name, mp))
         return obj
 
@@ -424,11 +436,11 @@ class Polygons(list):
         Parameters
         ----------
         buffer : float
-            Adds gaps of size buffer before the simplification. See
-            `add_gaps()` and determines the simplification tolerance
-            (see shapely).
+            Determines the simplification tolerance (see shapely). 
+            In the output polygons, no point will be further than
+            `buffer` away from the original geometry.
         preserve_topology : bool
-            See shapely doc
+            See shapely documentation.
 
         Returns
         -------
