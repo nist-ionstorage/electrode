@@ -20,7 +20,7 @@
 from __future__ import (absolute_import, print_function,
         unicode_literals, division)
 
-import logging
+import logging, operator
 
 import numpy as np
 from scipy.interpolate import splprep, splev
@@ -29,6 +29,7 @@ from gdsii import library, structure, elements
 
 from .system import System
 from .electrode import PolygonPixelElectrode
+from .utils import area_centroid
 
 logger = logging.getLogger()
 
@@ -71,28 +72,34 @@ class Polygons(list):
                 continue
             # assert type(e) is PolygonPixelElectrode, (e, e.name)
             exts, ints = [], []
-            for pi, ei in zip(e.paths, e.orientations()):
+            for pi in e.paths:
                 # shapely ignores f-contiguous arrays so copy
                 # https://github.com/sgillies/shapely/issues/26
+                ei = area_centroid(pi)[0]
                 pi = geometry.LinearRing(pi.copy("C"))
-                if ei == -1:
-                    ints.append(pi)
-                elif ei == 1:
-                    exts.append(pi)
+                if ei < 0:
+                    ints.append((abs(ei), pi))
+                elif ei > 0:
+                    exts.append((abs(ei), pi))
             if not exts:
                 continue
-            # the following needs to be so complicated to cover the "ext in
-            # int in ext" case. The "int in ext in int in ext" is not
-            # handled correctly if the larger ext appears first. FIXME
+            ints.sort(key=operator.itemgetter(0))
+            exts.sort(key=operator.itemgetter(0))
+            # the following needs to be so complicated to cover
+            # onion-like "ext in int in ext" cases.
             groups = []
-            for exti in exts:
-                ep = geometry.Polygon(exti)
+            for exta, exterior in exts:
+                ep = geometry.Polygon(exterior)
                 gint = []
-                for interior in ints[:]:
+                done = set()
+                for i, (inta, interior) in enumerate(ints):
+                    if inta >= exta:
+                        break
                     if ep.contains(interior):
-                        ints.remove(interior)
                         gint.append(interior)
-                pi = geometry.Polygon(exti, gint)
+                        done.add(i)
+                    ints = [i for j, i in enumerate(ints) if j not in done]
+                pi = geometry.Polygon(exterior, gint)
                 if pi.is_valid and pi.area > 0:
                     groups.append(pi)
             assert not ints, ints
