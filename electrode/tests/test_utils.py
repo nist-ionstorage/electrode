@@ -104,7 +104,7 @@ class BasicFunctionsCase(unittest.TestCase):
     def test_rotate_tensor_simple(self):
         r = transformations.euler_matrix(0, 0, np.pi/2, "sxyz")[:3, :3]
         d = np.arange(3)
-        nptest.assert_almost_equal(d[(1, 0, 2), :],
+        nptest.assert_almost_equal(d[[1, 0, 2]],
                 utils.rotate_tensor(d, r, 1))
         d = np.arange(9).reshape(1,3,3)
         nptest.assert_almost_equal([[[4, -3, 5], [-1, 0, -2], [7, -6, 8]]],
