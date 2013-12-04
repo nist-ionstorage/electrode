@@ -412,26 +412,27 @@ class System(list):
         scipy.optimize.minimize
         """
         x = np.array(x0)
+        axis = list(axis)
         def f(xi):
-            x[axis, :] = xi
+            x[axis] = xi
             return self.potential(np.dot(coord, x), 0)[0]
         def g(xi):
-            x[axis, :] = xi
+            x[axis] = xi
             return rotate_tensor(self.potential(np.dot(coord, x), 1),
                     coord.T)[0, axis]
         def h(xi):
-            x[axis, :] = xi
+            x[axis] = xi
             return rotate_tensor(self.potential(np.dot(coord, x), 2),
                     coord.T)[0, axis][:, axis]
-        #xs = optimize.fmin_bfgs(p, np.array(x0)[:, axis], fprime=g,
+        #xs = optimize.fmin_bfgs(p, np.array(x0)[axis], fprime=g,
         #        disp=False)
-        x0 = np.array(x0)[axis, :]
+        x0 = np.array(x0)[axis]
         res = optimize.minimize(fun=f, x0=x0, jac=g, hess=h,
             method=method, **kwargs)
         if not res.success:
             raise ValueError("failed, %i, %s, %s" % (res.success,
                 res.message, res))
-        x[axis, :] = res.x
+        x[axis] = res.x
         return x
 
     def saddle(self, x0, axis=(0, 1, 2), coord=np.identity(3), **kw):
@@ -459,17 +460,18 @@ class System(list):
         kwargs = dict(dx_max=.1, xtol=1e-5, ftol=1e-5)
         kwargs.update(kw)
         x = np.array(x0)
+        axis = list(axis)
         def f(xi):
-            x[axis, :] = xi
+            x[axis] = xi
             return self.potential(np.dot(coord, x), 0)[0]
         def g(xi):
-            x[axis, :] = xi
+            x[axis] = xi
             return rotate_tensor(self.potential(np.dot(coord, x), 1),
                     coord.T)[0, axis]
         h = rotate_tensor(self.potential(np.dot(coord, x), 2),
-                coord.T)[0, axis, :][:, axis]
+                coord.T)[0, axis][:, axis]
         # rational function optimization
-        xs, p, ret = rfo(f, g, np.array(x0)[:, axis], h=h, **kwargs)
+        xs, p, ret = rfo(f, g, np.array(x0)[axis], h=h, **kwargs)
         if not ret in ("ftol", "xtol"):
             raise ValueError("%s", ((x0, axis, x, xs, p, ret),))
         # f(xs) # update x
@@ -542,10 +544,11 @@ class System(list):
             def integ(ddx, nsteps, t, p, q, t1, *args, **kwargs):
                 return integ_(ddx, nsteps, t, p, q, t1, methc,
                         *args, **kwargs)
-        t, p, q = t0, v0[:, axis], x0[:, axis]
+        axis = list(axis)
+        t, p, q = t0, v0[axis], x0[axis]
         x0 = np.array(x0)
         def ddx(t, q, f):
-            x0[axis, :] = q
+            x0[axis] = q
             f[:] = self.time_potential(x0, 1, t, expand=True)[0, axis]
         while t < t1:
             integ(ddx, nsteps, t, p, q, t+dt, *args, **kwargs)
