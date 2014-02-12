@@ -143,7 +143,7 @@ def adapt_mesh(constraints, variable, fixed=[], threshold=.5,
             print("objective:", c)
         potentials = v[len(fixed):]
         neighbors = args.pop("neighbors")
-        edge_changes = potentials[neighbors, :] - potentials[:, None]
+        edge_changes = potentials.take(neighbors) - potentials[:, None]
         refine = np.fabs(edge_changes).max(1) > threshold
         args["triangleareas"] = np.where(refine, areas/down, areas*up)
     return s, v, c
