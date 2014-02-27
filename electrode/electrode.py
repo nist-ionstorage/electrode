@@ -251,7 +251,9 @@ class PointPixelElectrode(SurfaceElectrode):
         if label is None:
             label = self.name
         if label:
-            ax.text(p[:,0].mean(), p[:,1].mean(), label)
+            ax.text(p[:,0].mean(), p[:,1].mean(), label,
+                    horizontalalignment="center",
+                    verticalalignment="center")
 
     def potential(self, x, derivative=0, potential=1., out=None):
         return point_potential(x, self.points, self.areas, potential,
@@ -300,7 +302,9 @@ class PolygonPixelElectrode(SurfaceElectrode):
             label = self.name
         if label:
             for p in self.paths:
-                ax.text(p[:,0].mean(), p[:,1].mean(), label)
+                ax.text(p[:,0].mean(), p[:,1].mean(), label,
+                        horizontalalignment="center",
+                        verticalalignment="center")
 
     def to_points(self):
         """Convert all polygons to points at their centroids with the
