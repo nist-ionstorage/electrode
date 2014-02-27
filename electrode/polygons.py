@@ -70,7 +70,7 @@ class Polygons(list):
         for e in system:
             if not hasattr(e, "paths"):
                 continue
-            # assert type(e) is PolygonPixelElectrode, (e, e.name)
+            # assert isinstance(e, PolygonPixelElectrode), (e, e.name)
             exts, ints = [], []
             for pi in e.paths:
                 # shapely ignores f-contiguous arrays so copy
@@ -85,7 +85,7 @@ class Polygons(list):
                 continue
             ints.sort(key=operator.itemgetter(0))
             exts.sort(key=operator.itemgetter(0))
-            # the following needs to be so complicated to cover
+            # the following needs to be complicated to cover
             # onion-like "ext in int in ext" cases.
             groups = []
             for exta, exterior in exts:
@@ -102,10 +102,11 @@ class Polygons(list):
                 pi = geometry.Polygon(exterior, gint)
                 if pi.is_valid and pi.area > 0:
                     groups.append(pi)
-            assert not ints, ints
-            mp = geometry.MultiPolygon(groups)
+            # remaining interiors must be top level or "free"
+            #assert not ints, ints
+            #mp = geometry.MultiPolygon(groups)
             #mp = mp.union(geometry.Point())
-            #mp = ops.cascaded_union(mp)
+            mp = ops.unary_union(groups)
             obj.append((e.name, mp))
         return obj
 
@@ -120,7 +121,7 @@ class Polygons(list):
         for n, p in self:
             e = PolygonPixelElectrode(name=n, paths=[])
             s.append(e)
-            if type(p) is geometry.Polygon:
+            if isinstance(p, geometry.Polygon):
                 p = [p]
             for pi in p:
                 if not pi.is_valid or not pi.area:
@@ -185,18 +186,20 @@ class Polygons(list):
         routes = []
         bridges = []
         for stru in lib:
-            assert type(stru) is structure.Structure
+            assert isinstance(stru, structure.Structure)
             if name is None or name == stru.name:
                 break
         for e in stru:
             path = np.array(e.xy)*lib.physical_unit/scale
             props = dict(e.properties)
             name = props.get(cls._attr_name, "")
-            if type(e) is elements.Boundary:
+            if isinstance(e, elements.Boundary):
                 ij = e.layer, e.data_type
                 if poly_layers is None or ij in poly_layers:
                     polys.append((name, path))
-            elif type(e) is elements.Path:
+            elif isinstance(e, elements.Path):
+                if path.shape[0] < 2:
+                    continue
                 ij = e.layer, e.data_type
                 if gap_layers is None or ij in gap_layers:
                     gaps.append(path)
@@ -273,7 +276,7 @@ class Polygons(list):
         if routes:
             field = field.difference(routes.buffer(buffer, 1))
         assert field.is_valid, field
-        if type(field) is geometry.Polygon:
+        if isinstance(field, geometry.Polygon):
             field = [field]
         for i in field:
             # assume that buffer is much smaller than any relevant
@@ -433,6 +436,21 @@ class Polygons(list):
             if pb.is_valid:
                 pi = pb
             p.append((ni, pi))
+        return p
+
+    def unify(self):
+        """Form unary unions of polygons in each electrode
+
+        Returns
+        -------
+        Polygons
+            Output containing unions of electrode polygons.
+        """
+        p = Polygons()
+        for ni, pi in self:
+            if not hasattr(pi, "geoms"):
+                pi = [pi]
+            p.append((ni, ops.unary_union(list(pi))))
         return p
 
     def simplify(self, buffer=0, preserve_topology=False):
@@ -605,7 +623,7 @@ class Polygons(list):
         """
         gaps = []
         for name, multipoly in self:
-            if type(multipoly) is geometry.Polygon:
+            if isinstance(multipoly, geometry.Polygon):
                 multipoly = [multipoly]
             for poly in multipoly:
                 gaps.append(poly.boundary)
