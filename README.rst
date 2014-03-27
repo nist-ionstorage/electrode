@@ -58,12 +58,16 @@ Usage
 Running console scripts
 -----------------------
 
+The tutorial contains two examples of surface electrode traps (five_wire
+and threefold). The relevant code can be all pasted into a Python script
+(five_wire.py) or IPython notebook (see below) and executed.
+
 Without installing anything
 ...........................
 
 Use e.g.:
 
-    $ PYTHONPATH=. python notebooks/rfjunction.py
+    $ PYTHONPATH=. python your_script.py
 
 to run a script without instaling the electrode package.
 
@@ -96,4 +100,4 @@ Ensure you have ipython > 0.11 with ipython notebook installed, then run
 
     $ ipython notebook --pylab=inline --notebook-dir=notebooks --script
 
-and open "threefold" or "rfjunction" in the browser window that appears.
+and paste the sections from the tutorial.
