@@ -32,12 +32,7 @@ extensions = [
     'sphinx.ext.pngmath',
     'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
-    'sphinx.ext.inheritance_diagram',
-    'matplotlib.sphinxext.mathmpl',
-    'matplotlib.sphinxext.only_directives',
-    'matplotlib.sphinxext.plot_directive',
-    'IPython.sphinxext.ipython_console_highlighting',
-    'IPython.sphinxext.ipython_directive',
+#    'sphinx.ext.inheritance_diagram',
     'numpydoc',  # to preprocess docstrings
 #    'github',  # for easy GitHub links
     ]
