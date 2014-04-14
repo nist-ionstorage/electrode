@@ -12,6 +12,9 @@ properties and extract relevant parameters of the resulting geometry.
 The software also treats precomputed 3D volumetric field and potential
 data transparently.
 
+Quick overview and tutorial:
+http://nbviewer.ipython.org/github/jordens/electrode/blob/master/examples/tutorial.ipynb
+
 See also:
 
 [1] Roman Schmied <roman.schmied@unibas.ch>, SurfacePattern software
@@ -98,6 +101,4 @@ Runing the notebooks
 
 Ensure you have ipython > 0.11 with ipython notebook installed, then run
 
-    $ ipython notebook --pylab=inline --notebook-dir=notebooks --script
-
-and paste the sections from the tutorial.
+    $ ipython notebook --pylab=inline --notebook-dir=examples --script
