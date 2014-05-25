@@ -28,7 +28,7 @@ import numpy
 
 setup(
         name = "electrode",
-        version = "1.5",
+        version = "1.5+dev",
         author = "Robert Jordens",
         author_email = "jordens@gmail.com",
         url = "http://github.com/nist-ionstorage/electrode",
