@@ -31,7 +31,7 @@ setup(
         version = "1.4+dev",
         author = "Robert Jordens",
         author_email = "jordens@gmail.com",
-        url = "http://launchpad.net/electrode",
+        url = "http://github.com/nist-ionstorage/electrode",
         description = "toolkit to develop and analyze rf surface ion traps",
         long_description = 
 """Electrode is a toolkit to develop and analyze RF ion traps. It can

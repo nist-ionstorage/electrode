@@ -1,5 +1,5 @@
-.. image:: https://travis-ci.org/jordens/electrode.png?branch=master
-  :target: https://travis-ci.org/jordens/electrode
+.. image:: https://travis-ci.org/nist-ionstorage/electrode.svg?branch=master
+  :target: https://travis-ci.org/nist-ionstorage/electrode
 
 
 
@@ -13,7 +13,7 @@ The software also treats precomputed 3D volumetric field and potential
 data transparently.
 
 Quick overview and tutorial:
-http://nbviewer.ipython.org/github/jordens/electrode/blob/master/examples/tutorial.ipynb
+http://nbviewer.ipython.org/github/nist-ionstorage/electrode/blob/master/examples/tutorial.ipynb
 
 See also:
 
