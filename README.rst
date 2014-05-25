@@ -1,6 +1,8 @@
 .. image:: https://travis-ci.org/nist-ionstorage/electrode.svg?branch=master
   :target: https://travis-ci.org/nist-ionstorage/electrode
 
+.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.10118.png
+  :target: https://zenodo.org/record/10118
 
 
 Description
