@@ -419,11 +419,11 @@ class System(list):
         def g(xi):
             x[axis] = xi
             return rotate_tensor(self.potential(np.dot(coord, x), 1),
-                    coord.T)[0, axis]
+                    coord)[0, axis]
         def h(xi):
             x[axis] = xi
             return rotate_tensor(self.potential(np.dot(coord, x), 2),
-                    coord.T)[0, axis][:, axis]
+                    coord)[0, axis][:, axis]
         #xs = optimize.fmin_bfgs(p, np.array(x0)[axis], fprime=g,
         #        disp=False)
         x0 = np.array(x0)[axis]
