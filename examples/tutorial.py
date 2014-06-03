@@ -28,6 +28,8 @@ from electrode import (System, PolygonPixelElectrode, euler_matrix,
 
 np.set_printoptions(precision=2) # have numpy print fewer digits
 
+%pylab inline
+
 # <markdowncell>
 
 # Linear surface trap
@@ -100,11 +102,12 @@ u = 20. # V rf peak voltage
 m = 25*ct.atomic_mass # ion mass
 q = 1*ct.elementary_charge # ion charge
 o = 2*np.pi*100e6 # rf frequency in rad/s
+s["r"].rf = u*np.sqrt(q/m)/(2*l*o)
 
 x0 = s.minimum((0, 0, 1.), axis=(1, 2))
 
-for line in s.analyze_static(x0, axis=(1, 2), m=m, q=q, u=u, l=l, o=o):
-    print line.encode("ascii", errors="replace")
+for line in s.analyze_static(x0, axis=(1, 2), m=m, q=q, l=l, o=o):
+    print line
 
 # <markdowncell>
 
@@ -238,9 +241,10 @@ u = 20. # peak rf voltage
 o = 2*np.pi*50e6 # rf frequency
 m = 24*ct.atomic_mass # ion mass
 q = 1*ct.elementary_charge # ion charge
+s.rfs *= u*np.sqrt(q/m)/(2*l*o)
 
-for line in s.analyze_static(x0, l=l, u=u, o=o, m=m, q=q):
-    print line.encode("ascii", errors="replace")
+for line in s.analyze_static(x0, l=l, o=o, m=m, q=q):
+    print line
 
 # <markdowncell>
 
@@ -253,7 +257,7 @@ n = 50
 xyz = np.mgrid[-d:d:1j*n, -d:d:1j*n, h:h+1]
 fig, ax = plt.subplots(1, 2, subplot_kw=dict(aspect="equal"))
 pot = shaped(s.potential)(xyz)
-v = np.arange(-10, 3)
+v = np.arange(-15, 3)
 x, y, p = (_.reshape(n, n) for _ in (xyz[0], xyz[1], pot))
 ax[0].contour(x, y, np.log2(p), v, cmap=plt.cm.hot)
 
