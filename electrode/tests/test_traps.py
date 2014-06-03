@@ -304,7 +304,7 @@ class MagtrapCase(unittest.TestCase):
         #        [[np.cos(a), -np.sin(a)],[np.sin(a), np.cos(a)]], decimal=3)
     
     def test_mathieu(self):
-        mu, b = self.s.mathieu(self.x0, 4*.018, 30*.018)
+        mu, b = self.s.mathieu(self.x0, 4*.018)
         nptest.assert_almost_equal(mu.real, 0., 9)
 
     def test_with(self):

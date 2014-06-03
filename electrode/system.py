@@ -781,7 +781,7 @@ class System(list):
                 dc=np.mean(dcs), rf=np.mean(rfs)))
         return System(eles)
 
-    def mathieu(self, x, u_dc, u_rf, r=2, sorted=True):
+    def mathieu(self, x, scale, r=2, sorted=True):
         """Return characteristic exponents (mode frequencies) and
         fourier components.
         
@@ -789,12 +789,10 @@ class System(list):
         ----------
         x : array_like, shape (3,)
             Position.
-        u_dc : float
-            Dc potential prefactor.
-        u_rf : float
-            Rf potential prefactor.
+        scale : float
+            Scale factor q/((l*o)**2*m).
         r : int
-            Frequency cutoff.
+            Band cutoff.
         sorted : bool
             If True, sort modes by ascending eigenvalue.
         
@@ -808,8 +806,8 @@ class System(list):
             the rf frequency multiple (from `-r` to `r`) and the second
             is the spatial direction.
         """
-        a = 4*u_dc*self.electrical_potential(x, "dc", 2, expand=True)[0]
-        q = 2*u_rf*self.electrical_potential(x, "rf", 2, expand=True)[0]
+        a = scale**2*self.electrical_potential(x, "dc", 2, expand=True)[0]
+        q = 2*scale*self.electrical_potential(x, "rf", 2, expand=True)[0]
         mu, b = mathieu(r, a, q)
         if sorted:
             i = mu.imag >= 0
@@ -818,20 +816,23 @@ class System(list):
             mu, b = mu[i], b[:, i]
         return mu/2, b
 
-    def analyze_static(self, x, axis=(0, 1, 2), do_ions=False,
-            m=ct.atomic_mass, q=ct.elementary_charge, u=1.,
-            l=100e-6, o=2*np.pi*1e6):
+    def analyze_static(self, x, axis=(0, 1, 2),
+            m=ct.atomic_mass, q=ct.elementary_charge,
+            l=100e-6, o=2*np.pi*1e6, 
+            do_ions=False, do_print=False):
         """Perform an textual analysis of the potential at and around
         a point.
 
         Use `atomic_mass` and `elementary_charge` from `scipy.constants`
-        to set `m` and `q` correctly. All constants `m, q, u, l, o` are
+        to set `m` and `q` correctly. All constants `m, q, l, o` are
         given in SI units.
 
-        To print out the output of this function, use::
+        The rf voltages, `self.rfs`, need to be set to rescaled
+        voltages, while the dc voltages `self.dcs` are SI volts::
 
-            for line in s.analyze_static(...):
-                print(line)
+            alpha_rf = np.sqrt(q/m)/(2*l*o)
+            s.rfs = u_rf_in_volt*alpha_rf
+            s.dcs = u_dc_in_volt
 
         Parameters
         ----------
@@ -839,30 +840,35 @@ class System(list):
             Point to analyze around.
         axis : tuple of int
             Axes to vary during minimum and saddle point searches.
-        do_ions : bool
-            Also analyze the modes of multiple ions.
         m : float
             Ion mass (kg).
         q : float
             Ion charge (C)
-        u : float
-            Rf voltage (V).
         l : float
             Length scale (m).
         o : float
             Rf frequency (rad/s).
+        do_ions : bool
+            Also analyze the modes of multiple ions.
+        do_print : bool
+            Print the output instead of yielding it line by line.
 
         Returns
         -------
         generator
             Yields strings that can be printed or written to a file.
-        """        
-        scale = (u*q/l/o)**2/(4*m) # rf pseudopotential energy scale
-        dc_scale = scale/q # dc energy scale
-        yield "params: u=%.3g V, f=%.3g MHz, m=%.3g amu, "\
-                 "q=%.3g qe, l=%.3g µm, scale=%.3g eV" % (
-                u, o/(2e6*np.pi), m/ct.atomic_mass,
-                q/ct.elementary_charge, l/1e-6, dc_scale)
+        """
+        if do_print:
+            for line in self.analyze_static(x, axis, m, q, l, o,
+                    do_ions, do_print=False):
+                print(line)
+            return
+
+        rf_scale = np.sqrt(q/m)/(2*l*o) # rf pseudopotential voltage scale
+        yield "params: f=%.3g MHz, m=%.3g amu, "\
+                 "q=%.3g qe, l=%.3g µm, scale=%.3g" % (
+                o/(2e6*np.pi), m/ct.atomic_mass,
+                q/ct.elementary_charge, l/1e-6, rf_scale)
         yield "corrdinates:"
         yield " analyze point: %s" % (x,)
         yield "               (%s µm)" % (x*l/1e-6,)
@@ -872,55 +878,54 @@ class System(list):
         p_dc = self.electrical_potential(x, "dc", 0)[0]
         p_rf = self.pseudo_potential(x, 0)[0]
         yield "potential:"
-        yield " dc electrical: %.2g (%.2g eV)" % (p_dc, p_dc*dc_scale)
-        yield " rf pseudo: %.2g (%.2g eV)" % (p_rf, p_rf*dc_scale)
+        yield " dc electrical: %.2g eV" % p_dc
+        yield " rf pseudo: %.2g eV" % p_rf
         try:
             xs, xsp = self.saddle(x + 1e-2*x[2])
             yield " saddle offset: %s" % (xs - x,)
             yield "               (%s µm)" % ((xs - x)*l/1e-6,)
-            yield " saddle height: %.2g (%.2g eV)" % (
-                xsp - p_rf - p_dc, (xsp - p_rf - p_dc)*dc_scale)
+            yield " saddle height: %.2g eV" % (xsp - (p_dc + p_rf))
         except:
             yield " saddle not found"
         yield "force:"
         f_dc = self.electrical_potential(x, "dc", 1)[0]
         f_rf = self.pseudo_potential(x, 1)[0]
-        yield " dc electrical: %s" % (f_dc,)
-        yield "               (%s eV/m)" % (f_dc*dc_scale/l,)
-        yield " rf pseudo: %s" % (f_rf,)
-        yield "           (%s eV/m)" % (f_rf*dc_scale/l,)
+        yield " dc electrical: %s eV/l" % (f_dc,)
+        yield "               (%s eV/m)" % (f_dc/l,)
+        yield " rf pseudo: %s eV/l" % (f_rf,)
+        yield "           (%s eV/m)" % (f_rf/l,)
         yield "modes:"
         curves, modes_pp = self.modes(x)
-        freqs_pp = (scale*curves/l**2/m)**.5/(2*np.pi)
-        q_o2l2m = q/((l*o)**2*m)
-        mu, b = self.mathieu(x, u_dc=dc_scale*q_o2l2m, u_rf=u*q_o2l2m,
-                r=4, sorted=True)
+        freqs_pp = np.sqrt(q*curves/m)/(2*np.pi*l)
+        mu, b = self.mathieu(x, scale=4*rf_scale, r=4, sorted=True)
         freqs = mu[:3].imag*o/(2*np.pi)
         modes = b[len(b)/2-3:len(b)/2, :3].real
         yield " pp+dc normal curvatures: %s" % curves
         yield " motion is bounded: %s" % np.allclose(mu.real, 0)
-        for nj, fj, mj in (("pseudopotential", freqs_pp, modes_pp),
+        for nj, fj, mj in (
+                ("pseudopotential", freqs_pp, modes_pp),
                 ("mathieu", freqs, modes)):
             yield " %s modes:" % nj
             for ci, fi, mi in zip("abc", fj, mj.T):
                 yield "  %s: %.4g MHz, %s" % (ci, fi/1e6, mi)
             yield "  euler angles (rzxz): %s deg" % (
                     np.rad2deg(np.array(euler_from_matrix(mj, "rzxz"))))
-        se = self.individual_potential(x, 1)[:, 0, :]/l
-        yield " heating for 1 nV²/Hz white uncorrelated on each electrode:"
-        yield "  field-noise psd: %s V²/(m² Hz)" % ((se*1e-9)**2).sum(0)
-        for ci, fi, mi in zip("abc", freqs_pp, modes_pp.T):
-            sej = ((mi[None, :]*se).sum(1)**2).sum()
-            ndot = sej*q**2/(4*m*ct.h*fi)
+        un = 1e-9
+        se = un*self.individual_potential(x, 1)[:, 0, :]/l
+        yield " heating for %.2g nV²/Hz white uncorrelated on each electrode:" % (
+                un/1e-9)
+        yield "  field-noise psd: %s V²/(m² Hz)" % (se**2).sum(0)
+        sem = (np.dot(se, modes)**2).sum(0)
+        for ci, fi, semi in zip("abc", freqs, sem):
             yield "  %s: ndot=%.4g /s, S_E*f=%.4g (V² Hz)/(m² Hz)" % (
-                ci, ndot*1e-9**2, sej*fi*1e-9**2)
+                ci, semi*q**2/(4*m*ct.h*fi), semi*fi)
         if do_ions:
             xi = x+np.random.randn(2)[:, None]*1e-3
-            qi = np.ones(2)*q/(scale*l*4*np.pi*ct.epsilon_0)**.5
+            qi = np.ones(2)*q/(l*4*np.pi*ct.epsilon_0)**.5
             xis, cis, mis = self.ions(xi, qi)
-            freqs_ppi = (scale*cis/l**2/m)**.5/(1e6*np.pi)
+            freqs_ppi = (cis/l**2/m)**.5/(1e6*np.pi)
             r2 = norm(xis[1]-xis[0])
-            r2a = ((q*l)**2/(2*np.pi*ct.epsilon_0*scale*curves[0]))**(1/3.)
+            r2a = ((q*l)**2/(2*np.pi*ct.epsilon_0*q*curves[0]))**(1/3.)
             yield "two ion modes:"
             yield " separation: %.3g (%.3g µm, %.3g µm harmonic)" % (
                 r2, r2*l/1e-6, r2a/1e-6)
