@@ -806,8 +806,8 @@ class System(list):
             the rf frequency multiple (from `-r` to `r`) and the second
             is the spatial direction.
         """
-        a = scale**2*self.electrical_potential(x, "dc", 2, expand=True)[0]
-        q = 2*scale*self.electrical_potential(x, "rf", 2, expand=True)[0]
+        a = 16*scale**2*self.electrical_potential(x, "dc", 2, expand=True)[0]
+        q = 8*scale*self.electrical_potential(x, "rf", 2, expand=True)[0]
         mu, b = mathieu(r, a, q)
         if sorted:
             i = mu.imag >= 0
@@ -897,7 +897,7 @@ class System(list):
         yield "modes:"
         curves, modes_pp = self.modes(x)
         freqs_pp = np.sqrt(q*curves/m)/(2*np.pi*l)
-        mu, b = self.mathieu(x, scale=4*rf_scale, r=4, sorted=True)
+        mu, b = self.mathieu(x, scale=rf_scale, r=4, sorted=True)
         freqs = mu[:3].imag*o/(2*np.pi)
         modes = b[len(b)/2-3:len(b)/2, :3].real
         yield " pp+dc normal curvatures: %s" % curves
