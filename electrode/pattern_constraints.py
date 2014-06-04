@@ -49,27 +49,6 @@ class Constraint(object):
         yield
 
 
-class PatternValueConstraint(Constraint):
-    """
-    .. note:: deprecated and potentially broken.
-    """
-    def __init__(self, x, d, v, r=None):
-        warnings.warn("use PotentialObjective and MultiPotentialObjective",
-                DeprecationWarning)
-        self.x = np.asanyarray(x, np.double)
-        self.d = d
-        self.v = np.asanyarray(v, np.double)
-        self.r = np.asanyarray(r, np.double) if r is not None else None
-
-    def objective(self, system, variables):
-        v = select_tensor(self.v[None, ...]) # TODO: no select
-        c = system.individual_potential(self.x, self.d)[:, 0, :]
-        if self.r is not None:
-            c = select_tensor(rotate_tensor(expand_tensor(c), self.r,
-                self.d))
-        return zip(c.T, v[0])
-
-
 class PatternRangeConstraint(Constraint):
     """Constrains the potential to lie within the given range
 
@@ -129,7 +108,7 @@ class SingleValueConstraint(Constraint):
         if self.value is not None:
             c = self.get(system, variables)
             yield c, float(self.value)
-    
+
     def constraints(self, system, variables):
         if (self.offset is not None
             or self.min is not None
@@ -183,6 +162,7 @@ class PotentialObjective(SingleValueConstraint):
             c = -c.sum(1)
         return c
 
+
 class MultiPotentialObjective(SingleValueConstraint):
     """Constrains or optimizes a linear combination of
     `PotentialObjective()` s.
@@ -209,3 +189,54 @@ class MultiPotentialObjective(SingleValueConstraint):
             for ci, vi in oi.objective(system, variables):
                 c = c+vi*ci
         return c
+
+
+class VoltageDerivativeConstraint(Constraint):
+    def __init__(self, order, weight=0, max=None, min=None,
+                 smooth=False, delta=1, norm="one", abs=True):
+        self.order = order
+        self.weight = weight
+        self.smooth = smooth
+        self.delta = delta
+        self.norm = norm
+        self.abs = abs
+        self.max = max
+        self.min = min
+
+    def get(self, system, variables):
+        obj = variables
+        for i in range(self.order):
+            if self.smooth and i % 2 == 0:
+                obj = obj[self.delta:0:-1] + obj + obj[-2:-2-self.delta:-1]
+            obj = [(obj[i + self.delta] - obj[i]) for i in
+                   range(len(obj) - self.delta)]
+        return [v*(1./(self.delta**self.order)) for v in obj]
+
+    def coef(self, system, variables):
+        for v in self.get(system, variables):
+            if self.abs:
+                v = abs(v)
+            if self.norm == "one":
+                yield cvxopt.modeling.sum(v)
+            elif self.norm == "inf":
+                yield cvxopt.modeling.max(v)
+            else:
+                raise ValueError(self.norm)
+
+    def objective(self, system, variables):
+        if self.weight:
+            for v in self.coef(system, variables):
+                yield v, float(self.weight)
+
+    def constraints(self, system, variables):
+        if self.max is not None:
+            for v in self.coef(system, variables):
+                yield v <= float(self.max)
+        if self.min is not None:
+            for v in self.coef(system, variables):
+                yield v >= float(self.min)
+
+
+class SymmetryConstaint(Constraint):
+    def __init__(self, a, b):
+        raise NotImplementedError

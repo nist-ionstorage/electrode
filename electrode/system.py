@@ -601,57 +601,41 @@ class System(list):
             vectors[i] = p/c
         return vectors
 
-    def solve(self, x, constraints, verbose=True):
+    def solve(self, local_constraints, global_constraints, verbose=True):
         """
         Optimize dc voltages at positions x to satisfy constraints.
 
         O(len(constraints)*len(x)*len(electrodes)) if sparse (most of the time)
-
-        .. note:: broken, unused
     
         Parameters
         ----------
-        x : array_like, shape (n, 3)
-            Points
-        constraints : list of Constraints
+        local_constraints : list of lists of constraints
+            List of constraint sets. Each set applies to a single voltage
+            configuration.
+        global_constraints : list of constraints
+            Global constraints that apply to the entire voltage matrix.
         verbose : bool
             Passed to the solver.
 
         Returns
         -------
-        u
-            Electrode potentials
-        p
-            Potential contributions at x
-        f
-            Field contributions at x
+        u : array (N, M)
+            Electrode potentials, N sets of local constraints, M == len(self)
         c
-            Curvature contributions at x
+            Objective value
         """
-        v0 = [el.voltage_dc for el in self]
-        for el in self:
-            el.voltage_dc = 0.
-        p0, f0, c0 = self.potential(x), self.gradient(x), self.curvature(x)
-        for el, vi in zip(self, v0):
-            el.voltage_dc = vi
-        p, f, c = (self.individual_potential(x, i) for i in range(3))
+        variables = [cvxopt.modeling.variable(len(self))
+            for i in range(len(local_constraints))]
 
-        variables = []
-        pots = []
-        for i, xi in enumerate(x):
-            v = cvxopt.modeling.variable(len(self), "u%i" % i)
-            v.value = cvxopt.matrix(
-                    [float(el.voltage_dc) for el in self])
-            variables.append(v)
-            pots.append((p0[i], f0[:, i], c0[:, :, i],
-                p[:, i], f[:, :, i], c[:, :, :, i]))
-
-        # setup constraint equations
         obj = 0.
         ctrs = []
-        for ci in constraints:
-            obj += sum(ci.objective(self, self, x, variables, pots))
-            ctrs.extend(ci.constraints(self, self, x, variables, pots))
+        for ci, vi in zip(local_constraints, variables):
+            for cj in ci:
+                obj = sum(coef*val for coef, val in cj.objective(self, vi))
+                ctrs.extend(cj.constraints(self, vi))
+        for ci in global_constraints:
+            obj += sum(coef*val for coef, val in ci.objective(self, variables))
+            ctrs.extend(ci.constraints(self, variables))
         solver = cvxopt.modeling.op(obj, ctrs)
 
         if not verbose:
@@ -665,18 +649,9 @@ class System(list):
                     for v in solver.equalities()))
 
         solver.solve("sparse")
-
+        c = solver.objective.value()
         u = np.array([np.array(v.value).ravel() for v in variables])
-        p = np.array([p0i+np.dot(pi, ui)
-            for p0i, ui, pi in zip(p0,
-                u, p.transpose(-1, -2))])
-        f = np.array([f0i+np.dot(fi, ui)
-            for f0i, ui, fi in zip(f0.transpose(-1, 0),
-                u, f.transpose(-1, 0, -2))])
-        c = np.array([c0i+np.dot(ci, ui)
-            for c0i, ui, ci in zip(c0.transpose(-1, 0, 1),
-                u, c.transpose(-1, 0, 1, -2))])
-        return u, p, f, c
+        return u, c
 
     def optimize(self, constraints, rcond=1e-9, verbose=True):
         """Find electrode potentials that maximize given
