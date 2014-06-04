@@ -341,6 +341,27 @@ def expand_tensor(c, order=None):
         return d.reshape(shape + (3,)*order)
 
 
+def deriv_to_reduced_idx(d):
+    """Return the index or indices into a reduced tensor for a given
+    derivative name
+
+    Parameters
+    ----------
+    d : str
+        Derivative name
+
+    Returns
+    r : int or tuple
+        Either the index into the reduced tensor or a pair of indices
+        `a, b` such that `-c[a]-c[b]` yields the desired derivative.
+    """
+    order = len(d)
+    idx = name_to_idx(d)
+    nidx = idx_to_nidx(idx)
+    r = _expand_map[order][nidx]
+    return r
+
+
 def select_tensor(c, order=None):
     """Select only a linealy idependent subset from a derivative of a
     harmonic field.

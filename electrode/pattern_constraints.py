@@ -29,7 +29,7 @@ except ImportError:
     warnings.warn("cvxopt not found, optimizations will fail", ImportWarning)
 
 from .utils import (select_tensor, expand_tensor, rotate_tensor,
-        name_to_deriv)
+        name_to_deriv, deriv_to_reduced_idx)
 
 
 """Constraints and objectives to be used with `System.optimize()`
@@ -168,17 +168,20 @@ class PotentialObjective(SingleValueConstraint):
         super(PotentialObjective, self).__init__(**kwargs)
         self.x = np.asanyarray(x, np.double)
         self.derivative = derivative
+        self.order = len(derivative)
+        self.reduced_idx = deriv_to_reduced_idx(derivative)
         self.rotation = (np.asanyarray(rotation, np.double)
                 if rotation is not None else None)
 
     def get(self, system, variables):
-        d, e = name_to_deriv(self.derivative)
-        c = system.individual_potential(self.x, d)[:, 0, :]
+        c = system.individual_potential(self.x, self.order)[:, 0, :]
         if self.rotation is not None:
             c = select_tensor(rotate_tensor(expand_tensor(c),
-                self.rotation, d))
-        return c[:, e]
-    
+                self.rotation, self.order))
+        c = c[:, self.reduced_idx]
+        if type(self.reduced_idx) is tuple:
+            c = -c.sum(1)
+        return c
 
 class MultiPotentialObjective(SingleValueConstraint):
     """Constrains or optimizes a linear combination of
