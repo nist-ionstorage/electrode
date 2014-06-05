@@ -601,8 +601,9 @@ class System(list):
             vectors[i] = p/c
         return vectors
 
-    def _run_cvxopt(self, obj, ctrs, verbose=True):
+    def _run_cvxopt(self, obj, ctrs, verbose=True, **kwargs):
         solver = cvxopt.modeling.op(obj, ctrs)
+        cvxopt.solvers.options.update(**kwargs)
         cvxopt.solvers.options["show_progress"] = verbose
         if verbose:
             logger.info("variables: %i", sum(v._size
@@ -616,7 +617,8 @@ class System(list):
             raise ValueError("solve failed: %s" % solver.status)
         return solver
 
-    def solve(self, local_constraints, global_constraints, verbose=True):
+    def solve(self, local_constraints, global_constraints, verbose=True,
+            **kwargs):
         """
         Optimize dc voltages at positions x to satisfy constraints.
 
@@ -652,13 +654,13 @@ class System(list):
             obj += sum(coef*val for coef, val in ci.objective(self, variables))
             ctrs.extend(ci.constraints(self, variables))
 
-        solver = self._run_cvxopt(obj, ctrs, verbose)
+        solver = self._run_cvxopt(obj, ctrs, verbose, **kwargs)
 
         c = solver.objective.value()
         u = np.array([np.array(v.value).ravel() for v in variables])
         return u, c
 
-    def optimize(self, constraints, rcond=1e-9, verbose=True):
+    def optimize(self, constraints, rcond=1e-9, verbose=True, **kwargs):
         """Find electrode potentials that maximize given
         constraints/objectives.
         
@@ -700,7 +702,7 @@ class System(list):
         # B*g_perp*p == 0
         ctrs.append(cvxopt.modeling.dot(cvxopt.matrix(B1.T), p) == 0.)
 
-        solver = self._run_cvxopt(-obj, ctrs, verbose)
+        solver = self._run_cvxopt(-obj, ctrs, verbose, **kwargs)
 
         p = np.array(p.value, np.double).ravel()
         c = np.inner(p, g)/g2
