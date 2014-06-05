@@ -63,7 +63,7 @@ from .pattern_constraints import (PatternRangeConstraint,
 from . import colors
 
 
-logger = logging.getLogger()
+logger = logging.getLogger("electrode")
 
 
 class System(list):
@@ -601,6 +601,21 @@ class System(list):
             vectors[i] = p/c
         return vectors
 
+    def _run_cvxopt(self, obj, ctrs, verbose=True):
+        solver = cvxopt.modeling.op(obj, ctrs)
+        cvxopt.solvers.options["show_progress"] = verbose
+        if verbose:
+            logger.info("variables: %i", sum(v._size
+                    for v in solver.variables()))
+            logger.info("inequalities: %i", sum(v.multiplier._size
+                    for v in solver.inequalities()))
+            logger.info("equalities: %i", sum(v.multiplier._size
+                    for v in solver.equalities()))
+        solver.solve("sparse")
+        if not solver.status == "optimal":
+            raise ValueError("solve failed: %s" % solver.status)
+        return solver
+
     def solve(self, local_constraints, global_constraints, verbose=True):
         """
         Optimize dc voltages at positions x to satisfy constraints.
@@ -636,19 +651,9 @@ class System(list):
         for ci in global_constraints:
             obj += sum(coef*val for coef, val in ci.objective(self, variables))
             ctrs.extend(ci.constraints(self, variables))
-        solver = cvxopt.modeling.op(obj, ctrs)
 
-        if not verbose:
-            cvxopt.solvers.options["show_progress"] = False
-        else:
-            logger.info("variables: %i", sum(v._size
-                    for v in solver.variables()))
-            logger.info("inequalities: %i", sum(v.multiplier._size
-                    for v in solver.inequalities()))
-            logger.info("equalities: %i", sum(v.multiplier._size
-                    for v in solver.equalities()))
+        solver = self._run_cvxopt(obj, ctrs, verbose)
 
-        solver.solve("sparse")
         c = solver.objective.value()
         u = np.array([np.array(v.value).ravel() for v in variables])
         return u, c
@@ -694,20 +699,9 @@ class System(list):
         B1 = B1[:-1]
         # B*g_perp*p == 0
         ctrs.append(cvxopt.modeling.dot(cvxopt.matrix(B1.T), p) == 0.)
-        solver = cvxopt.modeling.op(-obj, ctrs)
-        if not verbose:
-            cvxopt.solvers.options["show_progress"] = False
-        else:
-            cvxopt.solvers.options["show_progress"] = True
-            logger.info("variables: %i", sum(v._size
-                    for v in solver.variables()))
-            logger.info("inequalities: %i", sum(v.multiplier._size
-                    for v in solver.inequalities()))
-            logger.info("equalities: %i", sum(v.multiplier._size
-                    for v in solver.equalities()))
-        solver.solve("sparse")
-        if not solver.status == "optimal":
-            raise ValueError("solve failed: %s" % solver.status)
+
+        solver = self._run_cvxopt(-obj, ctrs, verbose)
+
         p = np.array(p.value, np.double).ravel()
         c = np.inner(p, g)/g2
         return p, c
@@ -793,8 +787,7 @@ class System(list):
 
     def analyze_static(self, x, axis=(0, 1, 2),
             m=ct.atomic_mass, q=ct.elementary_charge,
-            l=100e-6, o=2*np.pi*1e6, 
-            do_ions=False, do_print=False):
+            l=100e-6, o=2*np.pi*1e6, ions=1, log=None):
         """Perform an textual analysis of the potential at and around
         a point.
 
@@ -823,22 +816,27 @@ class System(list):
             Length scale (m).
         o : float
             Rf frequency (rad/s).
-        do_ions : bool
+        ions : int
             Also analyze the modes of multiple ions.
-        do_print : bool
-            Print the output instead of yielding it line by line.
+        log : logging level
+            Log the output with the given level instead of yielding
+            it line by line.
 
         Returns
         -------
         generator
             Yields strings that can be printed or written to a file.
         """
-        if do_print:
-            for line in self.analyze_static(x, axis, m, q, l, o,
-                    do_ions, do_print=False):
-                print(line)
-            return
+        it = self._analyze_static(x, axis, m, q, l, o, ions)
+        if log is None:
+            return it
+        else:
+            for line in it:
+                logger.log(log, line)
 
+    def _analyze_static(self, x, axis=(0, 1, 2),
+            m=ct.atomic_mass, q=ct.elementary_charge,
+            l=100e-6, o=2*np.pi*1e6, ions=1):
         rf_scale = np.sqrt(q/m)/(2*l*o) # rf pseudopotential voltage scale
         yield "params: f=%.3g MHz, m=%.3g amu, "\
                  "q=%.3g qe, l=%.3g µm, scale=%.3g" % (
@@ -894,9 +892,9 @@ class System(list):
         for ci, fi, semi in zip("abc", freqs, sem):
             yield "  %s: ndot=%.4g /s, S_E*f=%.4g (V² Hz)/(m² Hz)" % (
                 ci, semi*q**2/(4*m*ct.h*fi), semi*fi)
-        if do_ions:
-            xi = x+np.random.randn(2)[:, None]*1e-3
-            qi = np.ones(2)*q/(l*4*np.pi*ct.epsilon_0)**.5
+        if ions > 1:
+            xi = x+np.random.randn(ions)[:, None]*1e-3
+            qi = np.ones(ions)*q/(l*4*np.pi*ct.epsilon_0)**.5
             xis, cis, mis = self.ions(xi, qi)
             freqs_ppi = (cis/l**2/m)**.5/(1e6*np.pi)
             r2 = norm(xis[1]-xis[0])
@@ -905,7 +903,7 @@ class System(list):
             yield " separation: %.3g (%.3g µm, %.3g µm harmonic)" % (
                 r2, r2*l/1e-6, r2a/1e-6)
             for ci, fi, mi in zip("abcdef", freqs_ppi, mis.transpose(2, 0, 1)):
-                yield " %s: %.4g MHz, %s/%s" % (ci, fi/1e6, mi[0], mi[1])
+                yield " %s: %.4g MHz, %s/%s" % (ci, fi/1e6, mi)
 
     def ions(self, x0, q):
         """Find minimum energy positions of an multiple ions and

@@ -31,7 +31,7 @@ from .system import System
 from .electrode import PolygonPixelElectrode
 from .utils import area_centroid
 
-logger = logging.getLogger()
+logger = logging.getLogger("electrode")
 
 
 """Polygons class, methods for polygons manipulation, and tools for

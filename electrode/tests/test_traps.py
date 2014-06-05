@@ -21,6 +21,7 @@ from __future__ import (absolute_import, print_function,
         unicode_literals, division)
 
 import unittest
+import logging
 
 try:
     import matplotlib as mpl
@@ -368,6 +369,7 @@ class MagtrapCase(unittest.TestCase):
                 ois, [.01, .03, .085, .095, .105, .128], 2)
 
     def test_analyze_static(self):
+        self.s.analyze_static(self.x0, log=logging.DEBUG)
         s = list(self.s.analyze_static(self.x0))
         self.assertEqual(len(s), 35)
 
