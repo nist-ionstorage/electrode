@@ -6,7 +6,7 @@ virtualenv:
 before_install:
   - "sudo apt-get install libatlas-dev liblapack-dev gfortran libgeos-dev"
   - "sudo apt-get install python-numpy python-scipy python-numpy-dev"
-  - "sudo apt-get install cython python-matplotlib"
+  - "sudo apt-get install cython python-matplotlib python-shapely"
 # precise does not have them or they are broken
 #  - "sudo apt-get install python3-numpy python3-scipy python3-numpy-dev"
 #  - "sudo apt-get install cython3 python3-matplotlib"
