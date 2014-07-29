@@ -42,10 +42,32 @@ loading, saving GDS files.
 """
 
 
+def smooth(x, y, smoothing=1., straight=None, corner=None, straight_tol=1e-6,
+        k=1):
+    assert x[0] == x[-1] and y[0] == y[-1], "not periodic"
+    dx = x - np.roll(x, 1)
+    dy = y - np.roll(y, 1)
+    du = np.hypot(dx, dy)
+    u = np.cumsum(du)
+    w = np.ones_like(u)
+    a = np.arctan2(dy, dx)
+    t = np.fabs((np.roll(a, -1) - a) % (2*np.pi)) < straight_tol
+    if straight is not None:
+        w = np.where(t, straight, w)
+    if corner is not None:
+        w = np.where((np.roll(t, 1) | np.roll(t, -1)) & ~t, corner, w)
+    s = len(x)*smoothing
+    (tck, u), fp, ier, msg = splprep([x, y], w=w, u=u, s=s,
+                      k=k, per=1, nest=len(x) + 2, full_output=1)
+    assert ier <= 0, (ier, msg)
+    xn, yn = splev(tck[0][k:-k], tck)
+    return xn, yn
+
+
 class Polygons(list):
     """A simple representations of polygonal electrode data (two
     dimensional).
-    
+
     A named list of shapely `MultiPolygons`::
 
         [
@@ -57,11 +79,11 @@ class Polygons(list):
     @classmethod
     def from_system(cls, system):
         """Convert a `System` instance to a `Polygons` instance.
-        
+
         Parameters
         ----------
         system : System
-            
+
         Returns
         -------
         Polygons
@@ -91,17 +113,17 @@ class Polygons(list):
             for exta, exterior in exts:
                 ep = geometry.Polygon(exterior)
                 gint = []
-                done = set()
                 for i, (inta, interior) in enumerate(ints):
                     if inta >= exta:
                         break
                     if ep.contains(interior):
                         gint.append(interior)
-                        done.add(i)
-                    ints = [i for j, i in enumerate(ints) if j not in done]
                 pi = geometry.Polygon(exterior, gint)
                 if pi.is_valid and pi.area > 0:
                     groups.append(pi)
+                else:
+                    logger.warn("polygon %s failed %s/%s", e.name, pi.is_valid,
+                            pi.area)
             # remaining interiors must be top level or "free"
             #assert not ints, ints
             #mp = geometry.MultiPolygon(groups)
@@ -339,7 +361,7 @@ class Polygons(list):
                 assert poly.is_valid, poly
                 if poly.is_empty:
                     continue
-                if edge is not None:
+                if edge:
                     poly = poly.intersection(field)
                 xy = np.array(poly.exterior.coords.xy).copy()
                 xy = xy.T[:, :2]*scale/phys_unit
@@ -358,22 +380,24 @@ class Polygons(list):
                 gaps.extend(poly.interiors)
         if gap_layer is not None:
             ##g = ops.cascaded_union(gaps) # segfaults
+            #g = ops.unary_union(gaps)
             #g = geometry.MultiLineString(gaps)
+            g = gaps
             # this breaks it up badly
-            g = geometry.LineString()
-            for i in gaps:
-                g = g.union(i)
-            if edge is not None:
-                g = g.intersection(field)
-                g = g.difference(field.boundary)
-            if not hasattr(g, "geoms"):
-                g = [g]
+            #g = geometry.LineString()
+            #for i in gaps:
+            #    g = g.union(i)
+            #if edge:
+            #    g = g.intersection(field)
+            #    g = g.difference(field.boundary)
+            #if not hasattr(g, "geoms"):
+            #    g = [g]
             for loop in g:
                 xy = np.array(loop.coords.xy).copy()
                 xy = xy.T[:, :2]*scale/phys_unit
-                xyb = np.r_[xy, xy[:1]]
+                #xy = np.r_[xy, xy[:1]]
                 p = elements.Path(layer=gap_layer[0],
-                        data_type=gap_layer[1], xy=xyb)
+                        data_type=gap_layer[1], xy=xy)
                 p.width = int(gap_width*scale/phys_unit)
                 stru.append(p)
         return lib
@@ -461,7 +485,7 @@ class Polygons(list):
         Parameters
         ----------
         buffer : float
-            Determines the simplification tolerance (see shapely). 
+            Determines the simplification tolerance (see shapely).
             In the output polygons, no point will be further than
             `buffer` away from the original geometry.
         preserve_topology : bool
@@ -482,7 +506,7 @@ class Polygons(list):
 
     def filter(self, test=None, deep=True):
         """Drops all patches that fail the test function.
-       
+
         Parameters
         ----------
         test : callable
@@ -519,22 +543,17 @@ class Polygons(list):
                 p.append((ni, geometry.MultiPolygon(pe)))
         return p
 
-    def smooth(self, smoothing=1, straight=1e-9, clip_len=(1e-2, 1e2)):
+    def smooth(self, **kwargs):
         """Smoothes the polygons.
 
         Parameters
         ----------
         smoothing : float
-            Gets passed down to splprep() and is the average
-            deviation in units of the local segment length.
+            Gets passed down to splprep(s=...)
         straight : float
-            Enables straight path detection and forces the spline
-            to pass through straight points. Also the straightness
-            threshold in dx and dy.
-        clip_len : tuple (float, float)
-            The local segment length to within the given interval. Only
-            used for weighting the deviation of the path relative to the
-            local edge length.
+            Enables straight path detection. Straight segment weight.
+        corner : float
+            Enables corner detection. Corner weight.
 
         Returns
         -------
@@ -554,25 +573,8 @@ class Polygons(list):
                 except TypeError:
                     b = [b]
                 for line in b:
-                    x, y = np.array(line.coords.xy)
-                    assert x[0] == x[-1] and y[0] == y[-1], "not periodic"
-                    # periodic central differences
-                    dx = np.roll(x, 1) - np.roll(x, -1)
-                    dy = np.roll(y, 1) - np.roll(y, -1)
-                    du = np.sqrt(dx**2 + dy**2)/2
-                    if clip_len is not None:
-                        np.clip(du, clip_len[0], clip_len[1], du)
-                    if straight is not None:
-                        ver = np.fabs(dx) < straight
-                        hor = np.fabs(dy) < straight
-                        ta = np.roll(ver, -1) | np.roll(ver, 1)
-                        tb = np.roll(hor, -1) | np.roll(hor, 1)
-                        du = np.where(ta | tb, straight, du)
-                    u = np.cumsum(du)
-                    s = len(x)*smoothing
-                    tckp, u = splprep([x, y], w=1/du, u=u/u[-1], s=s,
-                                      k=1, per=1, nest=len(x) + 2)
-                    xn, yn = splev(np.r_[tckp[0][1+1:-1-1], 1], tckp)
+                    x, y = line.coords.xy
+                    xn, yn = smooth(x, y, **kwargs)
                     loops.append(np.c_[xn, yn])
                 # TODO: does not ensure that all interiors are within
                 # exterior and that the interiors do not overlap
@@ -585,7 +587,7 @@ class Polygons(list):
 
     def assign_to_pad(self, pads):
         """Finds polygons intersecting the points given.
-        
+
         Parameters
         ----------
         pads : list of tuples (float, float)
@@ -653,7 +655,7 @@ class Polygons(list):
 
 def square_pads(step=10., edge=200., odd=False, start_corner=0):
     """Generatex XY coordinates for equally spaced pads around a square.
-    
+
     Pads are along each edge of the square, placed inwards by `step/2`.
 
     Parameters
