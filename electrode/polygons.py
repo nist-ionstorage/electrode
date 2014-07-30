@@ -694,31 +694,3 @@ def square_pads(step=10., edge=200., odd=False, start_corner=0):
     xy = np.concatenate(edges[start_corner:] + edges[:start_corner], axis=1)
     assert xy.shape == (2, 4*n), xy.shape
     return xy.T
-
-
-if __name__ == "__main__":
-    import cPickle as pickle
-    s = pickle.load(open("rfjunction.pickle", "rb"))
-    p = Polygons.from_system(s)
-    p = p.remove_overlaps()
-    p = p.add_gaps(.05)
-    s1 = p.to_system()
-    for si in s, s1:
-        for ei in si:
-            if not hasattr(ei, "paths"):
-                continue
-            for pi, oi in zip(ei.paths, ei.orientations()):
-                print(ei.name, pi, oi)
-        print()
-    pickle.dump(s1, open("rfjunction1.pickle", "wb"))
-
-    import sys
-    from matplotlib import pyplot as plt
-    with open(sys.argv[1], "rb") as fil:
-        s = from_gds(fil)
-    fig, ax = plt.subplots()
-    s.plot(ax)
-    fig.savefig("gds_to_system.pdf")
-    l = to_gds(s)
-    with open("system_to_gds.gds", "wb") as fil:
-        l.save(fil)
