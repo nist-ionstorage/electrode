@@ -43,15 +43,16 @@ loading, saving GDS files.
 
 
 def smooth(x, y, smoothing=1., straight=None, corner=None, straight_tol=1e-6,
-        k=1):
+        k=1, knots=None):
     assert x[0] == x[-1] and y[0] == y[-1], "not periodic"
     dx = x - np.roll(x, 1)
     dy = y - np.roll(y, 1)
     du = np.hypot(dx, dy)
-    u = np.cumsum(du)
-    w = np.ones_like(u)
+    u = np.cumsum(du) - du[0]
+    u /= u[-1]
     a = np.arctan2(dy, dx)
     t = np.fabs((np.roll(a, -1) - a) % (2*np.pi)) < straight_tol
+    w = np.ones_like(u)
     if straight is not None:
         w = np.where(t, straight, w)
     if corner is not None:
@@ -60,7 +61,11 @@ def smooth(x, y, smoothing=1., straight=None, corner=None, straight_tol=1e-6,
     (tck, u), fp, ier, msg = splprep([x, y], w=w, u=u, s=s,
                       k=k, per=1, nest=len(x) + 2, full_output=1)
     assert ier <= 0, (ier, msg)
-    xn, yn = splev(tck[0][k:-k], tck)
+    if knots is None:
+        u = tck[0][k:-k]
+    else:
+        u = np.linspace(0, 1, knots)
+    xn, yn = splev(u, tck)
     return xn, yn
 
 
