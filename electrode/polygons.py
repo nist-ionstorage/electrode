@@ -110,14 +110,18 @@ class Polygons(list):
             # the following needs to be complicated to cover
             # onion-like "ext in int in ext" cases.
             groups = []
+            done = set()
             for exta, exterior in exts:
                 ep = geometry.Polygon(exterior)
                 gint = []
                 for i, (inta, interior) in enumerate(ints):
+                    if i in done:
+                        continue
                     if inta >= exta:
                         break
                     if ep.contains(interior):
                         gint.append(interior)
+                        done.add(i)
                 pi = geometry.Polygon(exterior, gint)
                 if pi.is_valid and pi.area > 0:
                     groups.append(pi)
