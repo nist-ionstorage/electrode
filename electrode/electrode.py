@@ -20,8 +20,6 @@
 from __future__ import (absolute_import, print_function,
         unicode_literals, division)
 
-import warnings
-
 import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
 
@@ -65,11 +63,11 @@ class Electrode(object):
 
     def potential(self, x, derivative=0, potential=1., out=None):
         """Electrical potential contribution.
-        
+
         Return the specified derivative of the eletrical potential
         contribution of this electrode assuming all other electrodes in
         the system are grounded.
-        
+
         Parameters
         ----------
         x : array_like, shape (n, 3)
@@ -88,7 +86,7 @@ class Electrode(object):
         out : None or array_like, shape (n, 2*derivative + 1), double
             Array to add the potential contribution to. Needs to be
             zeroed before. If None, an array is created and returned.
-        
+
         Returns
         -------
         potential : array, shape(n, 2*derivative + 1), double
@@ -113,19 +111,19 @@ class Electrode(object):
     def orientations(self):
         """Return the orientation of the electrode surfaces with respect
         to the `z > 0` half space.
-        
+
         Positive orientation yields positive potential for
         positive voltage and z>0.
-        
+
         .. note:: Only fully implemented for `PolygonPixelElectrode`.
         """
         return np.array([])
 
     def plot(self, ax, label=None, color=None, **kw):
         """Plot this electrode in the supplied axes.
-        
+
         Visualize a 2D projection of the electrode in the plot.
-        
+
         .. note:: Only fully implemented in `PolyGonPixelElectrode` and
             `PointPixelElectrode`.
         """
@@ -244,7 +242,7 @@ class PointPixelElectrode(SurfaceElectrode):
                 #cmap=plt.cm.binary, norm=plt.Normalize(0, 1.),
                 facecolor=color,
                 # FIXME/workaround: x in matplotlib<r8111
-                widths=a, heights=a, units="xy", 
+                widths=a, heights=a, units="xy",
                 angles=np.zeros(a.shape),
                 offsets=p[:, (0, 1)], transOffset=ax.transData)
         ax.add_collection(col)
@@ -442,7 +440,7 @@ class GridElectrode(Electrode):
     @classmethod
     def from_vtk(cls, fil, maxderiv=4):
         """Load grid potential data from vtk StructuredPoints.
-        
+
         .. note:: needs `tvtk`
 
         Parameters
@@ -452,7 +450,7 @@ class GridElectrode(Electrode):
             gridded data.
         maxderiv : int
             Maximum derivative order to precompute.
-        
+
         Returns
         -------
         GridElectrode
