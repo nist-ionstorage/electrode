@@ -351,9 +351,9 @@ class Polygons(list):
             `gdsii.library.Library` with one Structure/Cell named `name`
             containing the given data.
         """
-        lib = library.Library(version=5, name=bytes(name),
+        lib = library.Library(version=5, name=name.encode("ascii"),
                 physical_unit=phys_unit, logical_unit=1e-3)
-        stru = structure.Structure(name=bytes(name))
+        stru = structure.Structure(name=name.encode("ascii"))
         lib.append(stru)
         if edge:
             field = geometry.Polygon([[edge/2, edge/2], [-edge/2, edge/2],
@@ -363,7 +363,7 @@ class Polygons(list):
         for name, polys in self:
             props = {}
             if name:
-                props[self._attr_name] = bytes(name)
+                props[self._attr_name] = name.encode("ascii")
             if not hasattr(polys, "geoms"):
                 polys = [polys]
             for poly in polys:
@@ -377,7 +377,7 @@ class Polygons(list):
                 if text_layer is not None and name:
                     p = elements.Text(layer=text_layer[0],
                             text_type=text_layer[1], xy=xy[:1],
-                            string=bytes(name))
+                            string=name.encode("ascii"))
                     p.properties = props.items()
                     stru.append(p)
                 if poly_layer is not None:
@@ -608,7 +608,7 @@ class Polygons(list):
             Iterator over matching tuples `(pad number, polygon index,
             polygon)`
         """
-        polys = range(len(self))
+        polys = list(range(len(self)))
         for pad, (x, y) in enumerate(pads):
             p = geometry.Point(x, y)
             for i in polys:
