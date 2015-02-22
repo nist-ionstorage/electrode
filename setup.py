@@ -71,7 +71,7 @@ http://dx.doi.org/10.1088/0143-0807/22/1/304
         extras_require = {
             "notebooks": ["ipython>=0.12"],
             "integrate": ["qc"],
-            "optimization": ["cvxopt>=1"],
+            "optimization": ["cvxpy"],
             "visualization": ["mayavi>4", "matplotlib"],
             "polygons": ["shapely>=1.2"],
             "gds": ["gdsii"],

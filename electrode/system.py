@@ -42,10 +42,10 @@ if not hasattr(optimize, "minimize"):
     optimize.minimize = minimize
 
 try:
-    import cvxopt, cvxopt.modeling
+    import cvxpy as cvx
 except ImportError:
-    warnings.warn("cvxopt not found, optimizations will fail", ImportWarning)
-    cvxopt = None
+    warnings.warn("cvxpy not found, optimizations will fail", ImportWarning)
+    cvx = None
 
 try:
     from qc.theory.gni import gni
@@ -595,30 +595,30 @@ class System(list):
                 np.double)
         for i, objective in enumerate(obj):
             objective.value = 1
-            p, c = self.optimize(constraints+obj, verbose=False,
+            p, c = self.optimize(constraints + obj,
                     **kwargs)
             objective.value = 0
             vectors[i] = p/c
         return vectors
 
-    def _run_cvxopt(self, obj, ctrs, verbose=True, **kwargs):
-        solver = cvxopt.modeling.op(obj, ctrs)
-        cvxopt.solvers.options.update(**kwargs)
-        cvxopt.solvers.options["show_progress"] = verbose
-        if verbose:
-            logger.info("variables: %i", sum(v._size
+    def _run_cvx(self, obj, ctrs, verbose=False, **kwargs):
+        kwargs.setdefault("solver", cvx.CVXOPT)
+        solver = cvx.Problem(cvx.Minimize(obj), ctrs)
+        #print(obj, ctrs, solver.variables()[0].size)
+        #print(kwargs)
+        if verbose and False: # FIXME
+            logger.info("variables: %i", sum(v.size
                     for v in solver.variables()))
             logger.info("inequalities: %i", sum(v.multiplier._size
                     for v in solver.inequalities()))
             logger.info("equalities: %i", sum(v.multiplier._size
                     for v in solver.equalities()))
-        solver.solve("sparse")
-        if not solver.status == "optimal":
+        v = solver.solve(verbose=verbose, **kwargs)
+        if not solver.status == cvx.OPTIMAL:
             raise ValueError("solve failed: %s" % solver.status)
-        return solver
+        return v
 
-    def solve(self, local_constraints, global_constraints, verbose=True,
-            **kwargs):
+    def solve(self, local_constraints, global_constraints, **kwargs):
         """
         Optimize dc voltages at positions x to satisfy constraints.
 
@@ -631,8 +631,6 @@ class System(list):
             configuration.
         global_constraints : list of constraints
             Global constraints that apply to the entire voltage matrix.
-        verbose : bool
-            Passed to the solver.
 
         Returns
         -------
@@ -641,8 +639,7 @@ class System(list):
         c
             Objective value
         """
-        variables = [cvxopt.modeling.variable(len(self))
-            for i in range(len(local_constraints))]
+        variables = cvx.Variable(len(local_constraints), len(self))
 
         obj = 0.
         ctrs = []
@@ -654,13 +651,13 @@ class System(list):
             obj += sum(coef*val for coef, val in ci.objective(self, variables))
             ctrs.extend(ci.constraints(self, variables))
 
-        solver = self._run_cvxopt(obj, ctrs, verbose, **kwargs)
+        solver = self._run_cvx(obj, ctrs, **kwargs)
 
         c = solver.objective.value()
         u = np.array([np.array(v.value).ravel() for v in variables])
         return u, c
 
-    def optimize(self, constraints, rcond=1e-9, verbose=True, **kwargs):
+    def optimize(self, constraints, rcond=1e-9, **kwargs):
         """Find electrode potentials that maximize given
         constraints/objectives.
         
@@ -671,8 +668,6 @@ class System(list):
         rcond : float
             Cutoff for small singular values. See `scipy.linalg.pinv`
             for details.
-        verbose : bool
-            Passed to the solver.
         
         Returns
         -------
@@ -683,7 +678,7 @@ class System(list):
             Solution strength. `c` times the objective value could
             be achieved using `potentials`.
         """
-        p = cvxopt.modeling.variable(len(self))
+        p = cvx.Variable(len(self))
         obj = []
         ctrs = []
         for ci in constraints:
@@ -696,13 +691,13 @@ class System(list):
         g = np.dot(Bp, b)
         g2 = np.inner(g, g)
         B1 = B - np.outer(b, g)/g2 # B*g_perp
-        obj = cvxopt.modeling.dot(cvxopt.matrix(g), p) # maximize this
+        obj = np.matrix(g.T)*p # maximize this
         #FIXME: there is one singular value, drop one line
         B1 = B1[:-1]
         # B*g_perp*p == 0
-        ctrs.append(cvxopt.modeling.dot(cvxopt.matrix(B1.T), p) == 0.)
+        ctrs.append(np.matrix(B1)*p == 0.)
 
-        solver = self._run_cvxopt(-obj, ctrs, verbose, **kwargs)
+        solver = self._run_cvx(-obj, ctrs, **kwargs)
 
         p = np.array(p.value, np.double).ravel()
         c = np.inner(p, g)/g2

@@ -24,9 +24,9 @@ import warnings
 import numpy as np
 
 try:
-    import cvxopt, cvxopt.modeling
+    import cvxpy as cvx
 except ImportError:
-    warnings.warn("cvxopt not found, optimizations will fail", ImportWarning)
+    warnings.warn("cvxpy not found, optimizations will fail", ImportWarning)
 
 from .utils import (select_tensor, expand_tensor, rotate_tensor,
         name_to_deriv, deriv_to_reduced_idx)
@@ -35,7 +35,7 @@ from .utils import (select_tensor, expand_tensor, rotate_tensor,
 """Constraints and objectives to be used with `System.optimize()`
 
 .. note::
-    Needs cvxopt.
+    Needs cvxpy/scs/cvxopt.
 """
 
 
@@ -107,21 +107,20 @@ class SingleValueConstraint(Constraint):
     def objective(self, system, variables):
         if self.value is not None:
             c = self.get(system, variables)
-            yield c, float(self.value)
+            yield c, self.value
 
     def constraints(self, system, variables):
         if (self.offset is not None
             or self.min is not None
             or self.max is not None):
             c = self.get(system, variables)
-            d = cvxopt.matrix(np.ascontiguousarray(c))
-            v = cvxopt.modeling.dot(d, variables)
+            v = np.matrix(c.T)*variables
             if self.offset is not None:
-                yield v == float(self.offset)
+                yield v == self.offset
             if self.min is not None:
-                yield v >= float(self.min)
+                yield v >= self.min
             if self.max is not None:
-                yield v <= float(self.max)
+                yield v <= self.max
 
 
 class PotentialObjective(SingleValueConstraint):
@@ -215,26 +214,26 @@ class VoltageDerivativeConstraint(Constraint):
     def coef(self, system, variables):
         for v in self.get(system, variables):
             if self.abs:
-                v = abs(v)
+                v = cvs.abs(v)
             if self.norm == "one":
-                yield cvxopt.modeling.sum(v)
+                yield cvx.sum_entries(v)
             elif self.norm == "inf":
-                yield cvxopt.modeling.max(v)
+                yield cvx.max_entries(v)
             else:
                 raise ValueError(self.norm)
 
     def objective(self, system, variables):
         if self.weight:
             for v in self.coef(system, variables):
-                yield v, float(self.weight)
+                yield v, self.weight
 
     def constraints(self, system, variables):
         if self.max is not None:
             for v in self.coef(system, variables):
-                yield v <= float(self.max)
+                yield v <= self.max
         if self.min is not None:
             for v in self.coef(system, variables):
-                yield v >= float(self.min)
+                yield v >= self.min
 
 
 class SymmetryConstaint(Constraint):

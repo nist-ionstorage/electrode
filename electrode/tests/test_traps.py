@@ -38,7 +38,7 @@ from electrode import (transformations, utils, electrode, system,
     pattern_constraints)
 
 
-@unittest.skipIf(system.cvxopt is None, "no cvxopt")
+@unittest.skipIf(system.cvx is None, "no cvx")
 class ThreefoldOptimizeCase(unittest.TestCase):
     def hextess(self, n, points=False):
         x = np.array(sum(([np.array([i+j*.5, j*3**.5*.5])/(n+.5)
@@ -72,7 +72,7 @@ class ThreefoldOptimizeCase(unittest.TestCase):
             for i in "xx yy".split():
                 ct.append(pattern_constraints.PotentialObjective(derivative=i,
                         x=x, rotation=r, value=2**(-1/3.)))
-        s.rfs, self.c = s.optimize(ct, verbose=False)
+        s.rfs, self.c = s.optimize(ct)
         self.h = h
         
         self.x0 = np.array([d/3**.5, 0, h])
@@ -318,17 +318,17 @@ class MagtrapCase(unittest.TestCase):
             nptest.assert_allclose(self.s.rfs, rfs)
         nptest.assert_allclose(self.s.voltages, np.zeros((n, 2)))
 
-    @unittest.skipIf(system.cvxopt is None, "no cvxopt")
+    @unittest.skipIf(system.cvx is None, "no cvx")
     def test_shims(self):
         x = self.x0
         eln = "c1 c2 c3 c4 c5 c6".split()
         s = system.System([self.s[n] for n in eln])
-        derivs = "x y z xx yy yz".split()
+        derivs = "x y z xx xy xz".split()
         vectors = s.shims([(x, None, d) for d in derivs])
         self.assertEqual(vectors.shape, (len(derivs), len(eln)))
         return vectors, s, derivs
 
-    @unittest.skipIf(system.cvxopt is None, "no cvxopt")
+    @unittest.skipIf(system.cvx is None, "no cvx")
     def test_shims_shift(self):
         vectors, s, derivs = self.test_shims()
         x = self.x0
