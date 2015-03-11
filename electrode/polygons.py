@@ -18,9 +18,10 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import (absolute_import, print_function,
-        unicode_literals, division)
+                        unicode_literals, division)
 
-import logging, operator
+import logging
+import operator
 
 import numpy as np
 from scipy.interpolate import splprep, splev
@@ -43,7 +44,7 @@ loading, saving GDS files.
 
 
 def smooth(x, y, smoothing=1., straight=None, corner=None, straight_tol=1e-6,
-        k=1, knots=None):
+           k=1, knots=None):
     assert x[0] == x[-1] and y[0] == y[-1], "not periodic"
     dx = x - np.roll(x, 1)
     dy = y - np.roll(y, 1)
@@ -59,7 +60,8 @@ def smooth(x, y, smoothing=1., straight=None, corner=None, straight_tol=1e-6,
         w = np.where((np.roll(t, 1) | np.roll(t, -1)) & ~t, corner, w)
     s = len(x)*smoothing
     (tck, u), fp, ier, msg = splprep([x, y], w=w, u=u, s=s,
-                      k=k, per=1, nest=len(x) + 2, full_output=1)
+                                     k=k, per=1, nest=len(x) + 2,
+                                     full_output=1)
     assert ier <= 0, (ier, msg)
     if knots is None:
         u = tck[0][k:-k]
@@ -132,7 +134,7 @@ class Polygons(list):
                     groups.append(pi)
                 else:
                     logger.warn("polygon %s failed %s/%s", e.name, pi.is_valid,
-                            pi.area)
+                                pi.area)
             # remaining interiors must be top level or "free"
             #assert not ints, ints
             #mp = geometry.MultiPolygon(groups)
@@ -169,12 +171,12 @@ class Polygons(list):
         return s
 
     # attribute namespaces anyone?
-    _attr_base = sum(ord(i) for i in "electrode") # 951
+    _attr_base = sum(ord(i) for i in "electrode")  # 951
     _attr_name = _attr_base + 0
 
     @classmethod
     def from_gds(cls, fil, scale=1., name=None, poly_layers=None,
-            gap_layers=None, route_layers=[], bridge_layers=[], **kwargs):
+                 gap_layers=None, route_layers=[], bridge_layers=[], **kwargs):
         """Opens a GDS Library and converts a Structure to a `Polygons`
         instance.
 
@@ -246,7 +248,7 @@ class Polygons(list):
 
     @classmethod
     def from_data(cls, polys=[], gaps=[], routes=[],
-            bridges=[], edge=40., buffer=1e-10):
+                  bridges=[], edge=40., buffer=1e-10):
         """Process polygonal, gaps, route and bridge data into a
         `Polygons` instance.
 
@@ -313,14 +315,14 @@ class Polygons(list):
             # assume that buffer is much smaller than any relevant
             # distance and round coordinates to 10*buffer, then simplify
             i = [np.around(j.coords, int(-np.log10(buffer)-1)) for j in
-                    [i.exterior] + list(i.interiors)]
+                 [i.exterior] + list(i.interiors)]
             i = geometry.Polygon(i[0], i[1:])
             fragments.append(("", i))
         return fragments
 
     def to_gds(self, scale=1., poly_layer=(0, 0), gap_layer=(1, 0),
-            text_layer=(0, 0), phys_unit=1e-9, name="trap_electrodes",
-            edge=None, gap_width=0.):
+               text_layer=(0, 0), phys_unit=1e-9, name="trap_electrodes",
+               edge=None, gap_width=0.):
         """Convert this `Polygons` instance to a GDS library with one
         structure.
 
@@ -352,7 +354,7 @@ class Polygons(list):
             containing the given data.
         """
         lib = library.Library(version=5, name=name.encode("ascii"),
-                physical_unit=phys_unit, logical_unit=1e-3)
+                              physical_unit=phys_unit, logical_unit=1e-3)
         stru = structure.Structure(name=name.encode("ascii"))
         lib.append(stru)
         if edge:
@@ -376,13 +378,13 @@ class Polygons(list):
                 xy = xy.T[:, :2]*scale/phys_unit
                 if text_layer is not None and name:
                     p = elements.Text(layer=text_layer[0],
-                            text_type=text_layer[1], xy=xy[:1],
-                            string=name.encode("ascii"))
+                                      text_type=text_layer[1], xy=xy[:1],
+                                      string=name.encode("ascii"))
                     p.properties = props.items()
                     stru.append(p)
                 if poly_layer is not None:
                     p = elements.Boundary(layer=poly_layer[0],
-                            data_type=poly_layer[1], xy=xy)
+                                          data_type=poly_layer[1], xy=xy)
                     p.properties = props.items()
                     stru.append(p)
                 gaps.append(poly.exterior)
@@ -406,7 +408,7 @@ class Polygons(list):
                 xy = xy.T[:, :2]*scale/phys_unit
                 #xy = np.r_[xy, xy[:1]]
                 p = elements.Path(layer=gap_layer[0],
-                        data_type=gap_layer[1], xy=xy)
+                                  data_type=gap_layer[1], xy=xy)
                 p.width = int(gap_width*scale/phys_unit)
                 stru.append(p)
         return lib
@@ -509,8 +511,8 @@ class Polygons(list):
             return self.add_gaps(buffer)
         p = Polygons()
         for ni, pi in self:
-            p.append((ni, pi.simplify(buffer,
-                preserve_topology=preserve_topology)))
+            p.append((ni, pi.simplify(
+                buffer, preserve_topology=preserve_topology)))
         return p
 
     def filter(self, test=None, deep=True):
@@ -544,7 +546,8 @@ class Polygons(list):
                 pe = []
                 for ppi in pi:
                     if test(ni, ppi.exterior):
-                        pe.append(geometry.Polygon(ppi.exterior,
+                        pe.append(geometry.Polygon(
+                            ppi.exterior,
                             [_ for _ in ppi.interiors if test(ni, _)]))
             else:
                 pe = [_ for _ in pi if test(ni, _)]
@@ -685,7 +688,8 @@ def square_pads(step=10., edge=200., odd=False, start_corner=0):
         (n, 2) array of xy coordinates of pad centers.
     """
     n = int(edge/step)
-    if odd: n += (n % 2) + 1
+    if odd:
+        n += (n % 2) + 1
     p = np.arange(-n/2.+.5, n/2.+.5)*step
     assert len(p) == n, (p, n)
     # top left as origin is common for packages
