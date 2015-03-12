@@ -497,6 +497,16 @@ class Polygons(list):
             p.append((ni, pi))
         return p
 
+    def merge_by_name(self):
+        """For unary unions of polygons with the same name"""
+        d = {}
+        for n, pi in self:
+            d.setdefault(n, []).append(pi)
+        p = Polygons()
+        for n, v in d.items():
+            p.append((n, ops.unary_union(v)))
+        return p
+
     def unify(self):
         """Form unary unions of polygons in each electrode
 
