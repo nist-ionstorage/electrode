@@ -177,7 +177,7 @@ class Polygons(list):
     @classmethod
     def from_gds(cls, fil, scale=1., name=None, poly_layers=None,
                  gap_layers=None, route_layers=[], bridge_layers=[],
-                 name_layers=[], **kwargs):
+                 name_layers=None, **kwargs):
         """Opens a GDS Library and converts a Structure to a `Polygons`
         instance.
 
@@ -320,6 +320,8 @@ class Polygons(list):
         assert field.is_valid, field
         if isinstance(field, geometry.Polygon):
             field = [field]
+        if not gaps and not routes:
+            field = []
         for i in field:
             # assume that buffer is much smaller than any relevant
             # distance and round coordinates to 10*buffer, then simplify
