@@ -249,7 +249,7 @@ class Polygons(list):
                     logger.debug("%s skipped", e)
             elif isinstance(e, elements.Text):
                 if name_layers is None or e.layer in name_layers:
-                    names.append((e.string.decode(), path))
+                    names.append((e.string.decode(), path[0]))
             else:
                 logger.debug("%s skipped", e)
         return cls.from_data(polys, gaps, routes, bridges, names, **kwargs)
@@ -328,20 +328,10 @@ class Polygons(list):
             i = geometry.Polygon(i[0], i[1:])
             fragments.append(("", i))
         if names:
-            fragments, f = cls(), fragments
-            names = [(name, geometry.Point(*xy)) for name, xy in names]
-            for name, poly in f:
-                if name:
-                    fragments.append((name, poly))
-                    continue
-                found = False
-                for n, p in names:
-                    if poly.contains(p):
-                        fragments.append((n, poly))
-                        found = True
-                        break
-                if not found:
-                    fragments.append((name, poly))
+            pads = [xy for name, xy in names]
+            names = dict((i, name) for i, (name, xy) in enumerate(names))
+            fragments = cls((names.get(i, fragments[j][0]), fragments[j][1])
+                            for i, j in fragments.assign_to_pad(pads))
         return fragments
 
     def to_gds(self, scale=1., poly_layer=(0, 0), gap_layer=(1, 0),
@@ -497,15 +487,12 @@ class Polygons(list):
             p.append((ni, pi))
         return p
 
-    def merge_by_name(self):
+    def unify_by_name(self):
         """For unary unions of polygons with the same name"""
         d = {}
         for n, pi in self:
             d.setdefault(n, []).append(pi)
-        p = Polygons()
-        for n, v in d.items():
-            p.append((n, ops.unary_union(v)))
-        return p
+        return Polygons((n, ops.unary_union(v)) for n, v in d.items())
 
     def unify(self):
         """Form unary unions of polygons in each electrode
@@ -642,8 +629,8 @@ class Polygons(list):
         Returns
         -------
         iterator
-            Iterator over matching tuples `(pad number, polygon index,
-            polygon)`
+            Iterator over matching tuples `(pad number, polygon_index)`
+            Unmatched polygons are yielded as `(None, polygon_index)`.
         """
         polys = list(range(len(self)))
         for pad, (x, y) in enumerate(pads):
@@ -656,7 +643,8 @@ class Polygons(list):
                     break
             if not polys:
                 break
-        # assert not polys, polys
+        for i in polys:
+            yield None, i
 
     def gaps_union(self):
         """Union of the boundaries of the polygons.
