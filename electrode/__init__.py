@@ -12,3 +12,5 @@ from .utils import shaped
 #from .constraints import (VoltageConstraint, SymmetryConstraint,
 #        PotentialConstraint, ForceConstraint, CurvatureConstraint,
 #        OffsetPotentialConstraint)
+
+__version__ = "1.5+dev"
