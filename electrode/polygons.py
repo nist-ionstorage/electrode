@@ -176,7 +176,8 @@ class Polygons(list):
 
     @classmethod
     def from_gds(cls, fil, scale=1., name=None, poly_layers=None,
-                 gap_layers=None, route_layers=[], bridge_layers=[], **kwargs):
+                 gap_layers=None, route_layers=[], bridge_layers=[],
+                 name_layers=[], **kwargs):
         """Opens a GDS Library and converts a Structure to a `Polygons`
         instance.
 
@@ -203,6 +204,9 @@ class Polygons(list):
             polygons. Paths in `route_layers` separate these from
             existing polygons. Paths in `bridge_layers` connect these
             new polygons to existing ones.
+        name_layers : list of integers (layer number)
+            Layers where a text at a position names the electrode at this
+            position.
         **kwargs : passed to `cls.from_data()`
 
         Returns
@@ -218,14 +222,15 @@ class Polygons(list):
         gaps = []
         routes = []
         bridges = []
+        names = []
         for stru in lib:
             assert isinstance(stru, structure.Structure)
-            if name is None or name == stru.name:
+            if name is None or name == stru.name.decode():
                 break
         for e in stru:
             path = np.array(e.xy)*lib.physical_unit/scale
             props = dict(e.properties)
-            name = props.get(cls._attr_name, "")
+            name = props.get(cls._attr_name, b"").decode()
             if isinstance(e, elements.Boundary):
                 ij = e.layer, e.data_type
                 if poly_layers is None or ij in poly_layers:
@@ -242,13 +247,16 @@ class Polygons(list):
                     bridges.append(path)
                 else:
                     logger.debug("%s skipped", e)
+            elif isinstance(e, elements.Text):
+                if name_layers is None or e.layer in name_layers:
+                    names.append((e.string.decode(), path))
             else:
                 logger.debug("%s skipped", e)
-        return cls.from_data(polys, gaps, routes, bridges, **kwargs)
+        return cls.from_data(polys, gaps, routes, bridges, names, **kwargs)
 
     @classmethod
     def from_data(cls, polys=[], gaps=[], routes=[],
-                  bridges=[], edge=40., buffer=1e-10):
+                  bridges=[], names=[], edge=40., buffer=1e-10):
         """Process polygonal, gaps, route and bridge data into a
         `Polygons` instance.
 
@@ -271,6 +279,7 @@ class Polygons(list):
             Gap paths (arrays of points with (n, 2) shape).
         routes : list of array_like
         bridges : list of array_like
+        names : list of (name, (x, y))
         edge : float
             Edge length of the bounding square. All Polygons and gaps
             are intersected with this. There will be nothing outside
@@ -318,6 +327,21 @@ class Polygons(list):
                  [i.exterior] + list(i.interiors)]
             i = geometry.Polygon(i[0], i[1:])
             fragments.append(("", i))
+        if names:
+            fragments, f = cls(), fragments
+            names = [(name, geometry.Point(*xy)) for name, xy in names]
+            for name, poly in f:
+                if name:
+                    fragments.append((name, poly))
+                    continue
+                found = False
+                for n, p in names:
+                    if poly.contains(p):
+                        fragments.append((n, poly))
+                        found = True
+                        break
+                if not found:
+                    fragments.append((name, poly))
         return fragments
 
     def to_gds(self, scale=1., poly_layer=(0, 0), gap_layer=(1, 0),
