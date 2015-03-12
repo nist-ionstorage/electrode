@@ -300,12 +300,12 @@ class Polygons(list):
                 field = field.union(poly.intersection(field0))
         # field = field.buffer(0, 1)
         for name, poly in polys:
-            poly = geometry.Polygon(poly)
-            assert poly.is_valid, poly
-            poly = geometry.polygon.orient(poly, 1)
-            poly = poly.intersection(field)
-            fragments.append((name, poly))
-            field = field.difference(poly)
+            for poly in ops.polygonize([poly]):
+                assert poly.is_valid, poly
+                poly = geometry.polygon.orient(poly, 1)
+                poly = poly.intersection(field)
+                fragments.append((name, poly))
+                field = field.difference(poly)
         if routes:
             field = field.difference(routes.buffer(buffer, 1))
         assert field.is_valid, field
