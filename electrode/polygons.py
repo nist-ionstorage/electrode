@@ -312,7 +312,7 @@ class Polygons(list):
             for poly in ops.polygonize([poly]):
                 assert poly.is_valid, poly
                 poly = geometry.polygon.orient(poly, 1)
-                poly = poly.intersection(field)
+                poly = poly.intersection(field0)
                 fragments.append((name, poly))
                 field = field.difference(poly)
         if routes:
