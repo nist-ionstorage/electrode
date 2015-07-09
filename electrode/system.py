@@ -836,14 +836,19 @@ class System(list):
             for line in it:
                 logger.log(log, line)
 
+    def rf_scale(self, m, q, l, o):
+        return np.sqrt(q/m)/(2*l*o)
+
     def _analyze_static(self, x, axis=(0, 1, 2),
-            m=ct.atomic_mass, q=ct.elementary_charge,
-            l=100e-6, o=2*np.pi*1e6, ions=1):
-        rf_scale = np.sqrt(q/m)/(2*l*o) # rf pseudopotential voltage scale
-        yield "params: f=%.3g MHz, m=%.3g amu, "\
-                 "q=%.3g qe, l=%.3g µm, scale=%.3g" % (
-                o/(2e6*np.pi), m/ct.atomic_mass,
-                q/ct.elementary_charge, l/1e-6, rf_scale)
+                        m=ct.atomic_mass, q=ct.elementary_charge,
+                        l=100e-6, o=2*np.pi*1e6, ions=1):
+        # rf pseudopotential voltage scale
+        rf_scale = self.rf_scale(m, q, l, o)
+        yield "parameters:"
+        yield (" f=%.3g MHz, m=%.3g amu, q=%.3g qe,"
+               " l=%.3g µm, scale=%.3g V'/V_SI"
+               ) % (o/(2e6*np.pi), m/ct.atomic_mass,
+                    q/ct.elementary_charge, l/1e-6, rf_scale)
         yield "corrdinates:"
         yield " analyze point: %s" % (x,)
         yield "               (%s µm)" % (x*l/1e-6,)
