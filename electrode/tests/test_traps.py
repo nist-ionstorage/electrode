@@ -371,7 +371,7 @@ class MagtrapCase(unittest.TestCase):
     def test_analyze_static(self):
         self.s.analyze_static(self.x0, log=logging.DEBUG)
         s = list(self.s.analyze_static(self.x0))
-        self.assertEqual(len(s), 35)
+        self.assertEqual(len(s), 36)
 
 
 class RingtrapCase(unittest.TestCase):
