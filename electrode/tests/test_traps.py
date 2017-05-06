@@ -181,7 +181,9 @@ class FiveWireCase(unittest.TestCase):
     def test_modes(self):
         o0, e0 = self.s.modes([0, 0, 1])
         nptest.assert_almost_equal(o0, [0, .1013, .1013], decimal=3)
-        abc = np.array(transformations.euler_from_matrix(e0))/2/np.pi
+        m0 = np.eye(4, 4)
+        m0[:3, :3] = e0
+        abc = np.array(transformations.euler_from_matrix(m0))/2/np.pi
         nptest.assert_allclose(abc, [0, 0, 0], atol=1, rtol=1e-3)
 
     @unittest.skipIf(system.gni is None, "no gni")
@@ -418,7 +420,9 @@ class RingtrapCase(unittest.TestCase):
     def test_modes(self):
         o0, e0 = self.s.modes([0, 0, 1])
         nptest.assert_almost_equal(o0, [.1114, .1114, .4491], decimal=3)
-        abc = np.array(transformations.euler_from_matrix(e0))/2/np.pi
+        m0 = np.eye(4, 4)
+        m0[:3, :3] = e0
+        abc = np.array(transformations.euler_from_matrix(m0))/2/np.pi
         nptest.assert_allclose(abc, 0, atol=1, rtol=1e-3)
 
     @unittest.skipIf(plt is None, "no matplotlib")

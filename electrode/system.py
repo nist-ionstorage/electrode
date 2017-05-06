@@ -882,14 +882,16 @@ class System(list):
         modes = b[len(b)//2 - 3:len(b)//2, :3].real
         yield " pp+dc normal curvatures: %s" % curves
         yield " motion is bounded: %s" % np.allclose(mu.real, 0)
+        m4 = np.eye(4, 4)
         for nj, fj, mj in (
                 ("pseudopotential", freqs_pp, modes_pp),
                 ("mathieu", freqs, modes)):
             yield " %s modes:" % nj
             for ci, fi, mi in zip("abc", fj, mj.T):
                 yield "  %s: %.4g MHz, %s" % (ci, fi/1e6, mi)
+            m4[:3, :3] = mj
             yield "  euler angles (rzxz): %s deg" % (
-                    np.rad2deg(np.array(euler_from_matrix(mj, "rzxz"))))
+                    np.rad2deg(np.array(euler_from_matrix(m4, "rzxz"))))
         un = 1e-9
         se = un*self.individual_potential(x, 1)[:, 0, :]/l
         yield " heating for %.2g nV²/Hz white uncorrelated on each electrode:" % (
