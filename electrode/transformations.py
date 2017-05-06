@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # transformations.py
 
-# Copyright (c) 2006-2013, Christoph Gohlke
-# Copyright (c) 2006-2013, The Regents of the University of California
+# Copyright (c) 2006-2017, Christoph Gohlke
+# Copyright (c) 2006-2017, The Regents of the University of California
 # Produced at the Laboratory for Fluorescence Dynamics
 # All rights reserved.
 #
@@ -44,13 +44,13 @@ functions to decompose transformation matrices.
 :Organization:
   Laboratory for Fluorescence Dynamics, University of California, Irvine
 
-:Version: 2013.01.18
+:Version: 2017.02.17
 
 Requirements
 ------------
-* `CPython 2.7, 3.2 or 3.3 <http://www.python.org>`_
-* `Numpy 1.7 <http://www.numpy.org>`_
-* `Transformations.c 2013.01.18 <http://www.lfd.uci.edu/~gohlke/>`_
+* `CPython 2.7 or 3.5 <http://www.python.org>`_
+* `Numpy 1.11 <http://www.numpy.org>`_
+* `Transformations.c 2017.02.17 <http://www.lfd.uci.edu/~gohlke/>`_
   (recommended for speedup of some functions)
 
 Notes
@@ -99,6 +99,13 @@ be specified using a 4 character string or encoded 4-tuple:
     by 'z', or 'z' is followed by 'x'. Otherwise odd (1).
   - repetition : first and last axis are same (1) or different (0).
   - frame : rotations are applied to static (0) or rotating (1) frame.
+
+Other Python packages and modules for 3D transformations and quaternions:
+
+* `Transforms3d <https://pypi.python.org/pypi/transforms3d>`_
+   includes most code of this module.
+* `Blender.mathutils <http://www.blender.org/api/blender_python_api>`_
+* `numpy-dtypes <https://github.com/numpy/numpy-dtypes>`_
 
 References
 ----------
@@ -192,9 +199,9 @@ import math
 
 import numpy
 
-__version__ = '2013.01.18'
+__version__ = '2017.02.17'
 __docformat__ = 'restructuredtext en'
-__all__ = []
+__all__ = ()
 
 
 def identity_matrix():
@@ -587,44 +594,44 @@ def projection_from_matrix(matrix, pseudo=False):
 
 
 def clip_matrix(left, right, bottom, top, near, far, perspective=False):
-    """Return matrix to obtain normalized device coordinates from frustrum.
+    """Return matrix to obtain normalized device coordinates from frustum.
 
-    The frustrum bounds are axis-aligned along x (left, right),
+    The frustum bounds are axis-aligned along x (left, right),
     y (bottom, top) and z (near, far).
 
     Normalized device coordinates are in range [-1, 1] if coordinates are
-    inside the frustrum.
+    inside the frustum.
 
-    If perspective is True the frustrum is a truncated pyramid with the
+    If perspective is True the frustum is a truncated pyramid with the
     perspective point at origin and direction along z axis, otherwise an
     orthographic canonical view volume (a box).
 
     Homogeneous coordinates transformed by the perspective clip matrix
     need to be dehomogenized (divided by w coordinate).
 
-    >>> frustrum = numpy.random.rand(6)
-    >>> frustrum[1] += frustrum[0]
-    >>> frustrum[3] += frustrum[2]
-    >>> frustrum[5] += frustrum[4]
-    >>> M = clip_matrix(perspective=False, *frustrum)
-    >>> numpy.dot(M, [frustrum[0], frustrum[2], frustrum[4], 1])
+    >>> frustum = numpy.random.rand(6)
+    >>> frustum[1] += frustum[0]
+    >>> frustum[3] += frustum[2]
+    >>> frustum[5] += frustum[4]
+    >>> M = clip_matrix(perspective=False, *frustum)
+    >>> numpy.dot(M, [frustum[0], frustum[2], frustum[4], 1])
     array([-1., -1., -1.,  1.])
-    >>> numpy.dot(M, [frustrum[1], frustrum[3], frustrum[5], 1])
+    >>> numpy.dot(M, [frustum[1], frustum[3], frustum[5], 1])
     array([ 1.,  1.,  1.,  1.])
-    >>> M = clip_matrix(perspective=True, *frustrum)
-    >>> v = numpy.dot(M, [frustrum[0], frustrum[2], frustrum[4], 1])
+    >>> M = clip_matrix(perspective=True, *frustum)
+    >>> v = numpy.dot(M, [frustum[0], frustum[2], frustum[4], 1])
     >>> v / v[3]
     array([-1., -1., -1.,  1.])
-    >>> v = numpy.dot(M, [frustrum[1], frustrum[3], frustrum[4], 1])
+    >>> v = numpy.dot(M, [frustum[1], frustum[3], frustum[4], 1])
     >>> v / v[3]
     array([ 1.,  1., -1.,  1.])
 
     """
     if left >= right or bottom >= top or near >= far:
-        raise ValueError("invalid frustrum")
+        raise ValueError("invalid frustum")
     if perspective:
         if near <= _EPS:
-            raise ValueError("invalid frustrum: near <= 0")
+            raise ValueError("invalid frustum: near <= 0")
         t = 2.0 * near
         M = [[t/(left-right), 0.0, (right+left)/(right-left), 0.0],
              [0.0, t/(bottom-top), (top+bottom)/(top-bottom), 0.0],
@@ -792,7 +799,7 @@ def decompose_matrix(matrix):
         angles[0] = math.atan2(row[1, 2], row[2, 2])
         angles[2] = math.atan2(row[0, 1], row[0, 0])
     else:
-        #angles[0] = math.atan2(row[1, 0], row[1, 1])
+        # angles[0] = math.atan2(row[1, 0], row[1, 1])
         angles[0] = math.atan2(-row[2, 1], row[1, 1])
         angles[2] = 0.0
 
@@ -886,11 +893,11 @@ def affine_matrix_from_points(v0, v1, shear=True, scale=True, usesvd=True):
     coordinates, where ndims is the dimensionality of the coordinate space.
 
     If shear is False, a similarity transformation matrix is returned.
-    If also scale is False, a rigid/Eucledian transformation matrix
+    If also scale is False, a rigid/Euclidean transformation matrix
     is returned.
 
     By default the algorithm by Hartley and Zissermann [15] is used.
-    If usesvd is True, similarity and Eucledian transformation matrices
+    If usesvd is True, similarity and Euclidean transformation matrices
     are calculated by minimizing the weighted sum of squared deviations
     (RMSD) according to the algorithm by Kabsch [8].
     Otherwise, and if ndims is 3, the quaternion based algorithm by Horn [9]
@@ -996,7 +1003,7 @@ def superimposition_matrix(v0, v1, scale=False, usesvd=True):
     The parameters scale and usesvd are explained in the more general
     affine_matrix_from_points function.
 
-    The returned matrix is a similarity or Eucledian transformation matrix.
+    The returned matrix is a similarity or Euclidean transformation matrix.
     This function has a fast C implementation in transformations.c.
 
     >>> v0 = numpy.random.rand(3, 10)
@@ -1301,6 +1308,13 @@ def quaternion_from_matrix(matrix, isprecise=False):
     >>> q = quaternion_from_matrix(R)
     >>> is_same_transform(R, quaternion_matrix(q))
     True
+    >>> is_same_quaternion(quaternion_from_matrix(R, isprecise=False),
+    ...                    quaternion_from_matrix(R, isprecise=True))
+    True
+    >>> R = euler_matrix(0.0, 0.0, numpy.pi/2.0)
+    >>> is_same_quaternion(quaternion_from_matrix(R, isprecise=False),
+    ...                    quaternion_from_matrix(R, isprecise=True))
+    True
 
     """
     M = numpy.array(matrix, dtype=numpy.float64, copy=False)[:4, :4]
@@ -1313,16 +1327,17 @@ def quaternion_from_matrix(matrix, isprecise=False):
             q[2] = M[0, 2] - M[2, 0]
             q[1] = M[2, 1] - M[1, 2]
         else:
-            i, j, k = 1, 2, 3
+            i, j, k = 0, 1, 2
             if M[1, 1] > M[0, 0]:
-                i, j, k = 2, 3, 1
+                i, j, k = 1, 2, 0
             if M[2, 2] > M[i, i]:
-                i, j, k = 3, 1, 2
+                i, j, k = 2, 0, 1
             t = M[i, i] - (M[j, j] + M[k, k]) + M[3, 3]
             q[i] = t
             q[j] = M[i, j] + M[j, i]
             q[k] = M[k, i] + M[i, k]
             q[3] = M[k, j] - M[j, k]
+            q = q[[3, 0, 1, 2]]
         q *= 0.5 / math.sqrt(t * M[3, 3])
     else:
         m00 = M[0, 0]
@@ -1358,10 +1373,11 @@ def quaternion_multiply(quaternion1, quaternion0):
     """
     w0, x0, y0, z0 = quaternion0
     w1, x1, y1, z1 = quaternion1
-    return numpy.array([-x1*x0 - y1*y0 - z1*z0 + w1*w0,
-                         x1*w0 + y1*z0 - z1*y0 + w1*x0,
-                        -x1*z0 + y1*w0 + z1*x0 + w1*y0,
-                         x1*y0 - y1*x0 + z1*w0 + w1*z0], dtype=numpy.float64)
+    return numpy.array([
+        -x1*x0 - y1*y0 - z1*z0 + w1*w0,
+        x1*w0 + y1*z0 - z1*y0 + w1*x0,
+        -x1*z0 + y1*w0 + z1*x0 + w1*y0,
+        x1*y0 - y1*x0 + z1*w0 + w1*z0], dtype=numpy.float64)
 
 
 def quaternion_conjugate(quaternion):
@@ -1510,7 +1526,7 @@ class Arcball(object):
     >>> ball = Arcball(initial=[1, 0, 0, 0])
     >>> ball.place([320, 320], 320)
     >>> ball.setaxes([1, 1, 0], [-1, 1, 0])
-    >>> ball.setconstrain(True)
+    >>> ball.constrain = True
     >>> ball.down([400, 200])
     >>> ball.drag([200, 400])
     >>> R = ball.matrix()
@@ -1564,13 +1580,15 @@ class Arcball(object):
         else:
             self._axes = [unit_vector(axis) for axis in axes]
 
-    def setconstrain(self, constrain):
-        """Set state of constrain to axis mode."""
-        self._constrain = bool(constrain)
-
-    def getconstrain(self):
+    @property
+    def constrain(self):
         """Return state of constrain to axis mode."""
         return self._constrain
+
+    @constrain.setter
+    def constrain(self, value):
+        """Set state of constrain to axis mode."""
+        self._constrain = bool(value)
 
     def down(self, point):
         """Set initial cursor window coordinates and pick constrain-axis."""
@@ -1668,7 +1686,7 @@ _TUPLE2AXES = dict((v, k) for k, v in _AXES2TUPLE.items())
 
 
 def vector_norm(data, axis=None, out=None):
-    """Return length, i.e. eucledian norm, of ndarray along axis.
+    """Return length, i.e. Euclidean norm, of ndarray along axis.
 
     >>> v = numpy.random.random(3)
     >>> n = vector_norm(v)
@@ -1707,7 +1725,7 @@ def vector_norm(data, axis=None, out=None):
 
 
 def unit_vector(data, axis=None, out=None):
-    """Return ndarray normalized by length, i.e. eucledian norm, along axis.
+    """Return ndarray normalized by length, i.e. Euclidean norm, along axis.
 
     >>> v0 = numpy.random.random(3)
     >>> v1 = unit_vector(v0)
@@ -1865,6 +1883,13 @@ def is_same_transform(matrix0, matrix1):
     return numpy.allclose(matrix0, matrix1)
 
 
+def is_same_quaternion(q0, q1):
+    """Return True if two quaternions are equal."""
+    q0 = numpy.array(q0)
+    q1 = numpy.array(q1)
+    return numpy.allclose(q0, q1) or numpy.allclose(q0, -q1)
+
+
 def _import_module(name, package=None, warn=True, prefix='_py_', ignore='_'):
     """Try import all public attributes from module into global namespace.
 
@@ -1897,10 +1922,11 @@ def _import_module(name, package=None, warn=True, prefix='_py_', ignore='_'):
         return True
 
 
-# _import_module('_transformations', package="electrode")
+_import_module('_transformations')
 
 if __name__ == "__main__":
     import doctest
-    import random  # used in doctests
+    import random  # noqa: used in doctests
     numpy.set_printoptions(suppress=True, precision=5)
     doctest.testmod()
+

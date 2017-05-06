@@ -11,7 +11,7 @@ Refer to the transformations.py module for documentation and tests.
 :Organization:
   Laboratory for Fluorescence Dynamics, University of California, Irvine
 
-:Version: 2013.01.18
+:Version: 2017.02.17
 
 Install
 -------
@@ -27,8 +27,8 @@ Use this Python distutils setup script to build the extension module::
 
 License
 -------
-Copyright (c) 2007-2013, Christoph Gohlke
-Copyright (c) 2007-2013, The Regents of the University of California
+Copyright (c) 2007-2017, Christoph Gohlke
+Copyright (c) 2007-2017, The Regents of the University of California
 Produced at the Laboratory for Fluorescence Dynamics
 All rights reserved.
 
@@ -57,9 +57,10 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 */
 
-#define _VERSION_ "2013.01.18"
+#define _VERSION_ "2017.02.17"
 
 #define WIN32_LEAN_AND_MEAN
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include "Python.h"
 
@@ -212,7 +213,8 @@ int tridiagonalize_symmetric_44(
 
 /*
 Return largest eigenvalue of symmetric tridiagonal matrix.
-Matrix Algorithms: Basic decompositions. By GW Stewart. Chapter 3.
+Matrix Algorithms: Volume II: Eigensystems. By GW Stewart.
+Chapter 3. page 197.
 */
 double max_eigenvalue_of_tridiag_44(
     double *diagonal,    /* double[4] */
@@ -243,12 +245,14 @@ double max_eigenvalue_of_tridiag_44(
     upper = MAX(upper, d);
 
     /* precision */
-    eps = (4.0 * (fabs(lower) + fabs(upper))) * DBL_EPSILON;
+    /* eps = (4.0 * (fabs(lower) + fabs(upper))) * DBL_EPSILON; */
+    eps = 1e-18;
 
     /* interval bisection until width is less than tolerance */
     while (fabs(upper - lower) > eps) {
 
         eigenv = (upper + lower) / 2.0;
+
         if ((eigenv == upper) || (eigenv == lower))
             return eigenv;
 
@@ -776,7 +780,7 @@ PyConverter_DoubleArray(
     PyObject *object,
     PyObject **address)
 {
-    *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_IN_ARRAY);
+    *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
      if (*address == NULL) return NPY_FAIL;
      return NPY_SUCCEED;
 }
@@ -787,12 +791,12 @@ PyConverter_AnyDoubleArray(
     PyObject **address)
 {
     PyArrayObject *obj = (PyArrayObject *)object;
-    if (PyArray_Check(object) && obj->descr->type_num == PyArray_DOUBLE) {
+    if (PyArray_Check(object) && (PyArray_TYPE(obj) == NPY_DOUBLE)) {
         *address = object;
         Py_INCREF(object);
         return NPY_SUCCEED;
     } else {
-        *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_ALIGNED);
+        *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_ARRAY_ALIGNED);
         if (*address == NULL) {
             PyErr_Format(PyExc_ValueError, "can not convert to array");
             return NPY_FAIL;
@@ -809,7 +813,7 @@ PyConverter_DoubleArrayOrNone(
     if ((object == NULL) || (object == Py_None)) {
         *address = NULL;
     } else {
-        *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_IN_ARRAY);
+        *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
         if (*address == NULL) {
             PyErr_Format(PyExc_ValueError, "can not convert to array");
             return NPY_FAIL;
@@ -824,7 +828,7 @@ PyConverter_DoubleMatrix44(
     PyObject **address)
 {
     PyArrayObject *obj;
-    *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_IN_ARRAY);
+    *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
     if (*address == NULL) {
         PyErr_Format(PyExc_ValueError, "can not convert to array");
         return NPY_FAIL;
@@ -847,7 +851,7 @@ PyConverter_DoubleMatrix44Copy(
 {
     PyArrayObject *obj;
     *address = PyArray_FROM_OTF(object, NPY_DOUBLE,
-                                NPY_ENSURECOPY|NPY_IN_ARRAY);
+                                NPY_ARRAY_ENSURECOPY|NPY_ARRAY_IN_ARRAY);
     if (*address == NULL) {
         PyErr_Format(PyExc_ValueError, "can not convert to array");
         return NPY_FAIL;
@@ -869,7 +873,7 @@ PyConverter_DoubleVector3(
     PyObject **address)
 {
     PyArrayObject *obj;
-    *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_IN_ARRAY);
+    *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
     if (*address == NULL) {
         PyErr_Format(PyExc_ValueError, "can not convert to array");
         return NPY_FAIL;
@@ -891,7 +895,7 @@ PyConverter_DoubleVector4(
     PyObject **address)
 {
     PyArrayObject *obj;
-    *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_IN_ARRAY);
+    *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
     if (*address == NULL) {
         PyErr_Format(PyExc_ValueError, "can not convert to array");
         return NPY_FAIL;
@@ -914,7 +918,7 @@ PyConverter_DoubleVector4Copy(
 {
     PyArrayObject *obj;
     *address = PyArray_FROM_OTF(object, NPY_DOUBLE,
-                                NPY_ENSURECOPY|NPY_IN_ARRAY);
+                                NPY_ARRAY_ENSURECOPY|NPY_ARRAY_IN_ARRAY);
     if (*address == NULL) {
         PyErr_Format(PyExc_ValueError, "can not convert to array");
         return NPY_FAIL;
@@ -939,7 +943,7 @@ PyConverter_DoubleVector3OrNone(
         *address = NULL;
     } else {
         PyArrayObject *obj;
-        *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_IN_ARRAY);
+        *address = PyArray_FROM_OTF(object, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY);
         if (*address == NULL) {
             PyErr_Format(PyExc_ValueError, "can not convert to array");
             return NPY_FAIL;
@@ -966,7 +970,7 @@ PyOutputConverter_AnyDoubleArrayOrNone(
         *address = NULL;
         return NPY_SUCCEED;
     }
-    if (PyArray_Check(object) && (obj->descr->type_num == PyArray_DOUBLE)) {
+    if (PyArray_Check(object) && (PyArray_TYPE(obj) == NPY_DOUBLE)) {
         Py_INCREF(object);
         *address = (PyArrayObject *)object;
         return NPY_SUCCEED;
@@ -1464,7 +1468,7 @@ py_projection_matrix(
 Clipping matrix.
 */
 char py_clip_matrix_doc[] =
-    "Return matrix to obtain normalized device coordinates from frustrum.";
+    "Return matrix to obtain normalized device coordinates from frustum.";
 
 static PyObject *
 py_clip_matrix(
@@ -1489,7 +1493,7 @@ py_clip_matrix(
         perspective = PyObject_IsTrue(boolobj);
 
     if ((left >= right) || (bottom >= top) || (hither >= yon)) {
-        PyErr_Format(PyExc_ValueError, "invalid frustrum");
+        PyErr_Format(PyExc_ValueError, "invalid frustum");
         goto _fail;
     }
 
@@ -1504,7 +1508,7 @@ py_clip_matrix(
     if (perspective) {
         double t = 2.0 * hither;
         if (hither < EPSILON) {
-            PyErr_Format(PyExc_ValueError, "invalid frustrum: near <= 0");
+            PyErr_Format(PyExc_ValueError, "invalid frustum: near <= 0");
             goto _fail;
         }
         M[1] = M[3] = M[4] = M[7] = M[8] = M[9] = M[12] = M[13] = M[15] = 0.0;
@@ -2378,7 +2382,7 @@ py_euler_from_matrix(
                 ak = atan2( M[4*j+i], -M[4*k+i]);
             } else {
                 ai = atan2(-M[4*j+k],  M[4*j+j]);
-                ai = atan2( t,         M[4*i+i]);
+                aj = atan2( t,         M[4*i+i]);
             }
         } else {
             x = M[4*i+i];
@@ -2390,7 +2394,7 @@ py_euler_from_matrix(
                 ak = atan2( M[4*j+i],  M[4*i+i]);
             } else {
                 ai = atan2(-M[4*j+k],  M[4*j+j]);
-                ai = atan2(-M[4*k+i],  t);
+                aj = atan2(-M[4*k+i],  t);
             }
         }
         if (parity) {
@@ -3151,7 +3155,7 @@ py_inverse_matrix(
         goto _fail;
 
     matrix = (PyArrayObject *)PyArray_FROM_OTF(object, NPY_DOUBLE,
-                                               NPY_IN_ARRAY);
+                                               NPY_ARRAY_IN_ARRAY);
     if (matrix == NULL) {
         PyErr_Format(PyExc_ValueError, "not an array");
         goto _fail;
@@ -3450,7 +3454,7 @@ py_vector_norm(
 
     } else { /* iterate over elements of specified axis */
         Py_ssize_t dstride, s, size;
-        Py_ssize_t i, j;
+        int i, j;
         int n = PyArray_NDIM(data);
 
         /* calculate shape of output array */
@@ -4092,7 +4096,8 @@ init_transformations(void)
     PyObject *module;
 
     char *doc = (char *)PyMem_Malloc(sizeof(module_doc) + sizeof(_VERSION_));
-    sprintf(doc, module_doc, _VERSION_);
+    PyOS_snprintf(doc, sizeof(module_doc) + sizeof(_VERSION_),
+                  module_doc, _VERSION_);
 
 #if PY_MAJOR_VERSION >= 3
     moduledef.m_doc = doc;
@@ -4126,3 +4131,4 @@ init_transformations(void)
     return module;
 #endif
 }
+
