@@ -533,7 +533,7 @@ def area_centroid(p1):
 
 
 def mathieu(r, *a):
-    """Solve the exteded Mathieu/Floquet equation::
+    """Solve the generalized Mathieu/Floquet equation::
 
         x'' + (a_0 + 2 a_1 cos(2 t) + 2 a_2 cos(4 t) ... ) x = 0
 
