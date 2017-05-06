@@ -17,8 +17,11 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - conda create -q -n test python=$TRAVIS_PYTHON_VERSION cvxopt shapely matplotlib scipy numpy
+  - conda create -q -n test python=$TRAVIS_PYTHON_VERSION cvxopt matplotlib scipy numpy
   - source activate test
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
+      conda install shapely
+    fi
   - pip install -e .
 script:
   - python setup.py test
