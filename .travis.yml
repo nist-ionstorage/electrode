@@ -22,6 +22,9 @@ install:
   - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
       conda install shapely
     fi
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      conda install -c auto python-gdsii
+    fi
   - pip install -e .
 script:
   - python setup.py test
