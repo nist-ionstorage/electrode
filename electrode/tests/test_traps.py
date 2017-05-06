@@ -266,7 +266,8 @@ class MagtrapCase(unittest.TestCase):
                         [cx+w/2,rmax*np.sign(cy)], [cx+w/2,cy],
                     ]]))
         for e in s:
-            e.paths = [p[::o] for p, o in zip(e.paths, e.orientations())]
+            e.paths = [p[::1 if o > 0 else -1]
+                    for p, o in zip(e.paths, e.orientations())]
         return s
 
     def setUp(self):

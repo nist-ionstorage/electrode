@@ -743,7 +743,7 @@ class System(list):
             paths = []
             dcs = []
             rfs = []
-            for j in np.argwhere(good):
+            for j in np.argwhere(good)[:, 0]:
                 el = self[j]
                 paths.extend(el.paths)
                 dcs.append(el.dc)
@@ -879,7 +879,7 @@ class System(list):
         freqs_pp = np.sqrt(q*curves/m)/(2*np.pi*l)
         mu, b = self.mathieu(x, scale=rf_scale, r=4, sorted=True)
         freqs = mu[:3].imag*o/(2*np.pi)
-        modes = b[len(b)/2-3:len(b)/2, :3].real
+        modes = b[len(b)//2 - 3:len(b)//2, :3].real
         yield " pp+dc normal curvatures: %s" % curves
         yield " motion is bounded: %s" % np.allclose(mu.real, 0)
         for nj, fj, mj in (
