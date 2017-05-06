@@ -20,10 +20,10 @@ install:
   - conda create -q -n test python=$TRAVIS_PYTHON_VERSION cvxopt matplotlib scipy numpy cython
   - source activate test
   - if [[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]]; then
-      conda install shapely
+      conda install shapely;
     fi
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      conda install -c auto python-gdsii
+      conda install -c auto python-gdsii;
     fi
   - pip install -e .
 script:
